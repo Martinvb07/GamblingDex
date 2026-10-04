@@ -73,6 +73,7 @@ public class DailyModule extends GameModule {
 
     @Override
     public void enable() {
+        migrateConfig();
         lastClaim.clear();
         streak.clear();
         YamlConfiguration d = loadData();
@@ -173,9 +174,45 @@ public class DailyModule extends GameModule {
     // Recompensas
     // ------------------------------------------------------------------
 
+    /**
+     * daily.yml de la versión anterior (un solo bono diario): le faltan las secciones
+     * nuevas. Bukkit no usa los valores del jar al leer una sección entera, así que
+     * se copian al archivo del servidor (así además se pueden editar).
+     */
+    private void migrateConfig() {
+        var defs = config().getDefaults();
+        if (defs == null)
+            return;
+        boolean changed = false;
+        for (String path : List.of("rewards", "wagering")) {
+            ConfigurationSection have = config().getConfigurationSection(path);
+            if (have != null && !have.getKeys(false).isEmpty())
+                continue;
+            ConfigurationSection def = defs.getConfigurationSection(path);
+            if (def == null)
+                continue;
+            for (String k : def.getKeys(true))
+                if (!def.isConfigurationSection(k))
+                    config().set(path + "." + k, def.get(k));
+            changed = true;
+        }
+        // Claves de la versión anterior que ya no se usan
+        for (String old : List.of("amount", "tiers"))
+            if (config().isSet(old)) {
+                config().set(old, null);
+                changed = true;
+            }
+        if (changed) {
+            saveConfigFile();
+            plugin.getLogger().info("[Bonos] daily.yml actualizado con los bonos diario, semanal y mensual.");
+        }
+    }
+
     private List<Reward> rewards() {
         List<Reward> out = new ArrayList<>();
         ConfigurationSection sec = config().getConfigurationSection("rewards");
+        if (sec == null || sec.getKeys(false).isEmpty())
+            sec = config().getDefaults() == null ? null : config().getDefaults().getConfigurationSection("rewards");
         if (sec == null)
             return out;
         for (String id : sec.getKeys(false)) {
