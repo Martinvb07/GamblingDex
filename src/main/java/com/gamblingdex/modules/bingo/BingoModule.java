@@ -658,4 +658,18 @@ public class BingoModule extends GameModule {
                 e.setCancelled(true);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return isAdmin(player) ? List.of("buy", "start") : List.of("buy");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && (a.equals("buy") || a.equals("comprar")))
+            return List.of("<amount>", "1", "2", "4");
+        return List.of();
+    }
 }

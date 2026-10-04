@@ -292,6 +292,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private void registerCommands() {
         getCommand("gamblingdex").setExecutor(new com.gamblingdex.commands.GamblingDexCommand());
+        getCommand("gamblingdex").setTabCompleter(new com.gamblingdex.commands.GdxTabCompleter());
         // getCommand("gdx") NO se debe registrar aquí, es alias de gamblingdex
     }
 

@@ -93,6 +93,19 @@ public abstract class GameModule {
         return false;
     }
 
+    /**
+     * Autocompletar de /gdx &lt;juego&gt; ... ({@code args} sin el nombre del juego; el último
+     * es lo que se está escribiendo). Puede devolver pistas como "&lt;name&gt;".
+     */
+    public List<String> tabComplete(Player player, String[] args) {
+        return List.of();
+    }
+
+    /** Autocompletar de /gdx station set &lt;tipo&gt; ... ({@code args} sin el tipo). */
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return List.of();
+    }
+
     /** Líneas para /gdx station list. */
     public List<String> stationListLines() {
         return List.of();

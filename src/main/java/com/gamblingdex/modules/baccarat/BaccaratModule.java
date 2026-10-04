@@ -1028,4 +1028,27 @@ public class BaccaratModule extends GameModule {
                 e.setCancelled(true);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (!isAdmin(player))
+            return List.of();
+        if (args.length == 1)
+            return List.of("seat", "list");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("seat") && !a.equals("asiento") && !a.equals("asientos"))
+            return List.of();
+        if (args.length == 2)
+            return List.of("add", "remove", "list", "clear");
+        return args.length == 3 ? tableNames() : List.of();
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return args.length == 1 ? List.of("[name]") : List.of();
+    }
 }

@@ -530,4 +530,20 @@ public class RascaModule extends GameModule {
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return List.of("buy");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("buy") && !a.equals("comprar"))
+            return List.of();
+        if (args.length == 2)
+            return new ArrayList<>(tierIds());
+        return args.length == 3 ? List.of("[amount]", "1", "10", "64") : List.of();
+    }
 }

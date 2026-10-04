@@ -1213,4 +1213,40 @@ public class CarreraModule extends GameModule {
                 e.setCancelled(true);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (!isAdmin(player))
+            return List.of();
+        List<String> names = new ArrayList<>();
+        for (Track t : tracks.values())
+            names.add(t.name);
+        if (args.length == 1)
+            return List.of("create", "remove", "list", "start");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (a.equals("create") || a.equals("crear"))
+            return switch (args.length) {
+                case 2 -> List.of("<name>");
+                case 3 -> List.of("[lanes]", "4", "6", "8");
+                case 4 -> List.of("[length]", "30", "50");
+                default -> List.of();
+            };
+        if (args.length == 2 && List.of("remove", "borrar", "delete", "start", "iniciar").contains(a))
+            return names;
+        return List.of();
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return switch (args.length) {
+            case 1 -> List.of("<distance>", "20", "30", "50");
+            case 2 -> List.of("<lanes>", "4", "6", "8");
+            case 3 -> List.of("[name]");
+            default -> List.of();
+        };
+    }
 }

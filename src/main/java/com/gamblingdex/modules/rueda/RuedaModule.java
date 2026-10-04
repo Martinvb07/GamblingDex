@@ -871,4 +871,31 @@ public class RuedaModule extends GameModule {
                 e.setCancelled(true);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (!isAdmin(player))
+            return List.of();
+        if (args.length == 1)
+            return List.of("create", "remove", "list");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && (a.equals("create") || a.equals("crear")))
+            return List.of("<name>");
+        if (args.length == 2 && List.of("remove", "borrar", "delete").contains(a)) {
+            List<String> names = new ArrayList<>();
+            for (Wheel w : wheels.values())
+                names.add(w.name);
+            return names;
+        }
+        return List.of();
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return args.length == 1 ? List.of("[name]") : List.of();
+    }
 }

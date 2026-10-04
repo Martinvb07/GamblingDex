@@ -534,4 +534,22 @@ public class CoinflipModule extends GameModule {
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return List.of("create", "cancel");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("create") && !a.equals("crear") && !a.equals("c"))
+            return List.of();
+        return switch (args.length) {
+            case 2 -> List.of("<amount>", "100", "1000", "10000");
+            case 3 -> List.of("heads", "tails");
+            default -> List.of();
+        };
+    }
 }

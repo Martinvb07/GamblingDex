@@ -350,8 +350,8 @@ public class GamblingDexCommand implements CommandExecutor {
                 return true;
             }
 
-            if (sub.equals("help")) {
-                sendHelp(player);
+            if (sub.equals("help") || sub.equals("ayuda")) {
+                HelpMenu.send(player, args);
                 return true;
             }
 
@@ -924,83 +924,8 @@ public class GamblingDexCommand implements CommandExecutor {
             }
         }
 
-        sendHelp(player);
+        HelpMenu.send(player, new String[0]);
         return true;
-    }
-
-    private static void sendHelp(Player player) {
-        String version = GamblingDexPlugin.getInstance().getDescription().getVersion();
-        player.sendMessage(applyPlaceholders(cfg("messages.gdx.help.header", "&a&lGamblingDex &7v{version}"),
-                Map.of("version", version)));
-        player.sendMessage(cfg("messages.gdx.help.subheader", "&7Comandos: &f/gdx &7(aliás: &f/gamblingdex&7)"));
-
-        List<String> playerLines = GamblingDexPlugin.getInstance().getMessages() == null
-                ? List.of()
-                : GamblingDexPlugin.getInstance().getMessages().getStringList("gdx.help.player_lines");
-        for (String line : playerLines) {
-            if (line == null)
-                continue;
-            if (line.isBlank())
-                player.sendMessage(" ");
-            else
-                player.sendMessage(line);
-        }
-        sendHelpLines(player, "poker.help.player_lines", List.of(
-                "&6&lPóker (Texas Hold'em)",
-                "&8• &7Jugar: &fpárate en un asiento&7 de la mesa y compra fichas",
-                "&8• &e/gdx poker menu &7- Abrir tu menú (o &fclick derecho&7 al centro de la mesa)",
-                "&8• &7Irte con tus fichas: &fbájate del asiento",
-                "&8• &e/gdx poker join &7- Inscribirte a un torneo (sentado en la mesa)",
-                "&8• &7Tus cartas y fichas salen &fen pantalla&7; nadie más las ve",
-                ""));
-
-        if (player.hasPermission("gamblingdex.admin")) {
-            List<String> adminLines = GamblingDexPlugin.getInstance().getMessages() == null
-                    ? List.of()
-                    : GamblingDexPlugin.getInstance().getMessages().getStringList("gdx.help.admin_lines");
-            for (String line : adminLines) {
-                if (line == null)
-                    continue;
-                if (line.isBlank())
-                    player.sendMessage(" ");
-                else
-                    player.sendMessage(line);
-            }
-            sendHelpLines(player, "poker.help.admin_lines", List.of(
-                    "&6&lAdmin Póker",
-                    "&8• &e/gdx poker create <name> [small] [big] &7- Crear mesa (mirando el centro)",
-                    "&8• &e/gdx poker seat <add|remove|list|clear> <name> &7- Asientos (parado encima, en orden)",
-                    "&8• &e/gdx poker stakes <name> <small> <big> &7- Cambiar ciegas",
-                    "&8• &e/gdx poker remove <name>&7|&elist&7|&erake &7- Gestionar mesas",
-                    "&8• &e/gdx poker tournament <table> <fee> [chips] [minutes] &7- Abrir torneo",
-                    "&8• &e/gdx poker tournament <start|cancel> <table> &7- Arrancar o cancelar",
-                    ""));
-        }
-
-        var moduleManager = GamblingDexPlugin.getInstance().getModuleManager();
-        if (moduleManager != null) {
-            for (String line : moduleManager.helpLines(player.hasPermission("gamblingdex.admin")))
-                player.sendMessage(line.isBlank() ? " " : line);
-        }
-
-        player.sendMessage(cfg("messages.gdx.help.footer",
-                "&7Config: &fconfig.yml &7(general) y &fmodules/<juego>.yml &7(cada juego)"));
-    }
-
-    /** Líneas de ayuda desde messages (si existen) o las de por defecto. */
-    private static void sendHelpLines(Player player, String key, List<String> defaults) {
-        var messages = GamblingDexPlugin.getInstance().getMessages();
-        List<String> lines = messages == null ? List.of() : messages.getStringList(key);
-        if (lines.isEmpty()) {
-            lines = new ArrayList<>();
-            for (String d : defaults)
-                lines.add(GamblingDexPlugin.getInstance().color(d));
-        }
-        for (String line : lines) {
-            if (line == null)
-                continue;
-            player.sendMessage(line.isBlank() ? " " : line);
-        }
     }
 
     private static String formatLong(long n) {
