@@ -2,15 +2,15 @@
 # GamblingDex - Rueda de la Fortuna
 # ======================
 # Rueda física (recomendado):
-#   Coloca un FARO (beacon), míralo y usa: /gdx station set rueda [nombre]
+#   Coloca un FARO (beacon), míralo y usa: /gdx station set wheel [name]
 #   Alrededor del faro se construye una pared de lámparas de redstone con 7
 #   bloques de concreto encima del faro. Al girar, el concreto se desplaza, las
 #   lámparas se encienden en cadena y gana el color que queda ENCIMA DEL FARO.
 #   Arriba sale un holograma con lo que paga cada color.
 #   Quitarla: /gdx station remove (mirando el faro); los bloques vuelven a como estaban.
 #
-# Rueda de solo holograma: /gdx rueda crear <nombre> (mirando un bloque)
-#                          /gdx rueda borrar <nombre> | /gdx rueda lista
+# Rueda de solo holograma: /gdx wheel create <name> (mirando un bloque)
+#                          /gdx wheel remove <name> | /gdx wheel list
 # Jugadores: click derecho al faro (o al bloque) para apostar a un color.
 # Los avisos de la ronda y los ganadores solo les llegan a los que apostaron.
 #
@@ -76,7 +76,7 @@ messages:
   exists: "&cYa existe una rueda con ese nombre o en ese bloque."
   look_block: "&cMira el bloque de la rueda (a 6 bloques o menos)."
   cannot_break: "&cNo puedes romper la rueda. Un admin la quita con &f/gdx station remove&c."
-  usage_admin: "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"
+  usage_admin: "&cUso: /gdx wheel <create|remove|list> [name]"
   usage: "&7Haz &fclick derecho &7al bloque de la rueda para apostar."
   summary: "&6&lRueda &8» &7Ganadores: {players}"
   need_beacon: "&cMira un &ffaro&c (beacon). La rueda se construye alrededor de él."

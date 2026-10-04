@@ -2,8 +2,8 @@
 # GamblingDex - Bingo (75 bolas)
 # ======================
 # /gdx bingo                -> comprar cartones / ver tus cartones
-# /gdx bingo comprar <n>    -> comprar n cartones (durante la venta)
-# Admin: /gdx bingo iniciar -> abrir la venta ahora (sin esperar la hora)
+# /gdx bingo buy <n>    -> comprar n cartones (durante la venta)
+# Admin: /gdx bingo start -> abrir la venta ahora (sin esperar la hora)
 #
 # Premios: LÍNEA (fila, columna o diagonal) y BINGO (cartón lleno).
 # Los números se marcan solos.
@@ -41,5 +41,5 @@ messages:
   you_won_line: "&a&l¡LÍNEA! &7Cobras &e{amount}"
   you_won_bingo: "&6&l¡BINGO! &7Cobras &e{amount}"
   near: "&e¡Te falta 1 número para BINGO!"
-  usage: "&cUso: /gdx bingo [comprar <cantidad>]"
+  usage: "&cUso: /gdx bingo [buy <amount>]"
   already_running: "&cYa hay un bingo en curso."

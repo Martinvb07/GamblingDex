@@ -169,8 +169,8 @@ public class BaccaratModule extends GameModule {
         l.add("&6&lBaccarat");
         l.add("&8• &7Jugar: &fpárate en un asiento&7 de la mesa; el menú de apuestas se abre solo");
         if (admin) {
-            l.add("&8• &e/gdx station set baccarat [nombre] &7- Crear mesa (mirando el bloque de la mesa)");
-            l.add("&8• &e/gdx baccarat asiento <agregar|quitar|lista|limpiar> <mesa> &7- Asientos (parado encima)");
+            l.add("&8• &e/gdx station set baccarat [name] &7- Crear mesa (mirando el bloque de la mesa)");
+            l.add("&8• &e/gdx baccarat seat <add|remove|list|clear> <table> &7- Asientos (parado encima)");
             l.add("&8• &e/gdx station remove &7- Quitar la mesa (mirando el bloque)");
         }
         l.add("");
@@ -193,13 +193,13 @@ public class BaccaratModule extends GameModule {
         player.sendMessage(msg("use_table", "&7Para jugar baccarat, &fpárate en un asiento&7 de la mesa."));
         if (isAdmin(player))
             player.sendMessage(msg("usage_admin",
-                    "&cUso: /gdx baccarat asiento <agregar|quitar|lista|limpiar> <mesa> &7| &c/gdx baccarat lista"));
+                    "&cUso: /gdx baccarat seat <add|remove|list|clear> <table> &7| &c/gdx baccarat list"));
         return true;
     }
 
     private void seatCommand(Player p, String[] args) {
         if (args.length < 3) {
-            p.sendMessage(msg("seat_usage", "&cUso: /gdx baccarat asiento <agregar|quitar|lista|limpiar> <mesa> &7(parado en el asiento)"));
+            p.sendMessage(msg("seat_usage", "&cUso: /gdx baccarat seat <add|remove|list|clear> <table> &7(parado en el asiento)"));
             return;
         }
         Table t = tables.get(args[2].toLowerCase(Locale.ROOT));
@@ -239,7 +239,7 @@ public class BaccaratModule extends GameModule {
                 save();
                 p.sendMessage(msg("seats_cleared", "&aSe quitaron todos los asientos."));
             }
-            default -> p.sendMessage(msg("seat_usage", "&cUso: /gdx baccarat asiento <agregar|quitar|lista|limpiar> <mesa>"));
+            default -> p.sendMessage(msg("seat_usage", "&cUso: /gdx baccarat seat <add|remove|list|clear> <table>"));
         }
     }
 
@@ -261,7 +261,7 @@ public class BaccaratModule extends GameModule {
 
     @Override
     public String stationUsage() {
-        return "baccarat [nombre]";
+        return "baccarat [name]";
     }
 
     @Override
@@ -302,7 +302,7 @@ public class BaccaratModule extends GameModule {
         ensureDealer(t);
         updateHolo(t);
         p.sendMessage(msg("created",
-                "&aMesa de baccarat &f{table}&a creada. Agrega asientos con &f/gdx baccarat asiento agregar {table}&a (parado en cada asiento).",
+                "&aMesa de baccarat &f{table}&a creada. Agrega asientos con &f/gdx baccarat seat add {table}&a (parado en cada asiento).",
                 "table", name));
     }
 
@@ -774,7 +774,7 @@ public class BaccaratModule extends GameModule {
     // Dealer, holograma y pantalla
     // ------------------------------------------------------------------
 
-    /** Título de la mesa: baccarat.yml → table_names.<mesa>, o "BACCARAT". */
+    /** Título de la mesa: baccarat.yml → table_names.<table>, o "BACCARAT". */
     private String title(Table t) {
         ConfigurationSection sec = config().getConfigurationSection("table_names");
         if (sec != null)
@@ -1027,5 +1027,28 @@ public class BaccaratModule extends GameModule {
             if (e.getInventory().getHolder() instanceof MenuHolder)
                 e.setCancelled(true);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (!isAdmin(player))
+            return List.of();
+        if (args.length == 1)
+            return List.of("seat", "list");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("seat") && !a.equals("asiento") && !a.equals("asientos"))
+            return List.of();
+        if (args.length == 2)
+            return List.of("add", "remove", "list", "clear");
+        return args.length == 3 ? tableNames() : List.of();
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return args.length == 1 ? List.of("[name]") : List.of();
     }
 }

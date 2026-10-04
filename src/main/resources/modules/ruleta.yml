@@ -1,7 +1,7 @@
 # ======================
 # GamblingDex - Ruleta física (americana, con 0 y 00)
 # ======================
-# Admin: /gdx roulette build [radio] [yOffset] (mirando el bloque centro)
+# Admin: /gdx roulette build [radius] [yOffset] (mirando el bloque centro)
 #        /gdx roulette remove | /gdx roulette list
 # Jugadores: click derecho al centro -> menú: eliges la apuesta, el monto y listo.
 #            También: fichas en la mano + click derecho al centro (shift = todo el stack).
@@ -34,8 +34,8 @@ jackpot:
   chance_percent: 15         # probabilidad de que una ronda sea de jackpot
   min_pot: 1000              # solo hay rondas de jackpot si el pozo tiene al menos esto
   seed: 0                    # con cuánto vuelve a empezar el pozo después de ganarse
-  announce_radius: 20        # avisar la ronda de jackpot a los que estén cerca (0 = no)
-  broadcast_win: true        # anunciar a todo el servidor cuando alguien se lo gana
+  announce_radius: 20        # el aviso de "ronda de jackpot" solo les llega a los que estén a esta distancia
+  broadcast_win: true        # cuando alguien se lo gana se anuncia a TODO el servidor (false = solo a los de cerca)
 holo_height: 2.3
 holo_lines:
   - "&6&lRULETA"

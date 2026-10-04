@@ -1,8 +1,8 @@
 # ======================
 # GamblingDex - Rasca y Gana
 # ======================
-# /gdx rasca                       -> tienda de boletos
-# /gdx rasca comprar <tipo> [cant] -> comprar directo
+# /gdx scratch                       -> tienda de boletos
+# /gdx scratch buy <tier> [amount] -> comprar directo
 # Click derecho con el boleto en la mano para rascarlo.
 #
 # Se gana con 3 símbolos iguales. El premio = precio del boleto x multiplicador.
@@ -58,4 +58,4 @@ messages:
   win: "&a&l¡PREMIO! &f3x {symbol} &7→ &e+{amount} &7fichas"
   lose: "&7Sin premio esta vez. ¡Suerte para la próxima!"
   big_win_broadcast: "&6&lRasca y Gana &8» &f{player} &7ganó &e{amount} &7con 3x {symbol}&7!"
-  usage: "&cUso: /gdx rasca [comprar <tipo> [cantidad]]"
+  usage: "&cUso: /gdx scratch [buy <tier> [amount]]"

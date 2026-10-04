@@ -2,15 +2,15 @@
 # GamblingDex - Carrera de caballos
 # ======================
 # Pista automática (recomendado):
-#   Mira un bloque y usa: /gdx station set carrera <distancia> <carriles> [nombre]
+#   Mira un bloque y usa: /gdx station set race <distance> <lanes> [name]
 #   Ese bloque queda como MESA de apuestas y detrás se construye la pista en la
 #   dirección en que miras: vallas entre carriles, puertas de salida y meta.
 #   Necesita terreno plano y despejado. Quitarla: /gdx station remove (mirando la mesa);
 #   los bloques vuelven a como estaban.
 #
 # Pista manual: párate en la salida del carril 1, MIRANDO HACIA LA META, y usa:
-#   /gdx carrera crear <nombre> [carriles] [largo]
-#   /gdx carrera borrar <nombre> | /gdx carrera lista | /gdx carrera iniciar <nombre>
+#   /gdx race create <name> [lanes] [length]
+#   /gdx race remove <name> | /gdx race list | /gdx race start <name>
 # Jugadores: click derecho a la mesa de la pista para apostar.
 # Los mensajes de la carrera solo les llegan a los que apostaron.
 #
@@ -34,7 +34,7 @@ bet_window_seconds: 40    # cuenta regresiva desde la primera apuesta
 result_seconds: 10
 race_speed: 1.0           # 1.0 = ~15 s para 30 bloques
 
-# Pista automática (/gdx station set carrera). default_lanes/default_length de arriba
+# Pista automática (/gdx station set race). default_lanes/default_length de arriba
 # se usan si no indicas carriles/distancia.
 station:
   fence_material: OAK_FENCE
@@ -63,8 +63,8 @@ messages:
   not_found: "&cNo existe esa pista. Pistas: &f{tracks}"
   no_tracks: "&cNo hay pistas de carreras todavía."
   exists: "&cYa existe una pista con ese nombre."
-  usage_admin: "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"
-  station_usage: "&cUso: /gdx station set carrera <distancia> <carriles> [nombre]"
+  usage_admin: "&cUso: /gdx race <create|remove|list|start> [name] [lanes] [length]"
+  station_usage: "&cUso: /gdx station set race <distance> <lanes> [name]"
   station_created: "&aPista &f{track}&a construida: &f{lanes}&a carriles de &f{length}&a bloques. &7Click derecho a la mesa para apostar."
   station_removed: "&aPista &f{track}&a eliminada: se devolvieron las apuestas y se restauraron los bloques."
   station_exists: "&eEse bloque ya es la mesa de la pista &f{track}&e."

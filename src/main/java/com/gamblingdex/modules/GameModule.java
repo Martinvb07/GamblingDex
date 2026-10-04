@@ -79,7 +79,7 @@ public abstract class GameModule {
         return List.of();
     }
 
-    /** Uso que se muestra en la ayuda de /gdx station set (ej. "carrera <distancia> <carriles>"). */
+    /** Uso que se muestra en la ayuda de /gdx station set (ej. "race <distance> <lanes>"). */
     public String stationUsage() {
         return stationTypes().isEmpty() ? "" : stationTypes().get(0);
     }
@@ -91,6 +91,19 @@ public abstract class GameModule {
     /** /gdx station remove mirando {@code target}: true si era una estación de este juego. */
     public boolean removeStation(Player player, Block target) {
         return false;
+    }
+
+    /**
+     * Autocompletar de /gdx &lt;juego&gt; ... ({@code args} sin el nombre del juego; el último
+     * es lo que se está escribiendo). Puede devolver pistas como "&lt;name&gt;".
+     */
+    public List<String> tabComplete(Player player, String[] args) {
+        return List.of();
+    }
+
+    /** Autocompletar de /gdx station set &lt;tipo&gt; ... ({@code args} sin el tipo). */
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return List.of();
     }
 
     /** Líneas para /gdx station list. */

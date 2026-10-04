@@ -599,4 +599,17 @@ public class PlinkoModule extends GameModule {
             updateDisplays(b);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        if (args.length != 1)
+            return List.of();
+        List<String> out = new ArrayList<>(List.of("[rows]"));
+        out.addAll(validRows());
+        return out;
+    }
 }

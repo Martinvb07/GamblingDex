@@ -2,10 +2,10 @@
 # GamblingDex - Baccarat (Punto Banco)
 # ======================
 # Montaje (admin), igual que el blackjack:
-#   1) Mira el bloque de la mesa: /gdx station set baccarat [nombre]
+#   1) Mira el bloque de la mesa: /gdx station set baccarat [name]
 #      Aparece el dealer detrás de la mesa (a la altura de ese bloque), mirando hacia ti.
-#   2) Párate en cada asiento y usa: /gdx baccarat asiento agregar <mesa>
-#      (también: quitar | lista | limpiar)
+#   2) Párate en cada asiento y usa: /gdx baccarat seat add <table>
+#      (también: remove | list | clear)
 #   Quitar la mesa: /gdx station remove (mirando el bloque de la mesa)
 # Jugadores: se paran en un asiento y el menú de apuestas se abre solo.
 #   Jugador paga 1 a 1 · Banca paga 0.95 a 1 · Empate paga 8 a 1
@@ -60,12 +60,12 @@ messages:
   bad_amount: "&cLa apuesta debe estar entre &e{min}&c y &e{max}&c."
   left_refund: "&7Te levantaste: se te devolvieron &e{amount}&7."
   refunded: "&7La mano de baccarat se canceló. Se te devolvieron &e{amount}&7."
-  created: "&aMesa de baccarat &f{table}&a creada. Agrega asientos con &f/gdx baccarat asiento agregar {table}&a (parado en cada asiento)."
+  created: "&aMesa de baccarat &f{table}&a creada. Agrega asientos con &f/gdx baccarat seat add {table}&a (parado en cada asiento)."
   removed: "&aMesa de baccarat eliminada (se devolvieron las apuestas)."
   exists: "&cEse bloque ya es una mesa de baccarat."
   name_taken: "&cYa existe una mesa con ese nombre."
   not_found: "&cNo existe esa mesa. Mesas: &f{tables}"
-  seat_usage: "&cUso: /gdx baccarat asiento <agregar|quitar|lista|limpiar> <mesa> &7(parado en el asiento)"
+  seat_usage: "&cUso: /gdx baccarat seat <add|remove|list|clear> <table> &7(parado en el asiento)"
   seat_added: "&aAsiento &f#{n}&a agregado a &f{table}&a."
   seat_removed: "&aAsiento quitado."
   seat_missing: "&cNo estás parado sobre un asiento de esa mesa."

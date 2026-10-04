@@ -130,7 +130,7 @@ public class RascaModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         return List.of(
                 "&6&lRasca y Gana",
-                "&8• &e/gdx rasca &7- Comprar boletos",
+                "&8• &e/gdx scratch &7- Comprar boletos",
                 "&8• &7Rascar: &fclick derecho&7 con el boleto en la mano",
                 "");
     }
@@ -143,7 +143,7 @@ public class RascaModule extends GameModule {
         }
         if (args[0].equalsIgnoreCase("comprar") || args[0].equalsIgnoreCase("buy")) {
             if (args.length < 2) {
-                player.sendMessage(msg("usage", "&cUso: /gdx rasca [comprar <tipo> [cantidad]]"));
+                player.sendMessage(msg("usage", "&cUso: /gdx scratch [buy <tier> [amount]]"));
                 return true;
             }
             int qty = 1;
@@ -156,7 +156,7 @@ public class RascaModule extends GameModule {
             buy(player, args[1].toLowerCase(Locale.ROOT), qty);
             return true;
         }
-        player.sendMessage(msg("usage", "&cUso: /gdx rasca [comprar <tipo> [cantidad]]"));
+        player.sendMessage(msg("usage", "&cUso: /gdx scratch [buy <tier> [amount]]"));
         return true;
     }
 
@@ -529,5 +529,21 @@ public class RascaModule extends GameModule {
                 settle(s);
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return List.of("buy");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("buy") && !a.equals("comprar"))
+            return List.of();
+        if (args.length == 2)
+            return new ArrayList<>(tierIds());
+        return args.length == 3 ? List.of("[amount]", "1", "10", "64") : List.of();
     }
 }

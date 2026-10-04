@@ -41,7 +41,7 @@ import java.util.*;
  * apuestan a un segmento (x1, x2, x5...), la rueda gira y frena, y paga a
  * quienes acertaron. Cada rueda funciona por separado.
  *
- * Rueda física: /gdx station set rueda mirando un faro. Alrededor del faro se
+ * Rueda física: /gdx station set wheel mirando un faro. Alrededor del faro se
  * construye una pared de lámparas de redstone con una fila de 7 bloques de
  * concreto encima del faro; al girar el concreto se desplaza, las lámparas se
  * encienden en cadena y gana el color que queda encima del faro.
@@ -77,7 +77,7 @@ public class RuedaModule extends GameModule {
         int nextStepIn;
         UUID displayId;
         Segment last;
-        /** Rueda física construida con /gdx station set rueda. */
+        /** Rueda física construida con /gdx station set wheel. */
         boolean physical;
         int rx, rz; // derecha vista de frente
         final Map<String, String> built = new LinkedHashMap<>();
@@ -173,9 +173,9 @@ public class RuedaModule extends GameModule {
                 "&6&lRueda de la Fortuna",
                 "&8• &7Apostar: &fclick derecho&7 al faro o al bloque de la rueda"));
         if (admin) {
-            l.add("&8• &e/gdx station set rueda &7- Construir la rueda física (mirando un faro)");
+            l.add("&8• &e/gdx station set wheel &7- Construir la rueda física (mirando un faro)");
             l.add("&8• &e/gdx station remove &7- Quitarla (mirando el faro; restaura los bloques)");
-            l.add("&8• &e/gdx rueda crear <nombre>&7|&eborrar <nombre>&7|&elista &7- Ruedas de solo holograma");
+            l.add("&8• &e/gdx wheel create <name>&7|&eremove <name>&7|&elist &7- Ruedas de solo holograma");
         }
         l.add("");
         return l;
@@ -186,13 +186,13 @@ public class RuedaModule extends GameModule {
         if (!isAdmin(player) || args.length == 0) {
             player.sendMessage(msg("usage", "&7Haz &fclick derecho &7al bloque de la rueda para apostar."));
             if (isAdmin(player))
-                player.sendMessage(msg("usage_admin", "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"));
+                player.sendMessage(msg("usage_admin", "&cUso: /gdx wheel <create|remove|list> [name]"));
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "crear", "create" -> {
                 if (args.length < 2) {
-                    player.sendMessage(msg("usage_admin", "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"));
+                    player.sendMessage(msg("usage_admin", "&cUso: /gdx wheel <create|remove|list> [name]"));
                     return true;
                 }
                 Block b = player.getTargetBlockExact(6);
@@ -225,7 +225,7 @@ public class RuedaModule extends GameModule {
                 for (Wheel w : wheels.values())
                     player.sendMessage(color("&8- &f" + w.name + " &7" + BlackjackTables.key(w.loc)));
             }
-            default -> player.sendMessage(msg("usage_admin", "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"));
+            default -> player.sendMessage(msg("usage_admin", "&cUso: /gdx wheel <create|remove|list> [name]"));
         }
         return true;
     }
@@ -472,17 +472,17 @@ public class RuedaModule extends GameModule {
     }
 
     // ------------------------------------------------------------------
-    // Rueda física (/gdx station set rueda, mirando un faro)
+    // Rueda física (/gdx station set wheel, mirando un faro)
     // ------------------------------------------------------------------
 
     @Override
     public List<String> stationTypes() {
-        return List.of("rueda", "wheel", "ruedafortuna");
+        return List.of("wheel", "rueda", "ruedafortuna");
     }
 
     @Override
     public String stationUsage() {
-        return "rueda (mirando un faro)";
+        return "wheel (mirando un faro)";
     }
 
     @Override
@@ -870,5 +870,32 @@ public class RuedaModule extends GameModule {
             if (e.getInventory().getHolder() instanceof BetHolder)
                 e.setCancelled(true);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (!isAdmin(player))
+            return List.of();
+        if (args.length == 1)
+            return List.of("create", "remove", "list");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && (a.equals("create") || a.equals("crear")))
+            return List.of("<name>");
+        if (args.length == 2 && List.of("remove", "borrar", "delete").contains(a)) {
+            List<String> names = new ArrayList<>();
+            for (Wheel w : wheels.values())
+                names.add(w.name);
+            return names;
+        }
+        return List.of();
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return args.length == 1 ? List.of("[name]") : List.of();
     }
 }

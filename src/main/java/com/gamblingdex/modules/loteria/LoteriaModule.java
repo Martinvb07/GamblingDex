@@ -95,10 +95,10 @@ public class LoteriaModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lLotería",
-                "&8• &e/gdx loteria &7- Ver pozo y comprar boletos",
-                "&8• &e/gdx loteria comprar <cantidad> &7- Comprar boletos"));
+                "&8• &e/gdx lottery &7- Ver pozo y comprar boletos",
+                "&8• &e/gdx lottery buy <amount> &7- Comprar boletos"));
         if (admin)
-            l.add("&8• &e/gdx loteria sortear &7- Sortear ahora");
+            l.add("&8• &e/gdx lottery draw &7- Sortear ahora");
         l.add("");
         return l;
     }
@@ -125,7 +125,7 @@ public class LoteriaModule extends GameModule {
                     return true;
                 draw();
             }
-            default -> player.sendMessage(msg("usage", "&cUso: /gdx loteria [comprar <cantidad>]"));
+            default -> player.sendMessage(msg("usage", "&cUso: /gdx lottery [buy <amount>]"));
         }
         return true;
     }
@@ -471,5 +471,19 @@ public class LoteriaModule extends GameModule {
             if (e.getInventory().getHolder() instanceof MenuHolder)
                 e.setCancelled(true);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return isAdmin(player) ? List.of("buy", "draw") : List.of("buy");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && (a.equals("buy") || a.equals("comprar")))
+            return List.of("<amount>", "1", "10", "100");
+        return List.of();
     }
 }

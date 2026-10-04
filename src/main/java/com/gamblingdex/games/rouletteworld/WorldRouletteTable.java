@@ -921,7 +921,14 @@ public class WorldRouletteTable {
             if (plugin.getConfig().getBoolean("roulette_world.jackpot.broadcast_win", true)) {
                 Bukkit.broadcastMessage(text);
             } else {
-                for (UUID id : participants) {
+                // Solo a los que están cerca de la ruleta y a los que apostaron
+                Set<UUID> to = new HashSet<>(participants);
+                double r = plugin.getConfig().getDouble("roulette_world.jackpot.announce_radius", 20.0);
+                World cw = center.getWorld();
+                if (cw != null && r > 0)
+                    for (Player p : cw.getNearbyPlayers(center, r))
+                        to.add(p.getUniqueId());
+                for (UUID id : to) {
                     Player p = Bukkit.getPlayer(id);
                     if (p != null)
                         p.sendMessage(text);

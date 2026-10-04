@@ -1,9 +1,9 @@
 # ======================
 # GamblingDex - Blackjack físico
 # ======================
-# Admin: /gdx blackjack create <nombre> (mirando el bloque de la mesa)
-#        /gdx blackjack seat add <nombre> (parado en cada asiento)
-#        /gdx blackjack remove <nombre> | /gdx blackjack list
+# Admin: /gdx blackjack create <name> (mirando el bloque de la mesa)
+#        /gdx blackjack seat add <name> (parado en cada asiento)
+#        /gdx blackjack remove <name> | /gdx blackjack list
 # Jugadores: se paran en un asiento; los menús se abren solos.
 #
 # Recarga en caliente: /gdx reload
@@ -75,7 +75,7 @@ holo_height: 2.3
 
 # Nombre que se muestra en cada mesa (holograma y dealer). Escríbelo aquí en vez
 # de por el chat: acepta colores &a &l..., hexadecimales &#FF8800, símbolos y espacios.
-# La clave es el nombre con el que creaste la mesa (/gdx blackjack create <nombre>).
+# La clave es el nombre con el que creaste la mesa (/gdx blackjack create <name>).
 # Después de editar: /gdx reload
 table_names:
   # Mesa1: "&6&l✦ &#FFD700&lBLACKJACK VIP &6&l✦"

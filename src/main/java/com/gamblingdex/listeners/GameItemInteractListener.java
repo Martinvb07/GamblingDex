@@ -43,7 +43,7 @@ public class GameItemInteractListener implements Listener {
                         "&7Esta ruleta se juega en una mesa física."));
                 if (player.hasPermission("gamblingdex.admin")) {
                     player.sendMessage(plugin.getMessages().getString("items.roulette.admin_hint",
-                            "&8- &f/gdx roulette build [radio]&7 para construir una."));
+                            "&8- &f/gdx roulette build [radius]&7 para construir una."));
                 }
                 player.sendMessage(plugin.getMessages().getString("items.roulette.line2",
                         "&8- &7Luego haz &fclick&7 al centro/números con tokens para apostar."));

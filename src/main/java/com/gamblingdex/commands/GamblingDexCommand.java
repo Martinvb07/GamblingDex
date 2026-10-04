@@ -245,7 +245,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
-                // /gdx top [semana] [n] — ganancia neta en TODOS los juegos.
+                // /gdx top [week] [n] — ganancia neta en TODOS los juegos.
                 int limit = 10;
                 boolean week = false;
                 for (int ai = 1; ai < args.length; ai++) {
@@ -317,8 +317,8 @@ public class GamblingDexCommand implements CommandExecutor {
                 }
 
                 // Usage:
-                // /gdx token <cantidad> -> yellow (1)
-                // /gdx token <color|valor> <cantidad> -> chosen denom
+                // /gdx token <amount> -> yellow (1)
+                // /gdx token <color|valor> <amount> -> chosen denom
                 int amount = 1;
                 org.bukkit.Material denomMat = org.bukkit.Material.YELLOW_DYE;
 
@@ -350,8 +350,8 @@ public class GamblingDexCommand implements CommandExecutor {
                 return true;
             }
 
-            if (sub.equals("help")) {
-                sendHelp(player);
+            if (sub.equals("help") || sub.equals("ayuda")) {
+                HelpMenu.send(player, args);
                 return true;
             }
 
@@ -363,7 +363,7 @@ public class GamblingDexCommand implements CommandExecutor {
 
                 if (args.length < 2) {
                     player.sendMessage(
-                            cfg("messages.admin.item.usage", "&cUso: /gdx item <roulette|slots> [cantidad]"));
+                            cfg("messages.admin.item.usage", "&cUso: /gdx item <roulette|slots> [amount]"));
                     return true;
                 }
 
@@ -419,7 +419,7 @@ public class GamblingDexCommand implements CommandExecutor {
                                 cfg("messages.admin.station.set.usage", "&cUso: /gdx station set <slots|exchange>"));
                         sendModuleStationTypes(player);
                         player.sendMessage(cfg("messages.admin.station.set.roulette_tip",
-                                "&7(Para ruleta física usa: &f/gdx roulette build [radio] [yOffset]&7)"));
+                                "&7(Para ruleta física usa: &f/gdx roulette build [radius] [yOffset]&7)"));
                         return true;
                     }
 
@@ -454,7 +454,7 @@ public class GamblingDexCommand implements CommandExecutor {
 
                     if (type == GameItemType.ROULETTE) {
                         player.sendMessage(cfg("messages.admin.station.set.roulette_is_physical",
-                                "&cLa ruleta ahora es una mesa física. Usa: &f/gdx roulette build [radio] [yOffset]"));
+                                "&cLa ruleta ahora es una mesa física. Usa: &f/gdx roulette build [radius] [yOffset]"));
                         return true;
                     }
 
@@ -612,7 +612,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 3) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.create_usage",
-                                "&cUso: /gdx blackjack create <nombre>"));
+                                "&cUso: /gdx blackjack create <name>"));
                         return true;
                     }
 
@@ -652,7 +652,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 3) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.remove_usage",
-                                "&cUso: /gdx blackjack remove <nombre>"));
+                                "&cUso: /gdx blackjack remove <name>"));
                         return true;
                     }
 
@@ -704,7 +704,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 4) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.displayname_usage",
-                                "&cUso: /gdx blackjack displayname <mesa> <nombre...>"));
+                                "&cUso: /gdx blackjack displayname <table> <name...>"));
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.displayname_example",
                                 "&7Ej: &f/gdx blackjack displayname Mesa1 &6&lBlackjack &8| &eVIP"));
@@ -752,7 +752,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 4) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.seat_usage",
-                                "&cUso: /gdx blackjack seat <add|remove|list|clear> <nombre>"));
+                                "&cUso: /gdx blackjack seat <add|remove|list|clear> <name>"));
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.seat_example",
                                 "&7Ej: &f/gdx blackjack seat add Mesa1&7 (parado en el asiento)"));
@@ -924,83 +924,8 @@ public class GamblingDexCommand implements CommandExecutor {
             }
         }
 
-        sendHelp(player);
+        HelpMenu.send(player, new String[0]);
         return true;
-    }
-
-    private static void sendHelp(Player player) {
-        String version = GamblingDexPlugin.getInstance().getDescription().getVersion();
-        player.sendMessage(applyPlaceholders(cfg("messages.gdx.help.header", "&a&lGamblingDex &7v{version}"),
-                Map.of("version", version)));
-        player.sendMessage(cfg("messages.gdx.help.subheader", "&7Comandos: &f/gdx &7(aliás: &f/gamblingdex&7)"));
-
-        List<String> playerLines = GamblingDexPlugin.getInstance().getMessages() == null
-                ? List.of()
-                : GamblingDexPlugin.getInstance().getMessages().getStringList("gdx.help.player_lines");
-        for (String line : playerLines) {
-            if (line == null)
-                continue;
-            if (line.isBlank())
-                player.sendMessage(" ");
-            else
-                player.sendMessage(line);
-        }
-        sendHelpLines(player, "poker.help.player_lines", List.of(
-                "&6&lPóker (Texas Hold'em)",
-                "&8• &7Jugar: &fpárate en un asiento&7 de la mesa y compra fichas",
-                "&8• &e/gdx poker menu &7- Abrir tu menú (o &fclick derecho&7 al centro de la mesa)",
-                "&8• &7Irte con tus fichas: &fbájate del asiento",
-                "&8• &e/gdx poker inscribirme &7- Inscribirte a un torneo (sentado en la mesa)",
-                "&8• &7Tus cartas y fichas salen &fen pantalla&7; nadie más las ve",
-                ""));
-
-        if (player.hasPermission("gamblingdex.admin")) {
-            List<String> adminLines = GamblingDexPlugin.getInstance().getMessages() == null
-                    ? List.of()
-                    : GamblingDexPlugin.getInstance().getMessages().getStringList("gdx.help.admin_lines");
-            for (String line : adminLines) {
-                if (line == null)
-                    continue;
-                if (line.isBlank())
-                    player.sendMessage(" ");
-                else
-                    player.sendMessage(line);
-            }
-            sendHelpLines(player, "poker.help.admin_lines", List.of(
-                    "&6&lAdmin Póker",
-                    "&8• &e/gdx poker create <nombre> [chica] [grande] &7- Crear mesa (mirando el centro)",
-                    "&8• &e/gdx poker seat <add|remove|list|clear> <nombre> &7- Asientos (parado encima, en orden)",
-                    "&8• &e/gdx poker stakes <nombre> <chica> <grande> &7- Cambiar ciegas",
-                    "&8• &e/gdx poker remove <nombre>&7|&elist&7|&erake &7- Gestionar mesas",
-                    "&8• &e/gdx poker torneo <mesa> <inscripción> [fichas] [minutos] &7- Abrir torneo",
-                    "&8• &e/gdx poker torneo <empezar|cancelar> <mesa> &7- Arrancar o cancelar",
-                    ""));
-        }
-
-        var moduleManager = GamblingDexPlugin.getInstance().getModuleManager();
-        if (moduleManager != null) {
-            for (String line : moduleManager.helpLines(player.hasPermission("gamblingdex.admin")))
-                player.sendMessage(line.isBlank() ? " " : line);
-        }
-
-        player.sendMessage(cfg("messages.gdx.help.footer",
-                "&7Config: &fconfig.yml &7(general) y &fmodules/<juego>.yml &7(cada juego)"));
-    }
-
-    /** Líneas de ayuda desde messages (si existen) o las de por defecto. */
-    private static void sendHelpLines(Player player, String key, List<String> defaults) {
-        var messages = GamblingDexPlugin.getInstance().getMessages();
-        List<String> lines = messages == null ? List.of() : messages.getStringList(key);
-        if (lines.isEmpty()) {
-            lines = new ArrayList<>();
-            for (String d : defaults)
-                lines.add(GamblingDexPlugin.getInstance().color(d));
-        }
-        for (String line : lines) {
-            if (line == null)
-                continue;
-            player.sendMessage(line.isBlank() ? " " : line);
-        }
     }
 
     private static String formatLong(long n) {
@@ -1049,7 +974,7 @@ public class GamblingDexCommand implements CommandExecutor {
             return true;
         }
 
-        if (action.equals("inscribirme") || action.equals("register")) {
+        if (action.equals("join") || action.equals("inscribirme") || action.equals("register")) {
             var t = pm.getTableOf(player.getUniqueId());
             if (t == null) {
                 player.sendMessage(pk("not_seated", "&cNo estás sentado en una mesa de póker."));
@@ -1065,14 +990,14 @@ public class GamblingDexCommand implements CommandExecutor {
                     "&6Póker &8» &7Párate en un asiento de la mesa para jugar. &f/gdx poker menu &7abre tu menú."));
             if (admin) {
                 player.sendMessage(pk("help_admin_1",
-                        "&e/gdx poker create <nombre> [ciega chica] [ciega grande] &7(mirando el bloque centro)"));
+                        "&e/gdx poker create <name> [small blind] [big blind] &7(mirando el bloque centro)"));
                 player.sendMessage(pk("help_admin_2",
-                        "&e/gdx poker seat <add|remove|list|clear> <nombre> &7(parado sobre el asiento)"));
+                        "&e/gdx poker seat <add|remove|list|clear> <name> &7(parado sobre el asiento)"));
                 player.sendMessage(pk("help_admin_3",
-                        "&e/gdx poker stakes <nombre> <chica> <grande> &8| &e/gdx poker remove <nombre>"));
+                        "&e/gdx poker stakes <name> <small> <big> &8| &e/gdx poker remove <name>"));
                 player.sendMessage(pk("help_admin_4", "&e/gdx poker list &8| &e/gdx poker rake"));
                 player.sendMessage(pk("help_admin_5",
-                        "&e/gdx poker torneo <mesa> <inscripción> [fichas] [minutos] &8| &e/gdx poker torneo <empezar|cancelar> <mesa>"));
+                        "&e/gdx poker tournament <table> <fee> [chips] [minutes] &8| &e/gdx poker tournament <start|cancel> <table>"));
             }
             return true;
         }
@@ -1081,7 +1006,7 @@ public class GamblingDexCommand implements CommandExecutor {
             case "create", "add", "set" -> {
                 if (args.length < 3) {
                     player.sendMessage(pk("create_usage",
-                            "&cUso: /gdx poker create <nombre> [ciega chica] [ciega grande]"));
+                            "&cUso: /gdx poker create <name> [small blind] [big blind]"));
                     return true;
                 }
                 Block target = player.getTargetBlockExact(6);
@@ -1109,7 +1034,7 @@ public class GamblingDexCommand implements CommandExecutor {
             }
             case "remove", "del", "delete" -> {
                 if (args.length < 3) {
-                    player.sendMessage(pk("remove_usage", "&cUso: /gdx poker remove <nombre>"));
+                    player.sendMessage(pk("remove_usage", "&cUso: /gdx poker remove <name>"));
                     return true;
                 }
                 player.sendMessage(pm.removeTable(args[2])
@@ -1130,7 +1055,7 @@ public class GamblingDexCommand implements CommandExecutor {
             case "stakes", "blinds", "ciegas" -> {
                 if (args.length < 5) {
                     player.sendMessage(pk("stakes_usage",
-                            "&cUso: /gdx poker stakes <nombre> <ciega chica> <ciega grande>"));
+                            "&cUso: /gdx poker stakes <name> <small blind> <big blind>"));
                     return true;
                 }
                 String err = pm.setStakes(args[2], parseUnits(args[3]), parseUnits(args[4]));
@@ -1142,7 +1067,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     "amount", String.valueOf(pm.getRakeTotal())));
             case "seat", "seats" -> {
                 if (args.length < 4) {
-                    player.sendMessage(pk("seat_usage", "&cUso: /gdx poker seat <add|remove|list|clear> <nombre>"));
+                    player.sendMessage(pk("seat_usage", "&cUso: /gdx poker seat <add|remove|list|clear> <name>"));
                     player.sendMessage(pk("seat_tip", "&7Párate sobre el bloque del asiento. Agrégalos en orden horario."));
                     return true;
                 }
@@ -1181,7 +1106,7 @@ public class GamblingDexCommand implements CommandExecutor {
                         }
                     }
                     default -> player.sendMessage(pk("seat_usage",
-                            "&cUso: /gdx poker seat <add|remove|list|clear> <nombre>"));
+                            "&cUso: /gdx poker seat <add|remove|list|clear> <name>"));
                 }
             }
             default -> player.sendMessage(pk("invalid_action",
@@ -1191,14 +1116,14 @@ public class GamblingDexCommand implements CommandExecutor {
     }
 
     /**
-     * /gdx poker torneo &lt;mesa&gt; &lt;inscripción&gt; [fichas] [minutos]
-     * /gdx poker torneo empezar|cancelar &lt;mesa&gt;
+     * /gdx poker tournament &lt;mesa&gt; &lt;inscripción&gt; [fichas] [minutos]
+     * /gdx poker tournament start|cancelar &lt;mesa&gt;
      */
     private void handlePokerTournament(Player player, com.gamblingdex.games.poker.PokerManager pm, String[] args) {
         if (args.length < 3) {
             player.sendMessage(pk("tournament_usage",
-                    "&cUso: /gdx poker torneo <mesa> <inscripción> [fichas] [minutos por nivel]"));
-            player.sendMessage(pk("tournament_usage2", "&c     /gdx poker torneo <empezar|cancelar> <mesa>"));
+                    "&cUso: /gdx poker tournament <table> <fee> [chips] [minutes per level]"));
+            player.sendMessage(pk("tournament_usage2", "&c     /gdx poker tournament <start|cancel> <table>"));
             return;
         }
         String sub = args[2].toLowerCase(Locale.ROOT);
@@ -1230,7 +1155,7 @@ public class GamblingDexCommand implements CommandExecutor {
         }
         if (args.length < 4) {
             player.sendMessage(pk("tournament_usage",
-                    "&cUso: /gdx poker torneo <mesa> <inscripción> [fichas] [minutos por nivel]"));
+                    "&cUso: /gdx poker tournament <table> <fee> [chips] [minutes per level]"));
             return;
         }
         var cfg = GamblingDexPlugin.getInstance().getConfig();
@@ -1254,7 +1179,7 @@ public class GamblingDexCommand implements CommandExecutor {
             return;
         }
         player.sendMessage(pk("tournament_opened",
-                "&aInscripción abierta en &f{table}&a. Cuando estén todos: &f/gdx poker torneo empezar {table}",
+                "&aInscripción abierta en &f{table}&a. Cuando estén todos: &f/gdx poker tournament start {table}",
                 "table", t.getName()));
     }
 

@@ -96,8 +96,8 @@ public class CoinflipModule extends GameModule {
         return List.of(
                 "&6&lCoinflip (cara o sello 1 vs 1)",
                 "&8• &e/gdx coinflip &7- Ver y aceptar apuestas abiertas",
-                "&8• &e/gdx coinflip crear <monto> [cara|sello] &7- Abrir una apuesta",
-                "&8• &e/gdx coinflip cancelar &7- Retirar tu apuesta",
+                "&8• &e/gdx coinflip create <amount> [heads|tails] &7- Abrir una apuesta",
+                "&8• &e/gdx coinflip cancel &7- Retirar tu apuesta",
                 "");
     }
 
@@ -120,7 +120,7 @@ public class CoinflipModule extends GameModule {
                 }
                 long amount = parseAmount(args[1]);
                 if (amount <= 0) {
-                    player.sendMessage(msg("usage", "&cUso: /gdx coinflip [crear <monto> [cara|sello] | cancelar]"));
+                    player.sendMessage(msg("usage", "&cUso: /gdx coinflip [create <amount> [heads|tails] | cancel]"));
                     return true;
                 }
                 if (args.length >= 3) {
@@ -131,7 +131,7 @@ public class CoinflipModule extends GameModule {
                 }
             }
             case "cancelar", "cancel" -> cancelOwn(player);
-            default -> player.sendMessage(msg("usage", "&cUso: /gdx coinflip [crear <monto> [cara|sello] | cancelar]"));
+            default -> player.sendMessage(msg("usage", "&cUso: /gdx coinflip [create <amount> [heads|tails] | cancel]"));
         }
         return true;
     }
@@ -533,5 +533,23 @@ public class CoinflipModule extends GameModule {
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Autocompletar (TAB)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> tabComplete(Player player, String[] args) {
+        if (args.length == 1)
+            return List.of("create", "cancel");
+        String a = args[0].toLowerCase(Locale.ROOT);
+        if (!a.equals("create") && !a.equals("crear") && !a.equals("c"))
+            return List.of();
+        return switch (args.length) {
+            case 2 -> List.of("<amount>", "100", "1000", "10000");
+            case 3 -> List.of("heads", "tails");
+            default -> List.of();
+        };
     }
 }

@@ -292,6 +292,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private void registerCommands() {
         getCommand("gamblingdex").setExecutor(new com.gamblingdex.commands.GamblingDexCommand());
+        getCommand("gamblingdex").setTabCompleter(new com.gamblingdex.commands.GdxTabCompleter());
         // getCommand("gdx") NO se debe registrar aquí, es alias de gamblingdex
     }
 
@@ -620,7 +621,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     }
 
     /**
-     * Nombre bonito de una mesa desde {@code <juego>.table_names.<mesa>} en
+     * Nombre bonito de una mesa desde {@code <juego>.table_names.<table>} en
      * modules/&lt;juego&gt;.yml (sin importar mayúsculas), ya con colores. Null si no hay.
      */
     public String tableNameFromConfig(String game, String table) {
