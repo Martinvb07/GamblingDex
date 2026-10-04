@@ -258,6 +258,21 @@ public class BingoModule extends GameModule {
         return Math.max(1L, config().getLong("card_price", 100L));
     }
 
+    /** %gamblingdex_bingo_next% (tiempo a la próxima partida o su estado), _pot. */
+    @Override
+    public String placeholder(String key) {
+        return switch (key) {
+            case "next" -> switch (state) {
+                case SALE -> "Venta: " + countdown + "s";
+                case PLAYING -> "¡Jugando!";
+                default -> !config().getBoolean("auto_start", true) || nextAutoStart == Long.MAX_VALUE ? "-"
+                        : timeLeft(nextAutoStart - System.currentTimeMillis());
+            };
+            case "pot" -> units(pot());
+            default -> null;
+        };
+    }
+
     private long pot() {
         double cut = Math.max(0.0, Math.min(90.0, config().getDouble("house_cut_percent", 10.0))) / 100.0;
         return (long) Math.floor(soldUnits * (1.0 - cut));
@@ -462,6 +477,8 @@ public class BingoModule extends GameModule {
             return;
         }
         long cost = price() * n;
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, cost)) {
             if (mine.isEmpty())
                 cards.remove(p.getUniqueId());

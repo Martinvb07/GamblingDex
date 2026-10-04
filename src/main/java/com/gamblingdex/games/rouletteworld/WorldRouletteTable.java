@@ -911,6 +911,7 @@ public class WorldRouletteTable {
                     plugin.getPendingPayouts().add(e.getKey(), share);
                 }
                 com.gamblingdex.GamblingDexPlugin.recordStats(e.getKey(), "ruleta", 0L, share);
+                com.gamblingdex.GamblingDexPlugin.achievement(e.getKey(), "roulette_jackpot");
                 String n = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
                 names.add(n + " (+" + prettyUnits(share) + ")");
             }

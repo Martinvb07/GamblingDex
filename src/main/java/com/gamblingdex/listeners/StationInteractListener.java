@@ -52,7 +52,10 @@ public class StationInteractListener implements Listener {
         event.setUseItemInHand(Result.DENY);
 
         switch (type) {
-            case SLOTS -> plugin.getSlotsController().open(player);
+            case SLOTS -> {
+                if (plugin.getMaintenance() == null || plugin.getMaintenance().allow(player, "slots"))
+                    plugin.getSlotsController().open(player);
+            }
             case EXCHANGE -> plugin.getExchangeMenu().open(player);
             default -> {
             }

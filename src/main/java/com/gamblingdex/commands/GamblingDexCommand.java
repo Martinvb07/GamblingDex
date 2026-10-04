@@ -37,6 +37,72 @@ public class GamblingDexCommand implements CommandExecutor {
         return plugin.color(plugin.getConfig().getString(path, def));
     }
 
+    /** /gdx history: las últimas 10 apuestas del jugador. */
+    private static void sendHistory(Player player) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var stats = plugin.getGameStats();
+        java.util.List<com.gamblingdex.stats.GameStats.Play> plays = stats == null ? java.util.List.of()
+                : stats.history(player.getUniqueId());
+        player.sendMessage(plugin.color("&8&m        &r &6&lTus últimas apuestas &8&m        "));
+        if (plays.isEmpty()) {
+            player.sendMessage(plugin.color("&7Aún no has jugado nada."));
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (var pl : plays) {
+            long net = pl.net();
+            String result = pl.wager() <= 0 ? "&a+" + formatLong(pl.payout())
+                    : net > 0 ? "&a+" + formatLong(net) : net == 0 ? "&e±0" : "&c-" + formatLong(-net);
+            String bet = pl.wager() > 0 ? " &7apostó &e" + formatLong(pl.wager()) : "";
+            player.sendMessage(plugin.color("&8" + ago(now - pl.time()) + " &f"
+                    + com.gamblingdex.stats.GameStats.gameName(pl.game()) + bet + " &8» " + result));
+        }
+    }
+
+    private static String ago(long ms) {
+        long s = Math.max(0, ms / 1000);
+        if (s < 60)
+            return "hace " + s + "s";
+        if (s < 3600)
+            return "hace " + s / 60 + "m";
+        if (s < 86400)
+            return "hace " + s / 3600 + "h";
+        return "hace " + s / 86400 + "d";
+    }
+
+    /** /gdx disable &lt;juego&gt; | /gdx enable &lt;juego&gt; | /gdx maintenance (lista). */
+    private static void handleMaintenance(Player player, String sub, String[] args) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var mt = plugin.getMaintenance();
+        if (sub.equals("maintenance") || sub.equals("mantenimiento") || args.length < 2) {
+            java.util.Set<String> closed = mt.closedGames();
+            player.sendMessage(plugin.color(closed.isEmpty() ? "&aNingún juego en mantenimiento."
+                    : "&eEn mantenimiento: &f" + String.join(", ", closed.stream()
+                            .map(com.gamblingdex.stats.GameStats::gameName).toList())));
+            player.sendMessage(plugin.color("&7Uso: &f/gdx disable <game> &7| &f/gdx enable <game>"));
+            return;
+        }
+        String game = mt.resolve(args[1]);
+        if (game == null) {
+            player.sendMessage(plugin.color("&cJuego desconocido: &f" + args[1]));
+            return;
+        }
+        String name = com.gamblingdex.stats.GameStats.gameName(game);
+        if (sub.equals("disable")) {
+            if (!mt.close(game)) {
+                player.sendMessage(plugin.color("&e" + name + " ya estaba en mantenimiento."));
+                return;
+            }
+            player.sendMessage(plugin.color("&a" + name + " &7cerrado por mantenimiento. Se devolvieron las apuestas en curso."));
+        } else {
+            if (!mt.open(game)) {
+                player.sendMessage(plugin.color("&e" + name + " no estaba en mantenimiento."));
+                return;
+            }
+            player.sendMessage(plugin.color("&a" + name + " &7vuelve a estar abierto."));
+        }
+    }
+
     private static String applyPlaceholders(String template, Map<String, String> values) {
         String out = template == null ? "" : template;
         if (values == null || values.isEmpty())
@@ -92,12 +158,35 @@ public class GamblingDexCommand implements CommandExecutor {
             String sub = args[0].toLowerCase();
 
             if (sub.equals("balance") || sub.equals("bal") || sub.equals("saldo")) {
-                long balance = GamblingDexPlugin.getInstance().getEconomy().getBalance(player.getUniqueId());
+                // Fichas que tiene en el inventario (es la moneda con la que se juega)
+                long balance = com.gamblingdex.economy.TokenWallet.balance(player);
                 String currencyName = GamblingDexPlugin.getInstance().color(
                         GamblingDexPlugin.getInstance().getConfig().getString("currency.name", "Moneda GDX"));
                 player.sendMessage(applyPlaceholders(
-                        cfg("messages.gdx.balance", "&aTu balance es: &e{amount}&a {currency}."),
-                        Map.of("amount", String.valueOf(balance), "currency", currencyName)));
+                        cfg("messages.gdx.balance_tokens", "&aTienes &e{amount}&a {currency} en fichas."),
+                        Map.of("amount", formatLong(balance), "currency", currencyName)));
+                return true;
+            }
+
+            if (sub.equals("history") || sub.equals("historial")) {
+                sendHistory(player);
+                return true;
+            }
+
+            if (sub.equals("achievements") || sub.equals("logros")) {
+                var ach = GamblingDexPlugin.getInstance().getAchievements();
+                if (ach != null)
+                    ach.open(player, 0);
+                return true;
+            }
+
+            if (sub.equals("disable") || sub.equals("enable") || sub.equals("maintenance")
+                    || sub.equals("mantenimiento")) {
+                if (!player.hasPermission("gamblingdex.admin")) {
+                    player.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                handleMaintenance(player, sub, args);
                 return true;
             }
 
@@ -516,7 +605,8 @@ public class GamblingDexCommand implements CommandExecutor {
                     player.sendMessage(cfg("messages.admin.station.list.header", "&7Mesas registradas:"));
                     player.sendMessage(applyPlaceholders(
                             cfg("messages.admin.station.list.roulette", "&8- &cRoulette&7: &f{count}"),
-                            Map.of("count", String.valueOf(counts.getOrDefault(GameItemType.ROULETTE, 0)))));
+                            Map.of("count", String.valueOf(GamblingDexPlugin.getInstance().getWorldRouletteManager() == null
+                                    ? 0 : GamblingDexPlugin.getInstance().getWorldRouletteManager().getTableCount()))));
                     player.sendMessage(applyPlaceholders(
                             cfg("messages.admin.station.list.slots", "&8- &dSlots&7: &f{count}"),
                             Map.of("count", String.valueOf(counts.getOrDefault(GameItemType.SLOTS, 0)))));
@@ -600,7 +690,7 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (args.length < 2) {
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.usage",
-                        "&cUso: /gdx blackjack <create|remove|list|seat|displayname> ..."));
+                        "&cUso: /gdx blackjack <create|remove|list|seat|displayname|face> ..."));
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.example",
                             "&7Ej: &f/gdx blackjack create Mesa1&7 (mirando el bloque centro)"));
@@ -633,7 +723,7 @@ public class GamblingDexCommand implements CommandExecutor {
                         return true;
                     }
 
-                    var table = bm.createTable(name, target);
+                    var table = bm.createTable(name, target, player.getLocation());
                     if (table == null) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.create_failed",
@@ -697,6 +787,19 @@ public class GamblingDexCommand implements CommandExecutor {
                             }
                         }
                     }
+                    return true;
+                }
+
+                if (action.equals("face") || action.equals("look") || action.equals("mirar")) {
+                    var bm = GamblingDexPlugin.getInstance().getBlackjackManager();
+                    var t = bm == null || args.length < 3 ? null : bm.getByName(args[2]);
+                    if (t == null) {
+                        player.sendMessage(cfg("messages.admin.blackjack.face_usage",
+                                "&cUso: /gdx blackjack face <table> &7(el dealer mirará hacia donde estás)"));
+                        return true;
+                    }
+                    bm.faceTowards(t, player.getLocation());
+                    player.sendMessage(cfg("messages.admin.blackjack.faced", "&aEl dealer ahora mira hacia ti."));
                     return true;
                 }
 

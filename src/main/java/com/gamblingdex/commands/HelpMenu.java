@@ -68,6 +68,11 @@ public final class HelpMenu {
     public static void send(Player p, String[] args) {
         String topic = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "";
         boolean admin = p.hasPermission("gamblingdex.admin");
+        if (!admin) {
+            // Los jugadores solo ven su parte (los juegos se juegan con click, sin comandos)
+            playerHome(p);
+            return;
+        }
         switch (topic) {
             case "" -> categories(p, admin);
             case "player", "jugador" -> player(p);
@@ -107,6 +112,29 @@ public final class HelpMenu {
         p.sendMessage(text("&8Tip: usa &7TAB &8para autocompletar los comandos."));
     }
 
+    /** Lo que ve un jugador normal: resumen y sus comandos. */
+    private static void playerHome(Player p) {
+        header(p, null);
+        p.sendMessage(text("&7Casino con mesas con dealer, ruleta, slots, crash, carreras,"));
+        p.sendMessage(text("&7rueda, plinko, mines y más. Todo se juega con &ffichas&7."));
+        p.sendMessage(text("&7Tus fichas: &e" + com.gamblingdex.economy.TokenWallet.balance(p)
+                + " &8| &7Compra/vende fichas en la &fmesa de cambio&7."));
+        p.sendMessage(text("&7Las mesas se juegan con &fclick derecho&7 o parándote en un asiento."));
+        p.sendMessage(text(" "));
+        playerLines(p);
+    }
+
+    private static void playerLines(Player p) {
+        line(p, "/gdx balance", "Tus fichas");
+        line(p, "/gdx stats", "Tus estadísticas");
+        if (p.hasPermission("gamblingdex.stats.others"))
+            line(p, "/gdx stats <player>", "Estadísticas de otro jugador");
+        line(p, "/gdx top", "Ranking de ganancias (todos los juegos)");
+        line(p, "/gdx top week", "Ranking de esta semana");
+        line(p, "/gdx history", "Tus últimas 10 apuestas");
+        line(p, "/gdx achievements", "Tus logros del casino");
+    }
+
     private static void player(Player p) {
         header(p, "Jugador");
         line(p, "/gdx balance", "Tus fichas");
@@ -115,6 +143,8 @@ public final class HelpMenu {
             line(p, "/gdx stats <player>", "Estadísticas de otro jugador");
         line(p, "/gdx top", "Ranking de ganancias (todos los juegos)");
         line(p, "/gdx top week", "Ranking de esta semana");
+        line(p, "/gdx history", "Tus últimas 10 apuestas");
+        line(p, "/gdx achievements", "Tus logros del casino");
         p.sendMessage(text("&7Las mesas se juegan con &fclick derecho&7 o parándote en un asiento."));
         back(p);
     }
@@ -170,6 +200,9 @@ public final class HelpMenu {
         line(p, "/gdx station set <type>", "Crear una mesa/estación (mirando el bloque)");
         line(p, "/gdx station remove", "Quitar la mesa que miras (restaura los bloques)");
         line(p, "/gdx station list", "Mesas registradas");
+        line(p, "/gdx disable <game>", "Cerrar un juego por mantenimiento (devuelve apuestas)");
+        line(p, "/gdx enable <game>", "Volver a abrir un juego");
+        line(p, "/gdx maintenance", "Juegos en mantenimiento");
         line(p, "/gdx token <color|value> <amount>", "Crear fichas (ej. para Shopkeepers)");
         line(p, "/gdx item <roulette|slots> [amount]", "Ítems que abren menús");
         p.sendMessage(text("&7Montaje de cada juego &8(click)&7:"));
@@ -233,6 +266,7 @@ public final class HelpMenu {
             l.add("&8• &e/gdx blackjack create <name> &7- Crear mesa (mirando el bloque)");
             l.add("&8• &e/gdx blackjack seat <add|remove|list|clear> <name> &7- Asientos (parado encima)");
             l.add("&8• &e/gdx blackjack remove <name>&7|&elist &7- Gestionar mesas");
+            l.add("&8• &e/gdx blackjack face <name> &7- El dealer mira hacia donde estás");
             l.add("&8• &7Título de la mesa: &fmodules/blackjack.yml &7→ &ftable_names");
         }
         return l;
@@ -242,8 +276,7 @@ public final class HelpMenu {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lPóker (Texas Hold'em)",
                 "&8• &7Jugar: &fpárate en un asiento&7 y compra fichas; al pararte se te devuelven",
-                "&8• &e/gdx poker menu &7- Tu menú (o click derecho al centro de la mesa)",
-                "&8• &e/gdx poker join &7- Inscribirte a un torneo (sentado en la mesa)"));
+                "&8• &7Tu menú: &fclick derecho&7 al centro de la mesa (también para inscribirte a torneos)"));
         if (admin) {
             l.add("&8• &e/gdx poker create <name> [small] [big] &7- Crear mesa (mirando el centro)");
             l.add("&8• &e/gdx poker seat <add|remove|list|clear> <name> &7- Asientos (en orden horario)");
