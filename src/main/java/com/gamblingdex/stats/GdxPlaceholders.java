@@ -37,6 +37,11 @@ import java.util.UUID;
  * %gamblingdex_players_playing%         jugadores que jugaron en los últimos 5 minutos
  * %gamblingdex_achievements%            logros del jugador  (_total = cuántos hay)
  *
+ * Por juego (blackjack, ruleta/roulette, crash, slots, baccarat, mines, plinko, wheel, race,
+ * coinflip, scratch, bingo, lottery):
+ * %gamblingdex_top_blackjack_profit_1_name%  /  _value   (topweek_blackjack_... = semana)
+ * %gamblingdex_blackjack_profit%  _wagered  _paid  _biggest  _rounds  _rank  (weekly_blackjack_... = semana)
+ *
  * Póker (manos de mesas normales):
  * %gamblingdex_poker_hands%  _hands_won  _profit  _biggest_pot  _tournaments  (weekly_poker_... = semana)
  * %gamblingdex_top_poker_profit_1_name% / _value   (topweek_poker_... = semana)
@@ -112,6 +117,12 @@ public class GdxPlaceholders extends PlaceholderExpansion {
             boolean poker = rest.startsWith("poker_");
             if (poker)
                 rest = rest.substring(6);
+            String game = null;
+            int gu = rest.indexOf('_');
+            if (!poker && gu > 0 && GameStats.gameId(rest.substring(0, gu)) != null) {
+                game = GameStats.gameId(rest.substring(0, gu));
+                rest = rest.substring(gu + 1);
+            }
             int a = rest.lastIndexOf('_');
             int b = a <= 0 ? -1 : rest.lastIndexOf('_', a - 1);
             if (b <= 0)
@@ -135,7 +146,7 @@ public class GdxPlaceholders extends PlaceholderExpansion {
                 GameStats.Metric metric = GameStats.Metric.parse(metricName);
                 if (metric == null)
                     return "";
-                top = stats.top(metric, week);
+                top = game != null ? stats.top(game, metric, week) : stats.top(metric, week);
             }
             boolean name = rest.substring(a + 1).equals("name");
             if (n > top.size())
@@ -169,6 +180,25 @@ public class GdxPlaceholders extends PlaceholderExpansion {
 
         boolean week = p.startsWith("weekly_");
         String key = week ? p.substring(7) : p;
+        // Stats de un juego: <juego>_<métrica> (blackjack_profit, weekly_crash_biggest...)
+        int gk = key.indexOf('_');
+        String gameKey = gk > 0 ? GameStats.gameId(key.substring(0, gk)) : null;
+        if (gameKey != null) {
+            String m = key.substring(gk + 1);
+            GameStats.Entry ge = stats.get(player.getUniqueId(), gameKey, week);
+            return switch (m) {
+                case "profit" -> fmt(ge.profit());
+                case "wagered" -> fmt(ge.wagered());
+                case "paid", "won" -> fmt(ge.paid());
+                case "biggest", "biggest_win" -> fmt(ge.biggestWin());
+                case "rounds" -> fmt(ge.rounds());
+                case "rank" -> {
+                    int r = stats.rank(player.getUniqueId(), gameKey, GameStats.Metric.PROFIT, week);
+                    yield r == 0 ? "-" : String.valueOf(r);
+                }
+                default -> null;
+            };
+        }
         if (key.startsWith("poker_")) {
             GameStats.PokerEntry pe = stats.poker(player.getUniqueId(), week);
             return switch (key.substring(6)) {
