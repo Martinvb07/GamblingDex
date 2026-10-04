@@ -1,0 +1,48 @@
+# ======================
+# GamblingDex - Carrera de caballos
+# ======================
+# Admin: párate en la salida del carril 1, MIRANDO HACIA LA META, y usa:
+#   /gdx carrera crear <nombre> [carriles] [largo]
+#   Los carriles van hacia tu derecha, separados por lane_spacing bloques.
+#   /gdx carrera borrar <nombre> | /gdx carrera lista | /gdx carrera iniciar <nombre>
+# Jugadores: /gdx carrera [nombre]  o  click derecho a un caballo.
+#
+# Apuestas mutuas (como en el hipódromo): todo lo apostado forma un pozo; la
+# casa se queda con house_cut_percent y el resto se reparte entre quienes
+# apostaron al ganador, según cuánto puso cada uno. Si nadie acertó, se
+# devuelve todo.
+
+enabled: true
+
+default_lanes: 6
+default_length: 30
+lane_spacing: 2
+min_bet: 10
+max_bet: 100000           # 0 = sin tope
+house_cut_percent: 8.0
+bet_window_seconds: 40    # cuenta regresiva desde la primera apuesta
+result_seconds: 10
+race_speed: 1.0           # 1.0 = ~15 s para 30 bloques
+announce_radius: 40
+
+horse_names: ["Relámpago", "Trueno", "Canela", "Tornado", "Pegaso", "Centella", "Bala", "Sombra"]
+
+messages:
+  bet_placed: "&aApostaste &e{amount}&a al &f#{horse} {name}&a. &7Cuota actual: &fx{odds}"
+  countdown: "&6&lCarrera &8» &7¡Apuestas abiertas en &f{track}&7! Sale en &f{seconds}s &8| &e/gdx carrera"
+  start: "&6&lCarrera &8» &a¡Y ARRANCAN! &7Pozo: &e{pot}"
+  winner: "&6&lCarrera &8» &a&l¡Ganó el #{horse} {name}! &7Paga &fx{odds}"
+  you_won: "&a&l¡GANASTE! &7Tu caballo #{horse} ganó → &e+{amount}"
+  you_lost: "&7Ganó el #{horse}. Perdiste &e{amount}&7."
+  no_winner_bets: "&6&lCarrera &8» &7Nadie apostó al ganador: se devuelven las apuestas."
+  refunded: "&7La carrera se canceló. Se te devolvieron &e{amount}&7."
+  bets_closed: "&cLa carrera ya empezó. Espera la próxima."
+  min_bet: "&cLa apuesta mínima es &e{min}&c."
+  max_bet: "&cLa apuesta máxima es &e{max}&c."
+  not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
+  created: "&aPista &f{name}&a creada: &f{lanes}&a carriles de &f{length}&a bloques."
+  removed: "&aPista eliminada (se devolvieron las apuestas)."
+  not_found: "&cNo existe esa pista. Pistas: &f{tracks}"
+  no_tracks: "&cNo hay pistas de carreras todavía."
+  exists: "&cYa existe una pista con ese nombre."
+  usage_admin: "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"
