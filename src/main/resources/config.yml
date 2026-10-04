@@ -173,8 +173,16 @@ blackjack:
   # false = se planta en TODO 17 (regla clásica "S17", mejor para el jugador)
   # true  = también pide con 17 suave (A+6)
   dealer_hits_soft_17: false
-  # Pago de blackjack natural: "3:2" o "6:5"
+  # Pago de blackjack natural: "3:2" o "6:5" (se cobra al instante, tras revisar el dealer)
   blackjack_payout: "3:2"
+  # Dividir (split): con 2 cartas iguales se separan en 2 manos con otra apuesta igual.
+  split:
+    max_hands: 4              # máximo de manos por jugador
+    any_ten_value: false      # true = permite dividir K+Q, J+10, etc. (cualquier carta de 10)
+    resplit_aces: false       # volver a dividir Ases
+    double_after_split: true  # doblar después de dividir
+  # Altura de tus cartas sobre tu cabeza (los demás las ven; tú las ves en pantalla)
+  hand_holo_height: 2.55
   # Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
   decks: 6
   reshuffle_at_percent: 25
@@ -244,8 +252,11 @@ poker:
   # Radio (bloques) en el que los espectadores ven los mensajes de la mesa
   spectator_radius: 10
   # Hologramas
-  holo_height: 2.2
-  seat_holo_height: 2.6
+  holo_height: 2.2              # mesa (cartas comunitarias, bote) sobre el bloque centro
+  player_holo_height: 2.55      # info de cada jugador SOBRE SU CABEZA (él no la ve: la tiene en pantalla)
+  player_holo_scale: 0.8
+  free_seat_holo_height: 1.4    # cartel "Asiento libre" (bajo, para no tapar la vista)
+  free_seat_holo_scale: 0.6
   turn_marker:
     enabled: true
     particle: END_ROD

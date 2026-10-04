@@ -193,6 +193,17 @@ public class BlackjackMenuListener implements Listener {
                 player.closeInventory();
                 table.doubleDown(player);
             }
+            case "split" -> {
+                // Igual que doblar: si no puede, el menú sigue abierto.
+                String deny = table.splitDenyReason(player);
+                if (deny != null) {
+                    player.sendMessage(deny);
+                    return;
+                }
+                actionChosen.add(player.getUniqueId());
+                player.closeInventory();
+                table.split(player);
+            }
         }
     }
 

@@ -49,6 +49,8 @@ rake: "&8(Comisión de la casa: {amount})"
 title_win: "&a&l¡Ganaste!"
 uncalled_returned: "&7Se te devuelve la apuesta no igualada: &e{amount}"
 busted: "&cTe quedaste sin fichas. Compra más en el menú o bájate del asiento."
+actionbar_buyin: "&7Fichas en la mesa: &e{stack} &8| &eCompra al menos &f{min} &7(click derecho a la mesa)"
+actionbar_seated: "&7Fichas en la mesa: &e{stack}"
 actionbar_turn: "&a&l¡TU TURNO! &7{action} &8| {cards} &8| &f{seconds}s"
 actionbar: "&7Tus cartas: {cards} &8| &e{hand} &8| &7Fichas: &e{stack}"
 deposit_too_big: "&cEsa ficha te pasa del máximo de la mesa (&e{max}&c). Usa una más chica."
@@ -65,7 +67,13 @@ holo:
   runout: "&6&lALL-IN &7- repartiendo..."
   showdown: "&6Resultado &8| &7siguiente mano en &f{seconds}s"
   seat_free: "&7Asiento libre\n&8Párate aquí para jugar"
-  seat_buying: "&eComprando fichas..."
+
+bar:
+  turn: "&6Bote: &e{pot} &8| &7Apuesta: &f{bet} &8| &aTurno: &f{player} &7({seconds}s)"
+  runout: "&6&lALL-IN &8| &6Bote: &e{pot}"
+  showdown: "&6Resultado &8| &7Siguiente mano en &f{seconds}s"
+  starting: "&ePóker {table} &8| &7Nueva mano en &f{seconds}s"
+  waiting: "&ePóker {table} &8| &7Ciegas &f{sb}/{bb} &8| &7Esperando jugadores &f({ready}/{min})"
 
 admin:
   not_available: "&cEl póker no está disponible."

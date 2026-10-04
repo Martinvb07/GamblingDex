@@ -27,6 +27,7 @@ public class PokerManager {
 
     private final Map<String, PokerTable> tablesByKey = new LinkedHashMap<>();
     private BukkitTask tickTask;
+    private BukkitTask followTask;
 
     public PokerManager(GamblingDexPlugin plugin) {
         this.plugin = plugin;
@@ -41,6 +42,15 @@ public class PokerManager {
                 }
             }
         }, 20L, 20L);
+        // Hologramas sobre la cabeza de los jugadores: siguen su movimiento.
+        followTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (PokerTable t : tablesByKey.values()) {
+                try {
+                    t.followDisplays();
+                } catch (Throwable ignored) {
+                }
+            }
+        }, 2L, 2L);
     }
 
     private void load() {
@@ -105,6 +115,10 @@ public class PokerManager {
         if (tickTask != null) {
             tickTask.cancel();
             tickTask = null;
+        }
+        if (followTask != null) {
+            followTask.cancel();
+            followTask = null;
         }
         for (PokerTable t : tablesByKey.values()) {
             try {

@@ -170,6 +170,11 @@ public class BlackjackBetMenu {
         lore.add("§7Empate: §fse devuelve la apuesta");
         lore.add("§7Dealer pide hasta 17 " + (h17 ? "§8(pide con 17 suave)" : "§8(se planta en todo 17)"));
         lore.add("§7Doblar: §fsolo con 2 cartas");
+        lore.add("§7Dividir: §fcon 2 cartas iguales §8(hasta "
+                + Math.max(2, Math.min(8, cfg.getInt("blackjack.split.max_hands", 4))) + " manos)");
+        lore.add("§8Ases divididos: 1 carta c/u. 21 tras dividir paga 1:1.");
+        lore.add("§7Blackjack natural: §fse cobra al instante");
+        lore.add("§7Con 21: §fte plantas solo");
         if (cfg.getBoolean("blackjack.side_bets.enabled", true)) {
             lore.add("");
             lore.add("§d§lPares Perfectos");

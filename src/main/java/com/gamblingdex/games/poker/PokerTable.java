@@ -127,6 +127,8 @@ public class PokerTable {
     // ---- Hologramas (no persistentes: se recrean solos) ----
     private UUID boardDisplayId;
     private final Map<Integer, UUID> seatDisplayIds = new HashMap<>();
+    // A quién sigue cada holograma de asiento (null = asiento libre).
+    private final Map<Integer, UUID> seatDisplayOwner = new HashMap<>();
     private final Map<UUID, Long> buyInPromptAt = new HashMap<>();
 
     public PokerTable(GamblingDexPlugin plugin, PokerManager manager, String tableKey, Location center, String name,
@@ -1552,6 +1554,7 @@ public class PokerTable {
         td.setDefaultBackground(false);
         td.setBackgroundColor(Color.fromARGB(100, 0, 0, 0));
         td.setLineWidth(240);
+        td.setTeleportDuration(2);
         td.setText(" ");
         return td;
     }
@@ -1574,16 +1577,84 @@ public class PokerTable {
         boardDisplayId = boardTd.getUniqueId();
         boardTd.setText(plugin.color(boardText()));
 
-        double sh = plugin.getConfig().getDouble("poker.seat_holo_height", 2.6);
         for (int i = 0; i < seats.size(); i++) {
             Location sl = BlackjackTables.parseKey(seats.get(i).key);
             if (sl == null || sl.getWorld() == null
                     || !sl.getWorld().isChunkLoaded(sl.getBlockX() >> 4, sl.getBlockZ() >> 4))
                 continue;
-            TextDisplay td = ensureText(seatDisplayIds.get(i), sl.clone().add(0.5, sh, 0.5));
-            seatDisplayIds.put(i, td.getUniqueId());
-            td.setText(plugin.color(seatText(i)));
+
+            // Asiento ocupado: el holograma va ENCIMA de la cabeza del jugador y él no
+            // lo ve (tiene su info en pantalla). Asiento libre: cartel chico y bajo.
+            Player owner = seatOwnerOnline(i);
+            UUID ownerId = owner == null ? null : owner.getUniqueId();
+            if (!Objects.equals(seatDisplayOwner.get(i), ownerId)) {
+                removeSeatDisplay(i);
+            }
+            String text = seats.get(i).player != null && owner == null ? "" : seatText(i);
+            if (text.isEmpty()) {
+                removeSeatDisplay(i);
+                continue;
+            }
+            Location desired = seatDisplayLocation(i, sl, owner);
+            TextDisplay td = getText(seatDisplayIds.get(i));
+            if (td == null) {
+                td = spawnText(desired);
+                float scale = (float) plugin.getConfig().getDouble(
+                        owner == null ? "poker.free_seat_holo_scale" : "poker.player_holo_scale",
+                        owner == null ? 0.6 : 0.8);
+                td.setTransformation(new org.bukkit.util.Transformation(
+                        new org.joml.Vector3f(), new org.joml.AxisAngle4f(),
+                        new org.joml.Vector3f(scale, scale, scale), new org.joml.AxisAngle4f()));
+                if (owner != null)
+                    owner.hideEntity(plugin, td);
+                seatDisplayIds.put(i, td.getUniqueId());
+                seatDisplayOwner.put(i, ownerId);
+            } else if (td.getLocation().distanceSquared(desired) > 0.0025) {
+                td.teleport(desired);
+            }
+            td.setText(plugin.color(text));
         }
+        updateInfoBar();
+    }
+
+    private Player seatOwnerOnline(int i) {
+        UUID id = seats.get(i).player;
+        Player p = id == null ? null : Bukkit.getPlayer(id);
+        return p != null && p.getWorld().equals(center.getWorld()) ? p : null;
+    }
+
+    private Location seatDisplayLocation(int i, Location seatLoc, Player owner) {
+        if (owner != null) {
+            return owner.getLocation().clone().add(0,
+                    plugin.getConfig().getDouble("poker.player_holo_height", 2.55), 0);
+        }
+        return seatLoc.clone().add(0.5, plugin.getConfig().getDouble("poker.free_seat_holo_height", 1.4), 0.5);
+    }
+
+    /** Llamado cada 2 ticks: los hologramas siguen la cabeza de cada jugador. */
+    public void followDisplays() {
+        if (!centerLoaded())
+            return;
+        double h = plugin.getConfig().getDouble("poker.player_holo_height", 2.55);
+        for (Map.Entry<Integer, UUID> e : seatDisplayIds.entrySet()) {
+            UUID owner = seatDisplayOwner.get(e.getKey());
+            if (owner == null)
+                continue;
+            Player p = Bukkit.getPlayer(owner);
+            TextDisplay td = getText(e.getValue());
+            if (p == null || td == null || !p.getWorld().equals(td.getWorld()))
+                continue;
+            Location desired = p.getLocation().clone().add(0, h, 0);
+            if (td.getLocation().distanceSquared(desired) > 0.0025)
+                td.teleport(desired);
+        }
+    }
+
+    private void removeSeatDisplay(int i) {
+        TextDisplay td = getText(seatDisplayIds.remove(i));
+        seatDisplayOwner.remove(i);
+        if (td != null)
+            td.remove();
     }
 
     private String boardText() {
@@ -1628,36 +1699,86 @@ public class PokerTable {
         if (s.player == null) {
             return msg("holo.seat_free", "&7Asiento libre\n&8Párate aquí para jugar");
         }
+        // Sobre la cabeza solo van las cartas; fichas y apuestas salen en pantalla
+        // (action bar + barra superior). Fuera de una mano no se muestra nada.
+        if (!isHandRunning() || !dealt.contains(i))
+            return "";
+
         StringBuilder sb = new StringBuilder();
         sb.append(i == actor ? "§a▶ §f§l" : "§f").append(s.name).append(badges(i)).append('\n');
-        sb.append("§7Fichas: §e").append(units(s.stack));
-
-        if (isHandRunning() && dealt.contains(i)) {
-            if (folded.contains(i)) {
-                sb.append("\n§8Retirado");
+        if (folded.contains(i)) {
+            sb.append("§8Retirado");
+        } else {
+            String shown = showdownText.get(i);
+            if (shown != null) {
+                sb.append(shown);
+            } else if (revealAll) {
+                sb.append(formatCards(hole.get(i)));
             } else {
-                String shown = showdownText.get(i);
-                if (shown != null) {
-                    sb.append('\n').append(shown);
-                } else if (revealAll) {
-                    sb.append('\n').append(formatCards(hole.get(i)));
-                } else {
-                    sb.append("\n§8[§7?§8] [§7?§8]");
-                }
-                if (allIn.contains(i))
-                    sb.append("\n§6§lALL-IN");
+                sb.append("§8[§7?§8] [§7?§8]");
             }
-            if (bet(i) > 0)
-                sb.append("\n§7Apuesta: §f").append(units(bet(i)));
-            Long won = lastWin.get(i);
-            if (won != null && won > 0)
-                sb.append("\n§a§l+").append(units(won));
-        } else if (!s.boughtIn) {
-            sb.append('\n').append(msg("holo.seat_buying", "&eComprando fichas..."));
-        } else if (s.leaving) {
-            sb.append("\n§8Saliendo...");
+            if (allIn.contains(i))
+                sb.append(" §6§lALL-IN");
         }
         return sb.toString();
+    }
+
+    // =====================================================================
+    // Barra superior (bote, apuesta, turno) para los sentados
+    // =====================================================================
+
+    private org.bukkit.boss.BossBar infoBar;
+
+    private void updateInfoBar() {
+        if (infoBar == null) {
+            infoBar = Bukkit.createBossBar("", org.bukkit.boss.BarColor.GREEN, org.bukkit.boss.BarStyle.SOLID);
+        }
+
+        String title;
+        double progress = 1.0;
+        switch (state) {
+            case BETTING -> {
+                title = msg("bar.turn", "&6Bote: &e{pot} &8| &7Apuesta: &f{bet} &8| &aTurno: &f{player} &7({seconds}s)",
+                        "pot", units(getPot()), "bet", units(currentBet),
+                        "player", actor >= 0 ? seatName(actor) : "-", "seconds", String.valueOf(Math.max(0, countdown)));
+                progress = Math.max(0.0, Math.min(1.0,
+                        countdown / (double) cfgInt("turn_timeout_seconds", 30, 5, 600)));
+            }
+            case RUNOUT -> title = msg("bar.runout", "&6&lALL-IN &8| &6Bote: &e{pot}", "pot", units(getPot()));
+            case SHOWDOWN -> title = msg("bar.showdown", "&6Resultado &8| &7Siguiente mano en &f{seconds}s",
+                    "seconds", String.valueOf(Math.max(0, countdown)));
+            case STARTING -> title = msg("bar.starting", "&ePóker {table} &8| &7Nueva mano en &f{seconds}s",
+                    "table", name, "seconds", String.valueOf(Math.max(0, countdown)));
+            default -> title = msg("bar.waiting",
+                    "&ePóker {table} &8| &7Ciegas &f{sb}/{bb} &8| &7Esperando jugadores &f({ready}/{min})",
+                    "table", name, "sb", units(smallBlind), "bb", units(bigBlind),
+                    "ready", String.valueOf(eligibleCount()), "min", String.valueOf(minPlayers()));
+        }
+        infoBar.setTitle(plugin.color(title));
+        infoBar.setProgress(progress);
+
+        // Solo la ven los sentados en esta mesa.
+        Set<UUID> wanted = new HashSet<>();
+        for (Seat s : seats) {
+            if (s.player != null)
+                wanted.add(s.player);
+        }
+        for (Player p : new ArrayList<>(infoBar.getPlayers())) {
+            if (!wanted.contains(p.getUniqueId()))
+                infoBar.removePlayer(p);
+        }
+        for (UUID id : wanted) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && !infoBar.getPlayers().contains(p))
+                infoBar.addPlayer(p);
+        }
+    }
+
+    private void removeInfoBar() {
+        if (infoBar != null) {
+            infoBar.removeAll();
+            infoBar = null;
+        }
     }
 
     private String badges(int i) {
@@ -1680,6 +1801,7 @@ public class PokerTable {
                 td.remove();
         }
         seatDisplayIds.clear();
+        seatDisplayOwner.clear();
     }
 
     public void removeDisplays() {
@@ -1688,9 +1810,24 @@ public class PokerTable {
             b.remove();
         boardDisplayId = null;
         removeSeatDisplays();
+        removeInfoBar();
     }
 
     private void sendActionBars() {
+        // Sentados que no juegan esta mano (o retirados): sus fichas en pantalla.
+        for (int i = 0; i < seats.size(); i++) {
+            Seat s = seats.get(i);
+            if (s.player == null || (isHandRunning() && dealt.contains(i) && !folded.contains(i)))
+                continue;
+            Player p = Bukkit.getPlayer(s.player);
+            if (p == null)
+                continue;
+            String text = !s.boughtIn
+                    ? msg("actionbar_buyin", "&7Fichas en la mesa: &e{stack} &8| &eCompra al menos &f{min} &7(click derecho a la mesa)",
+                            "stack", units(s.stack), "min", units(getMinBuyIn()))
+                    : msg("actionbar_seated", "&7Fichas en la mesa: &e{stack}", "stack", units(s.stack));
+            p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(plugin.color(text)));
+        }
         if (!isHandRunning())
             return;
         for (int i : dealt) {
@@ -1711,6 +1848,8 @@ public class PokerTable {
                         "cards", formatCards(hole.get(i)), "hand", getHandStrength(s.player),
                         "stack", units(s.stack));
             }
+            if (bet(i) > 0)
+                text += " §8| §7Tu apuesta: §f" + units(bet(i));
             p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(plugin.color(text)));
         }
     }

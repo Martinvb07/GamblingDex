@@ -921,6 +921,13 @@ public class GamblingDexCommand implements CommandExecutor {
             else
                 player.sendMessage(line);
         }
+        sendHelpLines(player, "poker.help.player_lines", List.of(
+                "&6&lPóker (Texas Hold'em)",
+                "&8• &7Jugar: &fpárate en un asiento&7 de la mesa y compra fichas",
+                "&8• &e/gdx poker menu &7- Abrir tu menú (o &fclick derecho&7 al centro de la mesa)",
+                "&8• &7Irte con tus fichas: &fbájate del asiento",
+                "&8• &7Tus cartas y fichas salen &fen pantalla&7; nadie más las ve",
+                ""));
 
         if (player.hasPermission("gamblingdex.admin")) {
             List<String> adminLines = GamblingDexPlugin.getInstance().getMessages() == null
@@ -934,10 +941,33 @@ public class GamblingDexCommand implements CommandExecutor {
                 else
                     player.sendMessage(line);
             }
+            sendHelpLines(player, "poker.help.admin_lines", List.of(
+                    "&6&lAdmin Póker",
+                    "&8• &e/gdx poker create <nombre> [chica] [grande] &7- Crear mesa (mirando el centro)",
+                    "&8• &e/gdx poker seat <add|remove|list|clear> <nombre> &7- Asientos (parado encima, en orden)",
+                    "&8• &e/gdx poker stakes <nombre> <chica> <grande> &7- Cambiar ciegas",
+                    "&8• &e/gdx poker remove <nombre>&7|&elist&7|&erake &7- Gestionar mesas",
+                    ""));
         }
 
         player.sendMessage(cfg("messages.gdx.help.footer",
                 "&7Config: &fplugins/GamblingDex/config.yml &8(ver sección &fPERMISOS&8)"));
+    }
+
+    /** Líneas de ayuda desde messages (si existen) o las de por defecto. */
+    private static void sendHelpLines(Player player, String key, List<String> defaults) {
+        var messages = GamblingDexPlugin.getInstance().getMessages();
+        List<String> lines = messages == null ? List.of() : messages.getStringList(key);
+        if (lines.isEmpty()) {
+            lines = new ArrayList<>();
+            for (String d : defaults)
+                lines.add(GamblingDexPlugin.getInstance().color(d));
+        }
+        for (String line : lines) {
+            if (line == null)
+                continue;
+            player.sendMessage(line.isBlank() ? " " : line);
+        }
     }
 
     private static String formatLong(long n) {

@@ -59,8 +59,10 @@ public class BlackjackTable {
     private final Map<UUID, Long> pairsBets = new HashMap<>();
     private final Map<UUID, Long> plus3Bets = new HashMap<>();
     private final Map<UUID, BetSpot> selectedSpot = new HashMap<>();
-    private final Map<UUID, Hand> hands = new HashMap<>();
-    private final Set<UUID> stoodOrDone = new HashSet<>();
+    // Manos de cada jugador en la ronda (más de una si dividió).
+    private final Map<UUID, List<Hand>> hands = new HashMap<>();
+    // Mano que está jugando cada jugador (índice en su lista).
+    private final Map<UUID, Integer> activeHand = new HashMap<>();
 
     private Hand dealerHand;
     private Deque<Card> deck;
@@ -77,7 +79,10 @@ public class BlackjackTable {
     private BukkitTask dealerTask;
     private int resultSecondsLeft = 0;
     private boolean resultsShown = false;
-    private final Map<UUID, String> roundResults = new HashMap<>();
+
+    // Durante la ronda: cartas sobre la cabeza siguen al jugador + action bar.
+    private BukkitTask roundDisplayTask;
+    private int roundDisplayTick = 0;
 
     private final List<UUID> holoDisplayIds;
     private UUID dealerId;
@@ -281,8 +286,20 @@ public class BlackjackTable {
             Set<UUID> ids = new HashSet<>(bets.keySet());
             ids.addAll(pairsBets.keySet());
             ids.addAll(plus3Bets.keySet());
+            ids.addAll(hands.keySet());
             for (UUID id : ids) {
-                long total = bets.getOrDefault(id, 0L)
+                // En juego: lo apostado en cada mano (incluye dobles y divisiones),
+                // salvo las ya pagadas (blackjack natural).
+                long main = 0L;
+                if (hands.containsKey(id)) {
+                    for (Hand h : hands.get(id)) {
+                        if (!h.isSettled())
+                            main += h.bet();
+                    }
+                } else {
+                    main = bets.getOrDefault(id, 0L);
+                }
+                long total = main
                         + pairsBets.getOrDefault(id, 0L)
                         + plus3Bets.getOrDefault(id, 0L);
                 Player p = Bukkit.getPlayer(id);
@@ -312,8 +329,7 @@ public class BlackjackTable {
         pairsBets.clear();
         plus3Bets.clear();
         hands.clear();
-        stoodOrDone.clear();
-        roundResults.clear();
+        activeHand.clear();
         dealerHand = null;
         currentTurn = null;
         resultsShown = false;
@@ -341,6 +357,7 @@ public class BlackjackTable {
             actionMenuOpenTask.cancel();
             actionMenuOpenTask = null;
         }
+        stopRoundDisplayTask();
     }
 
     public void refreshHologram() {
@@ -679,7 +696,7 @@ public class BlackjackTable {
                 plus3Bets.remove(id);
                 selectedSpot.remove(id);
                 hands.remove(id);
-                stoodOrDone.remove(id);
+                activeHand.remove(id);
                 assignedSeatByPlayer.remove(id);
                 if (Objects.equals(currentTurn, id)) {
                     advanceTurn();
@@ -837,7 +854,7 @@ public class BlackjackTable {
         selectedSpot.remove(id);
 
         hands.remove(id);
-        stoodOrDone.remove(id);
+        activeHand.remove(id);
         assignedSeatByPlayer.remove(id);
         if (Objects.equals(currentTurn, id)) {
             advanceTurn();
@@ -920,6 +937,56 @@ public class BlackjackTable {
         return true;
     }
 
+    // =====================================================================
+    // Manos del jugador (puede tener varias si dividió)
+    // =====================================================================
+
+    private List<Hand> handsOf(UUID id) {
+        List<Hand> l = id == null ? null : hands.get(id);
+        return l == null ? List.of() : l;
+    }
+
+    private Hand firstHand(UUID id) {
+        List<Hand> l = handsOf(id);
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** La mano que el jugador está jugando ahora. */
+    private Hand currentHand(UUID id) {
+        List<Hand> l = handsOf(id);
+        int idx = activeHand.getOrDefault(id, 0);
+        return idx >= 0 && idx < l.size() ? l.get(idx) : null;
+    }
+
+    private boolean splitAnyTenValue() {
+        return plugin.getConfig().getBoolean("blackjack.split.any_ten_value", false);
+    }
+
+    private int maxSplitHands() {
+        return Math.max(2, Math.min(8, plugin.getConfig().getInt("blackjack.split.max_hands", 4)));
+    }
+
+    private boolean resplitAces() {
+        return plugin.getConfig().getBoolean("blackjack.split.resplit_aces", false);
+    }
+
+    private boolean doubleAfterSplit() {
+        return plugin.getConfig().getBoolean("blackjack.split.double_after_split", true);
+    }
+
+    /** Cobra exactamente {@code amount} en tokens del inventario (da vuelto si hace falta). */
+    private boolean chargeTokens(Player player, long amount) {
+        long taken = takeTokenUnitsFromInventory(player, amount);
+        if (taken < amount) {
+            if (taken > 0)
+                plugin.getTokenPayout().pay(player, taken);
+            return false;
+        }
+        if (taken > amount)
+            plugin.getTokenPayout().pay(player, taken - amount);
+        return true;
+    }
+
     /**
      * Motivo por el que el jugador NO puede doblar, o null si sí puede.
      */
@@ -927,7 +994,7 @@ public class BlackjackTable {
         if (player == null)
             return "";
         UUID id = player.getUniqueId();
-        Hand hand = hands.get(id);
+        Hand hand = currentHand(id);
         if (hand == null) {
             return plugin.getMessages().getString(
                     "blackjack.not_in_round",
@@ -938,29 +1005,81 @@ public class BlackjackTable {
                     "blackjack.double_not_allowed",
                     "&cSolo puedes doblar con 2 cartas.");
         }
-        long currentBet = bets.getOrDefault(id, 0L);
-        if (currentBet <= 0) {
+        if (hand.isSplitAces()) {
+            return plugin.getMessages().getString(
+                    "blackjack.double_split_aces",
+                    "&cNo puedes doblar con Ases divididos.");
+        }
+        if (hand.isFromSplit() && !doubleAfterSplit()) {
+            return plugin.getMessages().getString(
+                    "blackjack.double_after_split_disabled",
+                    "&cNo se puede doblar después de dividir.");
+        }
+        if (hand.bet() <= 0) {
             return plugin.getMessages().getString(
                     "blackjack.double_not_allowed",
                     "&cNo puedes doblar ahora.");
         }
-        if (countTokenUnits(player) < currentBet) {
+        if (countTokenUnits(player) < hand.bet()) {
             return plugin.getMessages().format(
                     "blackjack.double_not_enough_tokens",
                     "&cNo tienes fichas suficientes para doblar. &7(Necesitas &f{needed}&7)",
-                    Map.of("needed", prettyUnits(currentBet)));
+                    Map.of("needed", prettyUnits(hand.bet())));
         }
         return null;
     }
 
     /**
-     * Texto corto con la mano del jugador y la carta visible del dealer (para el menú).
+     * Motivo por el que el jugador NO puede dividir, o null si sí puede.
+     */
+    public String splitDenyReason(Player player) {
+        if (player == null)
+            return "";
+        UUID id = player.getUniqueId();
+        Hand hand = currentHand(id);
+        if (hand == null) {
+            return plugin.getMessages().getString(
+                    "blackjack.not_in_round",
+                    "&cNo estás en esta ronda.");
+        }
+        if (!hand.isPair(splitAnyTenValue())) {
+            return plugin.getMessages().getString(
+                    "blackjack.split_need_pair",
+                    "&cSolo puedes dividir con 2 cartas iguales.");
+        }
+        if (handsOf(id).size() >= maxSplitHands()) {
+            return plugin.getMessages().format(
+                    "blackjack.split_max_hands",
+                    "&cLlegaste al máximo de manos (&f{max}&c).",
+                    Map.of("max", String.valueOf(maxSplitHands())));
+        }
+        if (hand.isSplitAces() && !resplitAces()) {
+            return plugin.getMessages().getString(
+                    "blackjack.split_no_resplit_aces",
+                    "&cNo puedes volver a dividir Ases.");
+        }
+        if (countTokenUnits(player) < hand.bet()) {
+            return plugin.getMessages().format(
+                    "blackjack.split_not_enough_tokens",
+                    "&cNo tienes fichas suficientes para dividir. &7(Necesitas &f{needed}&7)",
+                    Map.of("needed", prettyUnits(hand.bet())));
+        }
+        return null;
+    }
+
+    /**
+     * Texto corto con la mano actual del jugador (para el menú).
      */
     public String describePlayerHand(UUID playerId) {
-        Hand h = playerId == null ? null : hands.get(playerId);
+        Hand h = currentHand(playerId);
         if (h == null)
             return "-";
-        return h.describe(false) + " §8(§f" + h.bestValue() + "§8)";
+        String text = h.describe(false) + " §8(§f" + h.bestValue() + "§8)";
+        int count = handsOf(playerId).size();
+        if (count > 1) {
+            text = "§eMano " + (activeHand.getOrDefault(playerId, 0) + 1) + "/" + count + "§f: " + text;
+        }
+        return text;
     }
 
     public String describeDealerUpCard() {
@@ -982,15 +1101,10 @@ public class BlackjackTable {
             openActionMenuNow(id);
             return;
         }
-        Hand hand = hands.get(id);
-        long currentBet = bets.getOrDefault(id, 0L);
+        Hand hand = currentHand(id);
+        long currentBet = hand.bet();
 
-        long takenUnits = takeTokenUnitsFromInventory(player, currentBet);
-        if (takenUnits < currentBet) {
-            // refund anything we took
-            if (takenUnits > 0) {
-                plugin.getTokenPayout().pay(player, takenUnits);
-            }
+        if (!chargeTokens(player, currentBet)) {
             player.sendMessage(plugin.getMessages().getString(
                     "blackjack.double_not_enough_tokens",
                     "&cNo tienes fichas suficientes para doblar."));
@@ -998,14 +1112,9 @@ public class BlackjackTable {
             return;
         }
 
-        // overpay? give change.
-        long change = takenUnits - currentBet;
-        if (change > 0) {
-            plugin.getTokenPayout().pay(player, change);
-        }
-
         long newBet = currentBet + currentBet;
-        bets.put(id, newBet);
+        hand.setBet(newBet);
+        hand.setDoubled(true);
 
         // One card then stand.
         hand.add(draw());
@@ -1021,15 +1130,76 @@ public class BlackjackTable {
                     java.util.Map.of("value", String.valueOf(hand.bestValue()))));
         }
 
-        stoodOrDone.add(id);
-        advanceTurn();
+        hand.setDone(true);
+        continueOrAdvance(id);
+        updateHologramText();
+    }
+
+    /**
+     * Divide un par en dos manos. La nueva mano lleva una apuesta igual a la
+     * original. Con Ases divididos, cada uno recibe una sola carta.
+     */
+    public void split(Player player) {
+        if (!isPlayersTurn(player))
+            return;
+
+        UUID id = player.getUniqueId();
+        String deny = splitDenyReason(player);
+        if (deny != null) {
+            player.sendMessage(deny);
+            openActionMenuNow(id);
+            return;
+        }
+        Hand hand = currentHand(id);
+        long bet = hand.bet();
+        if (!chargeTokens(player, bet)) {
+            player.sendMessage(plugin.getMessages().getString(
+                    "blackjack.split_not_enough_tokens",
+                    "&cNo tienes fichas suficientes para dividir."));
+            openActionMenuNow(id);
+            return;
+        }
+
+        boolean aces = hand.cards().get(0).rank() == Card.Rank.ACE;
+        Hand other = new Hand(bet);
+        other.add(hand.removeSecond());
+        hand.setFromSplit(true);
+        other.setFromSplit(true);
+        hand.setSplitAces(aces);
+        other.setSplitAces(aces);
+        hand.add(draw());
+        other.add(draw());
+
+        List<Hand> list = hands.get(id);
+        int idx = activeHand.getOrDefault(id, 0);
+        list.add(idx + 1, other);
+
+        player.sendMessage(plugin.getMessages().format(
+                "blackjack.split",
+                "&bDivides tu par. &7Ahora juegas &f{hands}&7 manos (&f{bet}&7 cada una).",
+                Map.of("hands", String.valueOf(list.size()), "bet", prettyUnits(bet))));
+        broadcastToRound(plugin.getMessages().format(
+                "blackjack.split_broadcast",
+                "&7{player} divide su par.",
+                Map.of("player", player.getName())));
+
+        if (aces) {
+            // Ases divididos: una carta para cada uno y se plantan.
+            hand.setDone(true);
+            other.setDone(true);
+            player.sendMessage(plugin.getMessages().getString(
+                    "blackjack.split_aces",
+                    "&7Ases divididos: recibes una carta en cada uno y te plantas."));
+        }
+        continueOrAdvance(id);
         updateHologramText();
     }
 
     public void hit(Player player) {
         if (!isPlayersTurn(player))
             return;
-        Hand hand = hands.get(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        Hand hand = currentHand(id);
         if (hand == null) {
             player.sendMessage(plugin.getMessages().getString(
                     "blackjack.not_in_round",
@@ -1043,29 +1213,72 @@ public class BlackjackTable {
                     "blackjack.bust",
                     "&cTe pasaste. (&f{value}&c)",
                     Map.of("value", String.valueOf(hand.bestValue()))));
-            stoodOrDone.add(player.getUniqueId());
-            advanceTurn();
-        } else {
+            hand.setDone(true);
+        } else if (hand.bestValue() != 21) {
             player.sendMessage(plugin.getMessages().format(
                     "blackjack.hit",
                     "&eHit. &7Valor: &f{value}",
                     Map.of("value", String.valueOf(hand.bestValue()))));
-            // keep turn
-            resetTurnTimeout();
-            scheduleActionMenuOpen(player.getUniqueId());
         }
+        // Con 21 se planta solo (continueOrAdvance lo detecta).
+        continueOrAdvance(id);
         updateHologramText();
     }
 
     public void stand(Player player) {
         if (!isPlayersTurn(player))
             return;
-        stoodOrDone.add(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        Hand hand = currentHand(id);
+        if (hand != null)
+            hand.setDone(true);
         player.sendMessage(plugin.getMessages().getString(
                 "blackjack.stand",
                 "&7Stand."));
-        advanceTurn();
+        continueOrAdvance(id);
         updateHologramText();
+    }
+
+    /**
+     * Tras una acción: si la mano actual sigue viva, el jugador sigue; si no,
+     * pasa a su siguiente mano dividida o al siguiente jugador. Una mano con 21
+     * se planta sola (nadie pide con 21).
+     */
+    private void continueOrAdvance(UUID id) {
+        Hand h = currentHand(id);
+        if (h != null && !h.isDone() && h.bestValue() == 21) {
+            h.setDone(true);
+            Player p = Bukkit.getPlayer(id);
+            if (p != null) {
+                p.sendMessage(plugin.getMessages().getString(
+                        "blackjack.auto_stand_21",
+                        "&a&l¡21! &7Te plantas automáticamente."));
+            }
+        }
+        if (h != null && !h.isDone()) {
+            resetTurnTimeout();
+            scheduleActionMenuOpen(id);
+            return;
+        }
+
+        List<Hand> list = handsOf(id);
+        for (int k = 0; k < list.size(); k++) {
+            if (!list.get(k).isDone()) {
+                activeHand.put(id, k);
+                Player p = Bukkit.getPlayer(id);
+                if (p != null) {
+                    p.sendMessage(plugin.getMessages().format(
+                            "blackjack.next_split_hand",
+                            "&eAhora juegas tu mano &f{n}&e: &f{cards} &8(&f{value}&8)",
+                            Map.of("n", String.valueOf(k + 1),
+                                    "cards", list.get(k).describe(false),
+                                    "value", String.valueOf(list.get(k).bestValue()))));
+                }
+                continueOrAdvance(id);
+                return;
+            }
+        }
+        advanceTurn();
     }
 
     private boolean isPlayersTurn(Player player) {
@@ -1107,7 +1320,7 @@ public class BlackjackTable {
         pairsBets.clear();
         plus3Bets.clear();
         hands.clear();
-        stoodOrDone.clear();
+        activeHand.clear();
         dealerHand = null;
         currentTurn = null;
 
@@ -1207,13 +1420,16 @@ public class BlackjackTable {
         this.dealerHand = new Hand();
 
         for (UUID id : participants) {
-            hands.put(id, new Hand());
+            List<Hand> list = new ArrayList<>();
+            list.add(new Hand(bets.getOrDefault(id, 0L)));
+            hands.put(id, list);
+            activeHand.put(id, 0);
         }
 
         // 2 cards each, then dealer
         for (int i = 0; i < 2; i++) {
             for (UUID id : participants) {
-                Hand h = hands.get(id);
+                Hand h = firstHand(id);
                 if (h != null)
                     h.add(draw());
             }
@@ -1237,28 +1453,27 @@ public class BlackjackTable {
         // Side bets se pagan apenas se reparte (como en el casino).
         resolveSideBets(participants);
 
-        // Mark naturals as done.
-        for (UUID id : participants) {
-            Hand h = hands.get(id);
-            if (h != null && h.isBlackjack()) {
-                stoodOrDone.add(id);
-                Player p = Bukkit.getPlayer(id);
-                if (p != null) {
-                    p.sendMessage(plugin.getMessages().getString(
-                            "blackjack.blackjack",
-                            "&6&lBLACKJACK!"));
-                }
-            }
-        }
+        startRoundDisplayTask();
 
-        // Peek: si el dealer muestra A o figura y tiene Blackjack, la ronda termina ya.
+        // Peek: si el dealer tiene Blackjack, la ronda termina ya.
         if (dealerHand.isBlackjack()) {
             broadcastToParticipants(participants, plugin.getMessages().getString(
                     "blackjack.dealer_blackjack",
                     "&c&lEl dealer tiene BLACKJACK."));
-            stoodOrDone.addAll(participants);
+            for (UUID id : participants) {
+                for (Hand h : handsOf(id))
+                    h.setDone(true);
+            }
             startDealerTurn();
             return;
+        }
+
+        // Blackjack natural: el dealer ya revisó que no tiene, se paga al instante.
+        for (UUID id : participants) {
+            Hand h = firstHand(id);
+            if (h == null || !h.isBlackjack())
+                continue;
+            payNaturalNow(id, h);
         }
 
         // Start first turn
@@ -1272,6 +1487,41 @@ public class BlackjackTable {
         updateHologramText();
     }
 
+    private void payNaturalNow(UUID id, Hand h) {
+        long payout = blackjackTotalPayout(h.bet());
+        long profit = Math.max(0L, payout - h.bet());
+        h.setDone(true);
+        h.setSettled(true);
+        h.setResult("&6&lBJ &a+" + prettyUnits(profit));
+
+        Player p = Bukkit.getPlayer(id);
+        if (p == null) {
+            plugin.getPendingPayouts().add(id, payout);
+        } else {
+            plugin.getTokenPayout().pay(p, payout);
+            p.sendMessage(plugin.getMessages().format(
+                    "blackjack.blackjack_paid",
+                    "&6&lBLACKJACK! &aCobras al instante &f{amount}&a en fichas. &7(paga {rule})",
+                    Map.of("amount", prettyUnits(profit),
+                            "rule", plugin.getConfig().getString("blackjack.blackjack_payout", "3:2"))));
+            p.sendTitle(plugin.color("&6&lBLACKJACK!"), plugin.color("&a+" + prettyUnits(profit) + " &7fichas"),
+                    5, 50, 15);
+            p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.2f);
+        }
+        String name = p == null ? "?" : p.getName();
+        for (UUID other : hands.keySet()) {
+            if (other.equals(id))
+                continue;
+            Player op = Bukkit.getPlayer(other);
+            if (op != null) {
+                op.sendMessage(plugin.getMessages().format(
+                        "blackjack.blackjack_broadcast",
+                        "&6{player} &7sacó &6&lBLACKJACK&7.",
+                        Map.of("player", name)));
+            }
+        }
+    }
+
     private void resolveSideBets(List<UUID> participants) {
         if (dealerHand == null || dealerHand.size() == 0)
             return;
@@ -1279,7 +1529,7 @@ public class BlackjackTable {
         FileConfiguration cfg = plugin.getConfig();
 
         for (UUID id : participants) {
-            Hand h = hands.get(id);
+            Hand h = firstHand(id);
             Player p = Bukkit.getPlayer(id);
             if (h == null || h.size() < 2)
                 continue;
@@ -1373,8 +1623,10 @@ public class BlackjackTable {
                             "blackjack.turn_timeout",
                             "&7Tiempo. Se aplicó Stand."));
                 }
-                stoodOrDone.add(currentTurn);
-                advanceTurn();
+                Hand timedOut = currentHand(currentTurn);
+                if (timedOut != null)
+                    timedOut.setDone(true);
+                continueOrAdvance(currentTurn);
             }
             updateHologramText();
         }, 20L, 20L);
@@ -1452,16 +1704,14 @@ public class BlackjackTable {
                     start = true;
                 continue;
             }
-            if (stoodOrDone.contains(id))
-                continue;
-            Hand h = hands.get(id);
-            if (h == null)
-                continue;
-            if (h.isBust()) {
-                stoodOrDone.add(id);
-                continue;
+            // Primera mano sin terminar (puede tener varias si dividió).
+            List<Hand> list = handsOf(id);
+            for (int k = 0; k < list.size(); k++) {
+                if (!list.get(k).isDone()) {
+                    activeHand.put(id, k);
+                    return id;
+                }
             }
-            return id;
         }
         return null;
     }
@@ -1499,7 +1749,6 @@ public class BlackjackTable {
         state = State.DEALER;
         currentTurn = null;
         resultsShown = false;
-        roundResults.clear();
 
         // Cerrar menús de acción que hayan quedado abiertos.
         for (UUID id : hands.keySet()) {
@@ -1545,9 +1794,11 @@ public class BlackjackTable {
     }
 
     private boolean anyLiveHand() {
-        for (Hand h : hands.values()) {
-            if (h != null && !h.isBust() && !h.isBlackjack())
-                return true;
+        for (List<Hand> list : hands.values()) {
+            for (Hand h : list) {
+                if (!h.isBust() && !h.isSettled() && !h.isBlackjack())
+                    return true;
+            }
         }
         return false;
     }
@@ -1577,80 +1828,95 @@ public class BlackjackTable {
 
         for (UUID id : new ArrayList<>(hands.keySet())) {
             Player p = Bukkit.getPlayer(id);
-            long bet = bets.getOrDefault(id, 0L);
-            Hand h = hands.get(id);
-            if (h == null || bet <= 0)
-                continue;
+            List<Hand> list = handsOf(id);
+            boolean multi = list.size() > 1;
+            long totalBet = 0L;
+            long totalPayout = 0L;
+            boolean anyBlackjack = false;
 
-            long payout;
-            if (h.isBust()) {
-                payout = 0L;
-            } else if (h.isBlackjack()) {
-                payout = dealerBj ? bet : blackjackTotalPayout(bet);
-            } else if (dealerBj) {
-                // El Blackjack del dealer le gana a cualquier 21 de 3+ cartas.
-                payout = 0L;
-            } else if (dealerBust) {
-                payout = bet * 2L;
-            } else {
-                int playerValue = h.bestValue();
-                if (playerValue > dealerValue) {
-                    payout = bet * 2L;
-                } else if (playerValue == dealerValue) {
-                    payout = bet;
-                } else {
+            for (int k = 0; k < list.size(); k++) {
+                Hand h = list.get(k);
+                long bet = h.bet();
+                // Ya pagada (blackjack natural) o sin apuesta.
+                if (h.isSettled() || bet <= 0)
+                    continue;
+
+                long payout;
+                if (h.isBust()) {
                     payout = 0L;
+                } else if (h.isBlackjack()) {
+                    // Solo llega aquí si el dealer también tenía Blackjack: empate.
+                    payout = dealerBj ? bet : blackjackTotalPayout(bet);
+                    anyBlackjack = !dealerBj;
+                } else if (dealerBj) {
+                    // El Blackjack del dealer le gana a cualquier 21 de 3+ cartas.
+                    payout = 0L;
+                } else if (dealerBust) {
+                    payout = bet * 2L;
+                } else {
+                    int playerValue = h.bestValue();
+                    if (playerValue > dealerValue) {
+                        payout = bet * 2L;
+                    } else if (playerValue == dealerValue) {
+                        payout = bet;
+                    } else {
+                        payout = 0L;
+                    }
+                }
+
+                if (payout <= 0) {
+                    h.setResult("&c✖ PIERDE");
+                } else if (payout == bet) {
+                    h.setResult("&e= EMPATE");
+                } else {
+                    h.setResult("&a✔ +" + prettyUnits(payout - bet));
+                }
+                totalBet += bet;
+                totalPayout += payout;
+
+                if (p != null) {
+                    String youVal = h.isBust() ? "BUST" : String.valueOf(h.bestValue());
+                    String prefix = multi ? "§7[Mano " + (k + 1) + "] " : "";
+                    if (payout <= 0) {
+                        p.sendMessage(prefix + plugin.getMessages().format(
+                                "blackjack.result.lose",
+                                "&cPerdiste tu apuesta. &8(&fTú {you} &8vs &fDealer {dealer}&8)",
+                                Map.of("you", youVal, "dealer", dealerVal)));
+                    } else if (payout == bet) {
+                        p.sendMessage(prefix + plugin.getMessages().format(
+                                "blackjack.result.push",
+                                "&eEmpate. &7Recuperas &f{amount}&7 en fichas.",
+                                Map.of("amount", prettyUnits(bet), "you", youVal, "dealer", dealerVal)));
+                    } else {
+                        p.sendMessage(prefix + plugin.getMessages().format(
+                                "blackjack.result.win",
+                                "&aGanaste &f{amount}&a en fichas.",
+                                Map.of("amount", prettyUnits(payout - bet), "you", youVal, "dealer", dealerVal)));
+                    }
                 }
             }
 
-            if (payout <= 0) {
-                roundResults.put(id, "&c✖ PIERDE");
-            } else if (payout == bet) {
-                roundResults.put(id, "&e= EMPATE");
-            } else {
-                roundResults.put(id, "&a✔ +" + prettyUnits(payout - bet));
-            }
+            if (totalBet <= 0)
+                continue;
 
             if (p == null) {
                 // Desconectado: se le paga cuando vuelva a entrar.
-                plugin.getPendingPayouts().add(id, payout);
+                plugin.getPendingPayouts().add(id, totalPayout);
                 continue;
             }
-
-            if (payout > 0) {
-                plugin.getTokenPayout().pay(p, payout);
+            if (totalPayout > 0) {
+                plugin.getTokenPayout().pay(p, totalPayout);
             }
 
-            String youVal = h.isBust() ? "BUST" : String.valueOf(h.bestValue());
-
-            if (payout <= 0) {
-                p.sendMessage(plugin.getMessages().format(
-                        "blackjack.result.lose",
-                        "&cPerdiste tu apuesta. &8(&fTú {you} &8vs &fDealer {dealer}&8)",
-                        Map.of("you", youVal, "dealer", dealerVal)));
-                p.sendTitle(plugin.color("&cPerdiste"),
-                        plugin.color("&7Tú &f" + youVal + " &8vs &7Dealer &f" + dealerVal), 5, 60, 15);
-            } else if (payout == bet) {
-                p.sendMessage(plugin.getMessages().format(
-                        "blackjack.result.push",
-                        "&eEmpate. &7Recuperas &f{amount}&7 en fichas.",
-                        Map.of(
-                                "amount", prettyUnits(bet),
-                                "you", youVal,
-                                "dealer", dealerVal)));
-                p.sendTitle(plugin.color("&eEmpate"),
-                        plugin.color("&7Tú &f" + youVal + " &8vs &7Dealer &f" + dealerVal), 5, 60, 15);
+            long net = totalPayout - totalBet;
+            if (net > 0) {
+                p.sendTitle(plugin.color(anyBlackjack ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
+                        plugin.color("&a+" + prettyUnits(net) + " &7fichas"), 5, 60, 15);
+            } else if (net == 0) {
+                p.sendTitle(plugin.color("&eEmpate"), plugin.color("&7Dealer &f" + dealerVal), 5, 60, 15);
             } else {
-                long profit = Math.max(0L, payout - bet);
-                p.sendMessage(plugin.getMessages().format(
-                        "blackjack.result.win",
-                        "&aGanaste &f{amount}&a en fichas.",
-                        Map.of(
-                                "amount", prettyUnits(profit),
-                                "you", youVal,
-                                "dealer", dealerVal)));
-                p.sendTitle(plugin.color(h.isBlackjack() ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
-                        plugin.color("&a+" + prettyUnits(profit) + " &7fichas"), 5, 60, 15);
+                p.sendTitle(plugin.color("&cPerdiste"),
+                        plugin.color("&c-" + prettyUnits(-net) + " &8| &7Dealer &f" + dealerVal), 5, 60, 15);
             }
         }
 
@@ -1675,8 +1941,8 @@ public class BlackjackTable {
         pairsBets.clear();
         plus3Bets.clear();
         hands.clear();
-        stoodOrDone.clear();
-        roundResults.clear();
+        activeHand.clear();
+        stopRoundDisplayTask();
         dealerHand = null;
         currentTurn = null;
         resultsShown = false;
@@ -1997,6 +2263,11 @@ public class BlackjackTable {
         dealerHandDisplayId = null;
     }
 
+    /**
+     * Cartas de cada jugador ENCIMA de su cabeza, para que los demás las vean.
+     * El propio jugador no ve su holograma: sus cartas le salen en pantalla
+     * (action bar), igual que en el póker.
+     */
     private void updatePlayerHandDisplays() {
         if (state != State.PLAYING && state != State.DEALER) {
             removePlayerHandDisplays();
@@ -2007,16 +2278,6 @@ public class BlackjackTable {
         if (w == null)
             return;
 
-        // Ensure a display for every participant hand.
-        for (UUID id : hands.keySet()) {
-            UUID displayId = playerHandDisplayIds.get(id);
-            Entity e = (displayId == null) ? null : w.getEntity(displayId);
-            if (!(e instanceof TextDisplay)) {
-                TextDisplay td = spawnPlayerHandDisplay(id);
-                playerHandDisplayIds.put(id, td.getUniqueId());
-            }
-        }
-
         // Remove displays that no longer correspond to active hands.
         for (UUID id : new ArrayList<>(playerHandDisplayIds.keySet())) {
             if (!hands.containsKey(id)) {
@@ -2025,100 +2286,148 @@ public class BlackjackTable {
         }
 
         for (UUID id : hands.keySet()) {
-            UUID displayId = playerHandDisplayIds.get(id);
-            if (displayId == null)
-                continue;
-
-            Entity e = w.getEntity(displayId);
-            if (!(e instanceof TextDisplay td))
-                continue;
-
             Player p = Bukkit.getPlayer(id);
-            String name = (p == null ? "<offline>" : p.getName());
-            Hand h = hands.get(id);
-            if (h == null)
+            if (p == null || !p.getWorld().equals(w)) {
+                removePlayerHandDisplay(id);
                 continue;
-
-            String turnMark = Objects.equals(currentTurn, id) ? "&e▶ " : "&8- ";
-            String cards = h.describe(false);
-            String value = h.isBust() ? "BUST" : String.valueOf(h.bestValue());
-
-            String line = plugin.getMessages().format(
-                    "blackjack.holo.player",
-                    "&e{turn}{player}&8: &f{cards} &8(&f{value}&8)",
-                    Map.of(
-                            "turn", turnMark,
-                            "player", name,
-                            "cards", cards,
-                            "value", value));
-            String result = roundResults.get(id);
-            if (result != null) {
-                line = line + " " + result;
             }
-            td.setText(plugin.color(line));
 
-            Location desired = playerHandDisplayLocation(id);
-            if (desired != null && !isClose(td.getLocation(), desired)) {
-                td.teleport(desired);
+            UUID displayId = playerHandDisplayIds.get(id);
+            Entity e = (displayId == null) ? null : w.getEntity(displayId);
+            TextDisplay td;
+            if (e instanceof TextDisplay existing) {
+                td = existing;
+            } else {
+                td = spawnPlayerHandDisplay(p);
+                playerHandDisplayIds.put(id, td.getUniqueId());
             }
+            td.setText(plugin.color(handsText(id, false)));
         }
     }
 
-    private TextDisplay spawnPlayerHandDisplay(UUID playerId) {
-        World w = center.getWorld();
-        Location l = playerHandDisplayLocation(playerId);
-        if (w == null || l == null) {
-            l = center.clone().add(0.5, 1.55, 0.5);
-        }
+    /** Texto con todas las manos del jugador (una línea por mano si dividió). */
+    private String handsText(UUID id, boolean forActionBar) {
+        List<Hand> list = handsOf(id);
+        boolean multi = list.size() > 1;
+        boolean myTurn = state == State.PLAYING && Objects.equals(currentTurn, id);
+        int active = activeHand.getOrDefault(id, 0);
 
-        TextDisplay td = w.spawn(l, TextDisplay.class);
+        StringBuilder sb = new StringBuilder();
+        if (!forActionBar) {
+            Player p = Bukkit.getPlayer(id);
+            sb.append(myTurn ? "§e▶ §f§l" : "§f").append(p == null ? "?" : p.getName()).append('\n');
+        }
+        for (int k = 0; k < list.size(); k++) {
+            Hand h = list.get(k);
+            if (k > 0)
+                sb.append(forActionBar ? " §8| " : "\n");
+            if (myTurn && multi && k == active)
+                sb.append("§e▶ ");
+            if (multi)
+                sb.append("§7M").append(k + 1).append(": ");
+            sb.append(formatCards(h)).append(" §8(§f").append(h.valueLabel()).append("§8)");
+            if (h.result() != null)
+                sb.append(' ').append(h.result());
+        }
+        return sb.toString();
+    }
+
+    private static String formatCards(Hand h) {
+        StringBuilder sb = new StringBuilder();
+        for (Card c : h.cards()) {
+            if (sb.length() > 0)
+                sb.append(' ');
+            boolean red = c.suit() == Card.Suit.HEARTS || c.suit() == Card.Suit.DIAMONDS;
+            sb.append(red ? "§c" : "§f").append("§l").append(c.shortName());
+        }
+        return sb.toString();
+    }
+
+    private double handHoloHeight() {
+        return plugin.getConfig().getDouble("blackjack.hand_holo_height", 2.55);
+    }
+
+    private TextDisplay spawnPlayerHandDisplay(Player owner) {
+        Location l = owner.getLocation().clone().add(0, handHoloHeight(), 0);
+        TextDisplay td = owner.getWorld().spawn(l, TextDisplay.class);
+        td.setPersistent(false);
         td.setBillboard(Display.Billboard.CENTER);
-        td.setSeeThrough(true);
+        td.setSeeThrough(false);
         td.setDefaultBackground(false);
+        td.setBackgroundColor(org.bukkit.Color.fromARGB(110, 0, 0, 0));
         td.setShadowed(true);
+        td.setTeleportDuration(2);
         td.setText(" ");
+        // El dueño ve sus cartas en pantalla, no en el mundo.
+        owner.hideEntity(plugin, td);
         return td;
     }
 
-    private Location playerHandDisplayLocation(UUID playerId) {
-        if (playerId == null)
-            return null;
-
-        Player p = Bukkit.getPlayer(playerId);
-        if (p != null) {
-            Location eye = p.getEyeLocation();
-            Vector dir = eye.getDirection();
-            if (dir != null) {
-                dir = dir.normalize();
-            } else {
-                dir = new Vector(0, 0, 1);
+    private void startRoundDisplayTask() {
+        stopRoundDisplayTask();
+        roundDisplayTick = 0;
+        roundDisplayTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.PLAYING && state != State.DEALER) {
+                stopRoundDisplayTask();
+                return;
             }
-
-            // A bit below eye level and a block-ish in front.
-            Location base = eye.clone().add(0, -0.35, 0);
-            return base.add(dir.multiply(1.2));
-        }
-
-        // Fallback: place around the table based on join order.
-        int seat = 0;
-        int idx = 0;
-        for (UUID id : seated) {
-            if (Objects.equals(id, playerId)) {
-                seat = idx;
-                break;
+            followHandDisplays();
+            if (roundDisplayTick++ % 10 == 0) {
+                sendHandActionBars();
             }
-            idx++;
+        }, 1L, 2L);
+    }
+
+    private void stopRoundDisplayTask() {
+        if (roundDisplayTask != null) {
+            roundDisplayTask.cancel();
+            roundDisplayTask = null;
         }
-        int seatCount = getConfiguredMaxPlayers();
-        seat = Math.floorMod(seat, seatCount);
+    }
 
-        double radius = 1.6;
-        double y = 1.55;
-        double angle = (2.0 * Math.PI) * ((double) seat / (double) seatCount);
-        double ox = Math.cos(angle) * radius;
-        double oz = Math.sin(angle) * radius;
+    /** Los hologramas de cartas siguen la cabeza del jugador. */
+    private void followHandDisplays() {
+        World w = center.getWorld();
+        if (w == null)
+            return;
+        double h = handHoloHeight();
+        for (Map.Entry<UUID, UUID> e : playerHandDisplayIds.entrySet()) {
+            Player p = Bukkit.getPlayer(e.getKey());
+            Entity ent = w.getEntity(e.getValue());
+            if (p == null || ent == null || !p.getWorld().equals(w))
+                continue;
+            Location desired = p.getLocation().clone().add(0, h, 0);
+            if (ent.getLocation().distanceSquared(desired) > 0.0025) {
+                ent.teleport(desired);
+            }
+        }
+    }
 
-        return center.clone().add(0.5 + ox, y, 0.5 + oz);
+    /** Tus cartas en pantalla (encima de la barra de experiencia). */
+    private void sendHandActionBars() {
+        for (UUID id : hands.keySet()) {
+            Player p = Bukkit.getPlayer(id);
+            if (p == null)
+                continue;
+            StringBuilder sb = new StringBuilder();
+            if (state == State.PLAYING && Objects.equals(currentTurn, id)) {
+                sb.append("§a§l¡TU TURNO! §8| ");
+            }
+            sb.append("§7Tus cartas: ").append(handsText(id, true));
+            if (dealerHand != null && dealerHand.size() > 0) {
+                sb.append(" §8| §cDealer: ");
+                if (state == State.PLAYING) {
+                    Hand up = new Hand();
+                    up.add(dealerHand.cards().get(0));
+                    sb.append(formatCards(up)).append(" §8??");
+                } else {
+                    sb.append(formatCards(dealerHand)).append(" §8(§f").append(dealerHand.valueLabel())
+                            .append("§8)");
+                }
+            }
+            p.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                    .deserialize(sb.toString()));
+        }
     }
 
     private long countTokenUnits(Player player) {
