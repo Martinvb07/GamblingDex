@@ -58,6 +58,8 @@ public class BlackjackTable {
     private final Map<UUID, Long> bets = new HashMap<>();
     private final Map<UUID, Long> pairsBets = new HashMap<>();
     private final Map<UUID, Long> plus3Bets = new HashMap<>();
+    // Apuestas con las que arrancó la última ronda de cada jugador: {principal, pares, 21+3}
+    private final Map<UUID, long[]> lastBets = new HashMap<>();
     private final Map<UUID, BetSpot> selectedSpot = new HashMap<>();
     // Manos de cada jugador en la ronda (más de una si dividió).
     private final Map<UUID, List<Hand>> hands = new HashMap<>();
@@ -907,6 +909,62 @@ public class BlackjackTable {
         return true;
     }
 
+    /** Total de la última apuesta del jugador (0 si no jugó todavía). */
+    public long lastBetTotal(UUID playerId) {
+        long[] b = lastBets.get(playerId);
+        return b == null ? 0L : b[0] + b[1] + b[2];
+    }
+
+    public long lastBetUnits(UUID playerId, BetSpot spot) {
+        long[] b = lastBets.get(playerId);
+        if (b == null)
+            return 0L;
+        return switch (spot) {
+            case MAIN -> b[0];
+            case PERFECT_PAIRS -> b[1];
+            case TWENTY_ONE_PLUS_THREE -> b[2];
+        };
+    }
+
+    /** Vuelve a poner las mismas apuestas con las que arrancó la ronda anterior. */
+    public boolean repeatLastBet(Player player) {
+        if (player == null)
+            return false;
+        UUID id = player.getUniqueId();
+        long total = lastBetTotal(id);
+        if (total <= 0) {
+            player.sendMessage(plugin.getMessages().getString(
+                    "blackjack.no_last_bet", "&7No tienes una apuesta anterior para repetir."));
+            return false;
+        }
+        if (state != State.BETTING) {
+            player.sendMessage(plugin.getMessages().getString("blackjack.bets_closed", "&cApuestas cerradas."));
+            return false;
+        }
+        if (!com.gamblingdex.economy.TokenWallet.take(player, total)) {
+            player.sendMessage(plugin.getMessages().format(
+                    "blackjack.not_enough_repeat",
+                    "&cNo te alcanzan las fichas para repetir (&e{amount}&c).",
+                    Map.of("amount", prettyUnits(total))));
+            return false;
+        }
+        long refund = 0;
+        for (BetSpot spot : BetSpot.values()) {
+            long amount = lastBetUnits(id, spot);
+            if (amount <= 0)
+                continue;
+            if (spot != BetSpot.MAIN && !sideBetsEnabled()) {
+                refund += amount;
+                continue;
+            }
+            if (!placeBet(player, spot, amount))
+                refund += amount;
+        }
+        if (refund > 0)
+            com.gamblingdex.economy.TokenWallet.give(id, refund);
+        return refund < total;
+    }
+
     public boolean clearBet(Player player) {
         if (player == null)
             return false;
@@ -1420,6 +1478,8 @@ public class BlackjackTable {
         this.dealerHand = new Hand();
 
         for (UUID id : participants) {
+            lastBets.put(id, new long[] { bets.getOrDefault(id, 0L), pairsBets.getOrDefault(id, 0L),
+                    plus3Bets.getOrDefault(id, 0L) });
             List<Hand> list = new ArrayList<>();
             list.add(new Hand(bets.getOrDefault(id, 0L)));
             hands.put(id, list);

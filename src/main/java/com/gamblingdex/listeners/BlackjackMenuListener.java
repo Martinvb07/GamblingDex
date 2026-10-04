@@ -94,6 +94,12 @@ public class BlackjackMenuListener implements Listener {
                 return;
             }
 
+            if (action.equals("repeat")) {
+                table.repeatLastBet(player);
+                new BlackjackBetMenu(plugin).open(player, table);
+                return;
+            }
+
             if (action.equals("spot")) {
                 String spotName = pdc.get(kValue, PersistentDataType.STRING);
                 try {
