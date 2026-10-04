@@ -101,8 +101,6 @@ public class WorldRouletteTable {
     private final Map<UUID, Map<String, WorldRouletteBet>> bets = new HashMap<>();
     // apuestas de la ronda anterior de cada jugador (para "Repetir apuesta")
     private final Map<UUID, List<WorldRouletteBet>> lastBets = new HashMap<>();
-    // último número que quedó iluminado (el giro arranca desde ahí)
-    private Integer lastLitNumber;
 
     private State state = State.WAITING;
     private int countdownSeconds = 0;
@@ -580,10 +578,10 @@ public class WorldRouletteTable {
 
         int winningNumber = sequence.get(ThreadLocalRandom.current().nextInt(sequence.size()));
 
-        // La luz arranca donde quedó la última vez, da vueltas rápido unos
+        // La luz arranca en un número al azar, da vueltas rápido unos
         // segundos y frena de a poco hasta parar EXACTAMENTE en el ganador.
         int n = sequence.size();
-        int startIdx = lastLitNumber == null ? 0 : Math.max(0, sequence.indexOf(lastLitNumber));
+        int startIdx = ThreadLocalRandom.current().nextInt(n);
         int winIdx = sequence.indexOf(winningNumber);
         int fastTicks = Math.max(20, (int) Math.round(plugin.getConfig().getDouble("roulette_world.spin_fast_seconds", 4.0) * 20));
         int minSlowSteps = Math.max(5, plugin.getConfig().getInt("roulette_world.spin_slow_steps", 18));
@@ -618,7 +616,6 @@ public class WorldRouletteTable {
                     if (spinTask != null)
                         spinTask.cancel();
                     spinTask = null;
-                    lastLitNumber = winningNumber;
                     finishRound(winningNumber);
                     return;
                 }
