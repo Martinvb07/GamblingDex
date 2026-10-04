@@ -3,7 +3,7 @@
 # ======================
 # Montaje (admin), igual que el blackjack:
 #   1) Mira el bloque de la mesa: /gdx station set baccarat [nombre]
-#      Aparece el dealer detrás de la mesa, mirando hacia ti.
+#      Aparece el dealer detrás de la mesa (a la altura de ese bloque), mirando hacia ti.
 #   2) Párate en cada asiento y usa: /gdx baccarat asiento agregar <mesa>
 #      (también: quitar | lista | limpiar)
 #   Quitar la mesa: /gdx station remove (mirando el bloque de la mesa)
@@ -28,7 +28,7 @@ reshuffle_at_percent: 25
 banker_payout: 0.95        # Banca paga 0.95 a 1 (5% de comisión)
 tie_payout: 8              # Empate paga 8 a 1
 pair_payout: 11            # Parejas pagan 11 a 1
-holo_height: 1.4
+holo_above_dealer: 2.7      # altura del holograma sobre los pies del dealer (encima de su nombre)
 
 # Título de cada mesa (holograma y nombre del dealer). Cada mesa que creas aparece
 # aquí sola; cambia el texto de la derecha (acepta &colores, &#RRGGBB y símbolos).
