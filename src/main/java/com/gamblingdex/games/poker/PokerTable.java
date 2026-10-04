@@ -1628,7 +1628,22 @@ public class PokerTable {
             return owner.getLocation().clone().add(0,
                     plugin.getConfig().getDouble("poker.player_holo_height", 2.55), 0);
         }
-        return seatLoc.clone().add(0.5, plugin.getConfig().getDouble("poker.free_seat_holo_height", 1.4), 0.5);
+        // Sobre la superficie donde uno se para: el bloque registrado suele ser el
+        // de abajo de una losa/escalera, así que se mide la altura real del asiento.
+        return seatLoc.clone().add(0.5, seatSurfaceHeight(seatLoc)
+                + plugin.getConfig().getDouble("poker.free_seat_holo_height", 1.0), 0.5);
+    }
+
+    /** Altura (desde el bloque registrado) de la superficie donde se para el jugador. */
+    private static double seatSurfaceHeight(Location seatLoc) {
+        Block seat = seatLoc.getBlock();
+        Block above = seat.getRelative(BlockFace.UP);
+        if (!above.isPassable() && above.getBoundingBox().getHeight() > 0) {
+            // Losa/escalera encima del bloque registrado.
+            return 1.0 + (above.getBoundingBox().getMaxY() - above.getY());
+        }
+        double h = seat.getBoundingBox().getMaxY() - seat.getY();
+        return h > 0 ? h : 1.0;
     }
 
     /** Llamado cada 2 ticks: los hologramas siguen la cabeza de cada jugador. */

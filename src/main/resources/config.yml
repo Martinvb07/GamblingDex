@@ -255,7 +255,7 @@ poker:
   holo_height: 1.0              # mesa (cartas, bote): bloques sobre el bloque centro
   player_holo_height: 2.55      # info de cada jugador SOBRE SU CABEZA (él no la ve: la tiene en pantalla)
   player_holo_scale: 0.8
-  free_seat_holo_height: 1.4    # cartel "Asiento libre" (bajo, para no tapar la vista)
+  free_seat_holo_height: 1.0    # cartel "Asiento libre": bloques sobre la superficie del asiento
   free_seat_holo_scale: 0.6
   turn_marker:
     enabled: true
