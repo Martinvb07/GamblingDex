@@ -1,8 +1,9 @@
 name: Build jar
 
 # Cada push a main publica una versión nueva subiendo el último número:
-# v1.0.1, v1.0.2, ... Para saltar a otra versión (ej. 1.1.0 o 2.0.0),
-# ejecuta el workflow a mano desde Actions y escribe la versión.
+# v1.1.1, v1.1.2, ... Para saltar a otra versión (ej. 1.2.0 o 2.0.0), cambia
+# el archivo VERSION: si es mayor que la última publicada, se usa esa.
+# También se puede ejecutar el workflow a mano desde Actions y escribir la versión.
 # En un pull request solo compila (el .jar queda en Artifacts para probarlo).
 
 on:
@@ -47,6 +48,13 @@ jobs:
             else
               IFS=. read -r MAJOR MINOR PATCH <<< "${LAST#v}"
               VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            fi
+            # Versión base del archivo VERSION (para saltar a 1.1.0, 2.0.0...)
+            BASE=$(tr -d ' \r\n' < VERSION 2>/dev/null || true)
+            if [[ "$BASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                && ! git rev-parse -q --verify "refs/tags/v$BASE" >/dev/null \
+                && [ "$(printf '%s\n%s\n' "$BASE" "$VERSION" | sort -V | tail -n1)" = "$BASE" ]; then
+              VERSION="$BASE"
             fi
           fi
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
