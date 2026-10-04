@@ -30,7 +30,6 @@ min_bet: 10
 max_bet: 100000           # 0 = sin tope
 house_cut_percent: 8.0
 odds_mode: fixed          # fixed (cuota fija, se puede jugar solo) o mutual
-allow_command: false      # true = los jugadores también pueden apostar con /gdx carrera
 bet_window_seconds: 40    # cuenta regresiva desde la primera apuesta
 result_seconds: 10
 race_speed: 1.0           # 1.0 = ~15 s para 30 bloques

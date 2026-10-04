@@ -238,19 +238,10 @@ public class CarreraModule extends GameModule {
                 }
             }
         }
-        if (!isAdmin(player) && !config().getBoolean("allow_command", false)) {
-            player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
-            return true;
-        }
-        Track t = args.length >= 1 ? tracks.get(a) : (tracks.size() == 1 ? tracks.values().iterator().next() : null);
-        if (t == null) {
-            if (tracks.isEmpty())
-                player.sendMessage(msg("no_tracks", "&cNo hay pistas de carreras todavía."));
-            else
-                notFound(player);
-            return true;
-        }
-        openMenu(player, t);
+        // Se apuesta solo en la mesa de la pista: no hay comandos de jugador.
+        player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
+        if (isAdmin(player))
+            player.sendMessage(msg("usage_admin", "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"));
         return true;
     }
 

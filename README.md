@@ -117,12 +117,10 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
 | `/gdx top [n]` | Ranking por total ganado |
-| `/gdx crash retirar` | Cobrar en Crash (también desde el menú de la mesa) |
 | `/gdx coinflip` · `crear <monto> [cara\|sello]` · `cancelar` | Coinflip |
 | `/gdx rasca` · `comprar <tipo> [cantidad]` | Rasca y Gana |
 | `/gdx bingo` · `comprar <n>` | Bingo |
 | `/gdx loteria` · `comprar <n>` | Lotería |
-| `/gdx carrera [nombre]` | Apostar en una carrera |
 
 En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
 
