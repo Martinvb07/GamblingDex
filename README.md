@@ -47,6 +47,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
+| 💣 **Mines** | Pared de 5×5 casillas en el mundo. Eliges cuántas minas y tu apuesta; cada casilla segura sube el multiplicador y te retiras cuando quieras (shift + click derecho). |
 
 ### Juegos por menú / comando
 
@@ -132,6 +133,7 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
 | `/gdx station set rueda` | Construir la rueda física (mirando un faro) |
+| `/gdx station set mines` | Construir el tablero de Mines (mirando el bloque de la mesa) |
 | `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
@@ -218,6 +220,13 @@ Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 c
 </details>
 
 <details>
+<summary><b>💣 Mines</b></summary>
+
+Mira el bloque que será la mesa y usa `/gdx station set mines`. Detrás se construye una pared de 5×5 casillas con marco. Los jugadores empiezan con click derecho a la mesa (eligen minas y apuesta), abren casillas con click derecho y se retiran con shift + click derecho.
+
+</details>
+
+<details>
 <summary><b>📈 Crash</b></summary>
 
 Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con el multiplicador en vivo.
@@ -252,6 +261,7 @@ plugins/GamblingDex/
     ├── poker.yml
     ├── ruleta.yml
     ├── slots.yml
+    ├── mines.yml
     ├── crash.yml
     ├── carrera.yml
     ├── rueda.yml
