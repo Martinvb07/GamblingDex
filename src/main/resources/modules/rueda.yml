@@ -1,0 +1,69 @@
+# ======================
+# GamblingDex - Rueda de la Fortuna
+# ======================
+# Admin: /gdx rueda crear <nombre>   (mirando el bloque de la rueda)
+#        /gdx rueda borrar <nombre> | /gdx rueda lista
+# Jugadores: click derecho al bloque para apostar a un segmento.
+#
+# "x5" paga 5 a 1: apuestas 10, si sale x5 cobras 60 (tus 10 + 50).
+# Cuantos más segmentos tenga un valor, más seguido sale.
+
+enabled: true
+
+min_bet: 10
+max_bet: 100000           # por apuesta (0 = sin tope)
+bet_window_seconds: 20    # cuenta regresiva desde la primera apuesta
+result_seconds: 6         # tiempo mostrando el resultado
+spin_seconds: 7           # duración aproximada del giro
+holo_height: 1.0          # bloques sobre el bloque de la rueda
+announce_radius: 16       # jugadores a esta distancia ven los mensajes
+
+# Segmentos de la rueda (51 en total con estos valores).
+# Devolución aprox.: x1 90%, x2 82%, x5 82%, x10 86%, x20 82%, x40 80%.
+segments:
+  - multiplier: 1
+    count: 23
+    color: "&f"
+    icon: WHITE_CONCRETE
+  - multiplier: 2
+    count: 14
+    color: "&e"
+    icon: YELLOW_CONCRETE
+  - multiplier: 5
+    count: 7
+    color: "&a"
+    icon: LIME_CONCRETE
+  - multiplier: 10
+    count: 4
+    color: "&b"
+    icon: LIGHT_BLUE_CONCRETE
+  - multiplier: 20
+    count: 2
+    color: "&d"
+    icon: MAGENTA_CONCRETE
+  - multiplier: 40
+    count: 1
+    color: "&c"
+    icon: RED_CONCRETE
+
+messages:
+  bet_placed: "&aApostaste &e{amount}&a a &f{segment}&a. &7(Total en esa casilla: &e{total}&7)"
+  bets_closed: "&cLa rueda está girando. Espera la próxima ronda."
+  countdown_started: "&6&lRueda &8» &7¡Apuestas abiertas! Gira en &f{seconds}s&7."
+  spinning: "&6&lRueda &8» &e¡La rueda está girando!"
+  result: "&6&lRueda &8» &7Salió {segment}&7!"
+  win: "&a&l¡GANASTE! &7Salió {segment} &7→ &e+{amount}"
+  lose: "&7Salió {segment}&7. Perdiste &e{amount}&7."
+  refunded: "&7La ronda de la rueda se canceló. Se te devolvieron &e{amount}&7."
+  min_bet: "&cLa apuesta mínima es &e{min}&c."
+  max_bet: "&cLa apuesta máxima es &e{max}&c."
+  not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
+  bets_cleared: "&7Retiraste tus apuestas: &e{amount}"
+  created: "&aRueda &f{name}&a creada. Los jugadores apuestan con click derecho al bloque."
+  removed: "&aRueda eliminada (se devolvieron las apuestas)."
+  not_found: "&cNo existe una rueda con ese nombre."
+  exists: "&cYa existe una rueda con ese nombre o en ese bloque."
+  look_block: "&cMira el bloque de la rueda (a 6 bloques o menos)."
+  cannot_break: "&cNo puedes romper la rueda. Un admin la quita con &f/gdx rueda borrar <nombre>&c."
+  usage_admin: "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"
+  usage: "&7Haz &fclick derecho &7al bloque de la rueda para apostar."
