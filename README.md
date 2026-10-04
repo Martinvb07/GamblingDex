@@ -50,7 +50,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 | 💣 **Mines** | **Estación con menú**: tablero de 5×5 en un cofre, eliges apuesta y minas, cada casilla segura sube el multiplicador y te retiras cuando quieras (juegan varios a la vez). También se puede construir como **pared física** de 5×5. |
 | 🎯 **Plinko** | **Estación con menú**: la bola baja animada entre los clavos y cae en una casilla con multiplicador (shift = 5 bolas). También como **pared física** con clavos; las orillas pagan hasta x10. |
-| 🎁 **Bono diario** | Estación donde cada jugador reclama fichas gratis una vez al día, con bonus por racha y montos por rango. |
+| 🎁 **Bonos** | Estación con menú: bono **diario** (24 h, con racha), **semanal** y **mensual**, en fichas. Las fichas de bono no se pueden vender por dinero hasta apostar x3 lo reclamado (configurable). |
 
 ### Juegos por menú / comando
 
@@ -145,7 +145,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
 | `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
 | `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |
-| `/gdx station set daily` | Estación de bono diario |
+| `/gdx station set daily` | Estación de bonos (diario, semanal, mensual) |
 | `/gdx station set baccarat [name]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
 | `/gdx baccarat seat <add\|remove\|list\|clear> <table>` | Asientos de baccarat (parado encima) |
 | `/gdx station set race <distance> <lanes> [name]` | Construir una pista de carreras completa |
@@ -181,7 +181,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `gamblingdex.top` | Ver el ranking | Todos |
 | `gamblingdex.stats.others` | Ver estadísticas de otros | OP |
 | `gamblingdex.admin` | Comandos de administración | OP |
-| `gamblingdex.daily.vip` · `gamblingdex.daily.mvp` | Bono diario mayor (`modules/daily.yml` → `tiers`) | Nadie |
+| `gamblingdex.daily.vip` · `gamblingdex.daily.mvp` | Bonos x2 / x4 (`modules/daily.yml` → `tiers`) | Nadie |
 
 Ejemplo con LuckPerms:
 

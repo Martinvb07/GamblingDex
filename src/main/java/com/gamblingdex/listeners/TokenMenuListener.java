@@ -183,6 +183,14 @@ public class TokenMenuListener implements Listener {
 
             Material mat = inv.getItem(13).getType();
             Integer denom = TokenManager.getDenoms().get(mat);
+            var lock = plugin.getBonusLock();
+            if (denom != null && lock != null && lock.locked(player.getUniqueId()) > 0
+                    && (long) amount * denom > lock.sellable(player)) {
+                player.sendMessage(lock.blockedMessage(player));
+                player.closeInventory();
+                processing.remove(id);
+                return;
+            }
             if (denom == null) {
                 player.sendMessage(plugin.getMessages().getString(
                         "messages.exchange.sell.token_value_unknown",

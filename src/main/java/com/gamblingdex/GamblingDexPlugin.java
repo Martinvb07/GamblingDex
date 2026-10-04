@@ -64,6 +64,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     private com.gamblingdex.stats.GameStats gameStats;
     private com.gamblingdex.stats.Achievements achievements;
     private com.gamblingdex.util.Maintenance maintenance;
+    private com.gamblingdex.economy.BonusLock bonusLock;
 
     private Messages messages;
 
@@ -218,6 +219,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.gameStats = new com.gamblingdex.stats.GameStats(this);
         this.achievements = new com.gamblingdex.stats.Achievements(this);
         this.maintenance = new com.gamblingdex.util.Maintenance(this);
+        this.bonusLock = new com.gamblingdex.economy.BonusLock(this);
 
         this.worldRouletteManager = new WorldRouletteManager(this);
 
@@ -321,6 +323,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (achievements != null)
                 achievements.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (bonusLock != null)
+                bonusLock.shutdown();
         } catch (Throwable ignored) {
         }
         getLogger().info("GamblingDex deshabilitado.");
@@ -439,6 +446,10 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public com.gamblingdex.stats.Achievements getAchievements() {
         return achievements;
+    }
+
+    public com.gamblingdex.economy.BonusLock getBonusLock() {
+        return bonusLock;
     }
 
     public com.gamblingdex.util.Maintenance getMaintenance() {

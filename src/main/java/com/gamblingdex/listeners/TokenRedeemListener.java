@@ -53,6 +53,12 @@ public class TokenRedeemListener implements Listener {
         int redeemItems = player.isSneaking() ? item.getAmount() : 1;
         if (redeemItems <= 0)
             return;
+        var lock = plugin.getBonusLock();
+        if (lock != null && lock.locked(player.getUniqueId()) > 0
+                && (long) unitValue * redeemItems > lock.sellable(player)) {
+            player.sendMessage(lock.blockedMessage(player));
+            return;
+        }
 
         item.setAmount(item.getAmount() - redeemItems);
 

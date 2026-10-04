@@ -231,6 +231,12 @@ public class ExchangeMenu {
             lore.add(plugin.color("&7Dinero: " + (m < 0 ? "&cN/A" : "&a$" + money(m))));
             lore.add(plugin.color("&7Fichas: &e" + fmt(TokenWallet.balance(p))));
             lore.add(plugin.color("&71 ficha = &a$" + money(rate())));
+            var lock = plugin.getBonusLock();
+            if (lock != null && lock.locked(p.getUniqueId()) > 0) {
+                lore.add("");
+                lore.add(plugin.color("&6Fichas de bono: &e" + fmt(lock.locked(p.getUniqueId())) + " &8(no se venden)"));
+                lore.add(plugin.color("&7Apuesta &e" + fmt(lock.remaining(p.getUniqueId())) + " &7más para liberarlas"));
+            }
             sm.setLore(lore);
             it.setItemMeta(sm);
         }
@@ -353,6 +359,19 @@ public class ExchangeMenu {
                     "&cNo tienes suficientes fichas para vender."));
             return;
         }
+        var lock = plugin.getBonusLock();
+        if (lock != null && lock.locked(p.getUniqueId()) > 0) {
+            int allowed = (int) Math.min(want, lock.sellable(p) / d);
+            if (allowed <= 0) {
+                p.sendMessage(lock.blockedMessage(p));
+                p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+                return;
+            }
+            if (allowed < want) {
+                p.sendMessage(lock.blockedMessage(p));
+                want = allowed;
+            }
+        }
         int sold = 0;
         for (ItemStack it : p.getInventory().getContents()) {
             if (it == null || it.getType() != s.token || !plugin.getTokenManager().isToken(it))
@@ -385,7 +404,18 @@ public class ExchangeMenu {
     }
 
     private void sellAll(Player p) {
+        var lock = plugin.getBonusLock();
+        long keep = lock == null ? 0 : Math.min(lock.locked(p.getUniqueId()), TokenWallet.balance(p));
+        if (keep > 0 && lock.sellable(p) <= 0) {
+            p.sendMessage(lock.blockedMessage(p));
+            return;
+        }
         long units = plugin.exchangeTakeAllTokens(p);
+        if (keep > 0) {
+            plugin.exchangeGiveTokens(p, keep); // las de bono se quedan
+            units -= keep;
+            p.sendMessage(lock.blockedMessage(p));
+        }
         if (units <= 0) {
             p.sendMessage(plugin.getMessages().getString("messages.exchange.sell_all.no_tokens",
                     "&cNo tienes tokens para vender."));
