@@ -1,12 +1,22 @@
 # ======================
 # GamblingDex - Rueda de la Fortuna
 # ======================
-# Admin: /gdx rueda crear <nombre>   (mirando el bloque de la rueda)
-#        /gdx rueda borrar <nombre> | /gdx rueda lista
-# Jugadores: click derecho al bloque para apostar a un segmento.
+# Rueda física (recomendado):
+#   Coloca un FARO (beacon), míralo y usa: /gdx station set rueda [nombre]
+#   Alrededor del faro se construye una pared de lámparas de redstone con 7
+#   bloques de concreto encima del faro. Al girar, el concreto se desplaza, las
+#   lámparas se encienden en cadena y gana el color que queda ENCIMA DEL FARO.
+#   Arriba sale un holograma con lo que paga cada color.
+#   Quitarla: /gdx station remove (mirando el faro); los bloques vuelven a como estaban.
+#
+# Rueda de solo holograma: /gdx rueda crear <nombre> (mirando un bloque)
+#                          /gdx rueda borrar <nombre> | /gdx rueda lista
+# Jugadores: click derecho al faro (o al bloque) para apostar a un color.
+# Los avisos de la ronda y los ganadores solo les llegan a los que apostaron.
 #
 # "x5" paga 5 a 1: apuestas 10, si sale x5 cobras 60 (tus 10 + 50).
 # Cuantos más segmentos tenga un valor, más seguido sale.
+# El "icon" de cada segmento es el bloque de concreto que se ve en la rueda física.
 
 enabled: true
 
@@ -15,8 +25,9 @@ max_bet: 100000           # por apuesta (0 = sin tope)
 bet_window_seconds: 20    # cuenta regresiva desde la primera apuesta
 result_seconds: 6         # tiempo mostrando el resultado
 spin_seconds: 7           # duración aproximada del giro
-holo_height: 1.0          # bloques sobre el bloque de la rueda
-announce_radius: 16       # jugadores a esta distancia ven los mensajes
+holo_height: 1.0          # bloques sobre el bloque de la rueda (solo holograma)
+physical:
+  holo_height: 3.4        # holograma de la rueda física, sobre el faro
 
 # Segmentos de la rueda (51 en total con estos valores).
 # Devolución aprox.: x1 90%, x2 82%, x5 82%, x10 86%, x20 82%, x40 80%.
@@ -64,6 +75,11 @@ messages:
   not_found: "&cNo existe una rueda con ese nombre."
   exists: "&cYa existe una rueda con ese nombre o en ese bloque."
   look_block: "&cMira el bloque de la rueda (a 6 bloques o menos)."
-  cannot_break: "&cNo puedes romper la rueda. Un admin la quita con &f/gdx rueda borrar <nombre>&c."
+  cannot_break: "&cNo puedes romper la rueda. Un admin la quita con &f/gdx station remove&c."
   usage_admin: "&cUso: /gdx rueda <crear|borrar|lista> [nombre]"
   usage: "&7Haz &fclick derecho &7al bloque de la rueda para apostar."
+  summary: "&6&lRueda &8» &7Ganadores: {players}"
+  need_beacon: "&cMira un &ffaro&c (beacon). La rueda se construye alrededor de él."
+  station_created: "&aRueda &f{name}&a construida. &7Los jugadores apuestan con click derecho al faro."
+  station_removed: "&aRueda &f{name}&a eliminada: se devolvieron las apuestas y se restauraron los bloques."
+  station_blocked: "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja alrededor del faro."

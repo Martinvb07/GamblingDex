@@ -100,8 +100,6 @@ public class CrashModule extends GameModule {
     private int tickCounter;
     private BossBar bar;
     private final Map<String, Station> stations = new LinkedHashMap<>();
-    /** Últimos retiros de la ronda, para el holograma. */
-    private final Deque<String> recentCashouts = new ArrayDeque<>();
 
     @Override
     public String id() {
@@ -313,25 +311,13 @@ public class CrashModule extends GameModule {
             td.setLineWidth(300);
             st.holo = td.getUniqueId();
         }
-        long total = 0;
-        for (Bet b : bets.values())
-            total += b.amount;
-        String players = "&7Jugadores: &f" + bets.size() + " &8| &7Apostado: &e" + units(total);
-        StringBuilder sb = new StringBuilder("&6&l✦ CRASH ✦\n");
-        switch (state) {
-            case BETTING -> sb.append("&eApuestas abiertas: &f").append(secondsLeft).append("s\n").append(players)
-                    .append("\n&7Click derecho: &fapostar");
-            case RUNNING -> {
-                sb.append(multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l").append("x")
-                        .append(fmt(multiplier)).append("\n").append(players);
-                for (String c : recentCashouts)
-                    sb.append("\n").append(c);
-                sb.append("\n&7Shift + click derecho: &fretirar");
-            }
-            case PAUSE -> sb.append("&c&lEXPLOTÓ en x").append(fmt(crashPoint)).append("\n&7Siguiente ronda en &f")
-                    .append(secondsLeft).append("s");
-        }
-        td.setText(color(sb.toString()));
+        // Solo el multiplicador (lo de cada jugador va sobre su barra de experiencia).
+        String text = switch (state) {
+            case BETTING -> "&e&lx1.00\n&7Apuestas: &f" + secondsLeft + "s";
+            case RUNNING -> (multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l") + "x" + fmt(multiplier);
+            case PAUSE -> "&c&lx" + fmt(crashPoint) + "\n&7Explotó";
+        };
+        td.setText(color(text));
     }
 
     private void removeHolo(Station st) {
@@ -351,14 +337,9 @@ public class CrashModule extends GameModule {
     private void startBetting() {
         state = State.BETTING;
         bets.clear();
-        recentCashouts.clear();
         secondsLeft = Math.max(3, config().getInt("bet_window_seconds", 15));
         tickCounter = 0;
         multiplier = 1.0;
-        String open = msg("round_open", "&6&lCrash &8» &7Nueva ronda: apuesta en los próximos &f{seconds}s",
-                "seconds", String.valueOf(secondsLeft));
-        for (Player p : bar.getPlayers())
-            p.sendMessage(open);
     }
 
     private void startRun() {
@@ -429,27 +410,34 @@ public class CrashModule extends GameModule {
         while (history.size() > 9)
             history.removeLast();
 
-        String all = msg("crashed_all", "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}", "mult", fmt(crashPoint));
-        Set<UUID> told = new HashSet<>();
+        // Resumen solo para los que jugaron la ronda.
+        List<String> winners = new ArrayList<>();
+        List<String> losers = new ArrayList<>();
+        for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
+            Bet b = e.getValue();
+            String name = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
+            if (b.cashedAt > 0)
+                winners.add("&f" + name + " &7(x" + fmt(b.cashedAt) + ", &e+" + units(payoutFor(b, b.cashedAt) - b.amount) + "&7)");
+            else
+                losers.add("&f" + name);
+        }
+        String summary = msg("crashed_all", "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}", "mult", fmt(crashPoint))
+                + "\n" + msg("summary_winners", "&7Ganaron: {players}", "players",
+                        winners.isEmpty() ? color("&8nadie") : color(String.join("&7, ", winners)))
+                + "\n" + msg("summary_losers", "&7Perdieron: {players}", "players",
+                        losers.isEmpty() ? color("&8nadie") : color(String.join("&7, ", losers)));
         for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
             Player p = Bukkit.getPlayer(e.getKey());
             if (p == null)
                 continue;
-            told.add(p.getUniqueId());
             Bet b = e.getValue();
             if (b.cashedAt == 0) {
                 p.sendMessage(msg("crashed_lost", "&c&l¡EXPLOTÓ en x{mult}! &7Perdiste &e{amount}&7.",
                         "mult", fmt(crashPoint), "amount", units(b.amount)));
                 p.sendTitle(color("&c&lx" + fmt(crashPoint)), color("&7Explotó"), 2, 30, 10);
                 p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.0f);
-            } else {
-                p.sendMessage(all);
             }
-        }
-        if (bar != null) {
-            for (Player p : bar.getPlayers())
-                if (!told.contains(p.getUniqueId()))
-                    p.sendMessage(all);
+            p.sendMessage(summary);
         }
         long totalBet = 0, totalPaid = 0;
         for (Bet b : bets.values()) {
@@ -535,14 +523,18 @@ public class CrashModule extends GameModule {
         long payout = payoutFor(b, mult);
         TokenWallet.give(id, payout);
         Player p = Bukkit.getPlayer(id);
-        recentCashouts.addFirst("&f" + (p == null ? "?" : p.getName()) + " &7retiró en &ax" + fmt(mult));
-        while (recentCashouts.size() > 3)
-            recentCashouts.removeLast();
         if (p != null) {
             p.sendMessage(msg("cashed_out", "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}",
                     "mult", fmt(mult), "amount", units(payout)));
             p.sendTitle(color("&a&lx" + fmt(mult)), color("&e+" + units(payout)), 2, 30, 10);
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.3f);
+        }
+        String others = msg("cashout_others", "&6&lCrash &8» &f{player} &7retiró en &ax{mult} &7y ganó &e{amount}",
+                "player", p == null ? "?" : p.getName(), "mult", fmt(mult), "amount", units(payout));
+        for (UUID other : bets.keySet()) {
+            Player o = Bukkit.getPlayer(other);
+            if (o != null && !other.equals(id))
+                o.sendMessage(others);
         }
         long minB = config().getLong("broadcast_win_min", 0L);
         if (minB > 0 && payout >= minB) {
