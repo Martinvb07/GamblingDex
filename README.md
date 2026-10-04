@@ -48,8 +48,9 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
-| 💣 **Mines** | Pared de 5×5 casillas en el mundo. Eliges cuántas minas y tu apuesta; cada casilla segura sube el multiplicador y te retiras cuando quieras (shift + click derecho). |
-| 🎯 **Plinko** | Pared con clavos y casillas con multiplicador. Cada apuesta suelta una bola que rebota hasta abajo; las orillas pagan hasta x10. Varias bolas a la vez. |
+| 💣 **Mines** | **Estación con menú**: tablero de 5×5 en un cofre, eliges apuesta y minas, cada casilla segura sube el multiplicador y te retiras cuando quieras (juegan varios a la vez). También se puede construir como **pared física** de 5×5. |
+| 🎯 **Plinko** | **Estación con menú**: la bola baja animada entre los clavos y cae en una casilla con multiplicador (shift = 5 bolas). También como **pared física** con clavos; las orillas pagan hasta x10. |
+| 🎁 **Bono diario** | Estación donde cada jugador reclama fichas gratis una vez al día, con bonus por racha y montos por rango. |
 
 ### Juegos por menú / comando
 
@@ -71,6 +72,9 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 - **Comisión de la casa** configurable en cada juego.
 - **Seguro ante reinicios**: las mesas se guardan en disco y al apagar el servidor las rondas en curso se reembolsan y los boletos de lotería se guardan.
 - **Módulos activables**: cada juego se puede apagar con `enabled: false`.
+- **Modo mantenimiento**: `/gdx disable crash` cierra un juego al momento (sin reiniciar) y devuelve las apuestas en curso.
+- **Logros del casino** (`achievements.yml`): primer blackjack, jackpot, retirarse en x10 en Crash... con recompensas en fichas o comandos y su menú (`/gdx achievements`).
+- **Historial personal** (`/gdx history`), últimos premios y récord del casino para hologramas.
 
 ---
 
@@ -120,12 +124,14 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
 | `/gdx top [week] [n]` | Ranking de ganancias (todos los juegos) |
-| `/gdx coinflip` · `crear <amount> [cara\|sello]` · `cancelar` | Coinflip |
-| `/gdx scratch` · `comprar <tipo> [amount]` | Rasca y Gana |
-| `/gdx bingo` · `comprar <n>` | Bingo |
-| `/gdx lottery` · `comprar <n>` | Lotería |
+| `/gdx history` | Tus últimas 10 apuestas |
+| `/gdx achievements` | Tus logros del casino (menú) |
+| `/gdx coinflip` · `create <amount> [cara\|sello]` · `cancel` | Coinflip |
+| `/gdx scratch` · `buy <tipo> [amount]` | Rasca y Gana |
+| `/gdx bingo` · `buy <n>` | Bingo |
+| `/gdx lottery` · `buy <n>` | Lotería |
 
-En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
+En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, crash, mines, plinko, slots, bono diario) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
 
 ### Administradores
 
@@ -135,25 +141,32 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
 | `/gdx station set wheel` | Construir la rueda física (mirando un faro) |
-| `/gdx station set mines` | Construir el tablero de Mines (mirando el bloque de la mesa) |
-| `/gdx station set plinko [rows]` | Construir el tablero de Plinko (mirando el bloque de la mesa) |
+| `/gdx station set mines` | Estación de Mines con menú (mirando cualquier bloque) |
+| `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
+| `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
+| `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |
+| `/gdx station set daily` | Estación de bono diario |
 | `/gdx station set baccarat [name]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
-| `/gdx baccarat asiento <agregar\|quitar\|lista\|limpiar> <table>` | Asientos de baccarat (parado encima) |
+| `/gdx baccarat seat <add\|remove\|list\|clear> <table>` | Asientos de baccarat (parado encima) |
 | `/gdx station set race <distance> <lanes> [name]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radius] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <name>` | Mesas de blackjack |
 | `/gdx blackjack seat <add\|remove\|list\|clear> <name>` | Asientos de blackjack |
+| `/gdx blackjack face <name>` | El dealer mira hacia donde estás (al crear la mesa ya mira hacia ti) |
 | `/gdx poker create <name> [small] [big]` | Crear mesa de póker |
 | `/gdx poker <remove\|list\|stakes\|rake> ...` | Gestionar mesas de póker |
 | `/gdx poker seat <add\|remove\|list\|clear> <name>` | Asientos de póker |
 | `/gdx poker tournament <table> <fee> [chips] [minutes]` | Crear un torneo |
-| `/gdx poker tournament <empezar\|cancelar> <table>` | Empezar o cancelar un torneo |
-| `/gdx rueda <crear\|borrar\|lista> [name]` | Ruedas de la fortuna |
-| `/gdx race <crear\|borrar\|lista\|iniciar> ...` | Pistas de carrera manuales |
+| `/gdx poker tournament <start\|cancel> <table>` | Empezar o cancelar un torneo |
+| `/gdx wheel <create\|remove\|list> [name]` | Ruedas de la fortuna |
+| `/gdx race <create\|remove\|list\|start> ...` | Pistas de carrera manuales |
 | `/gdx bingo start` | Abrir la venta de bingo ya |
 | `/gdx lottery draw` | Sortear la lotería ya |
 | `/gdx item <roulette\|slots> [amount]` | Ítems que abren menús |
 | `/gdx token <color\|valor> <amount>` | Crear fichas (ej. para Shopkeepers) |
+| `/gdx disable <game>` | **Mantenimiento**: cierra un juego al instante y devuelve las apuestas en curso |
+| `/gdx enable <game>` | Vuelve a abrir el juego |
+| `/gdx maintenance` | Juegos en mantenimiento |
 
 ---
 
@@ -166,6 +179,7 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `gamblingdex.top` | Ver el ranking | Todos |
 | `gamblingdex.stats.others` | Ver estadísticas de otros | OP |
 | `gamblingdex.admin` | Comandos de administración | OP |
+| `gamblingdex.daily.vip` · `gamblingdex.daily.mvp` | Bono diario mayor (`modules/daily.yml` → `tiers`) | Nadie |
 
 Ejemplo con LuckPerms:
 
@@ -309,7 +323,7 @@ table_names:
 
 ## 🏷️ Placeholders (PlaceholderAPI)
 
-Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/), GamblingDex registra estos placeholders para hologramas (DecentHolograms), scoreboards, TAB, etc. Cuentan **todos los juegos** menos el póker.
+Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/), GamblingDex registra estos placeholders para hologramas (DecentHolograms), scoreboards, TAB, etc. Los de ganancias cuentan **todos los juegos** menos el póker, que tiene los suyos (`poker_...`).
 
 | Placeholder | Qué muestra |
 |---|---|
@@ -325,6 +339,15 @@ Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.624
 | `%gamblingdex_top_profit_1_value%` | Ganancia del 1° |
 | `%gamblingdex_topweek_profit_1_name%` | Igual, pero del ranking semanal |
 | `%gamblingdex_jackpot_ruleta%` | Pozo del jackpot de la ruleta |
+| `%gamblingdex_last_win_1%` | Último premio: "Martin +400.000 en Blackjack" (1 a 10; también `_name`, `_value`, `_game`) |
+| `%gamblingdex_record_win_name%` · `_value` · `_game` | Récord del casino (el premio más grande de la historia) |
+| `%gamblingdex_players_playing%` | Jugadores que jugaron en los últimos 5 minutos |
+| `%gamblingdex_crash_multiplier%` | Multiplicador del Crash en vivo (también `_state`, `_seconds`, `_players`) |
+| `%gamblingdex_bingo_next%` · `%gamblingdex_bingo_pot%` | Próxima partida de bingo y su pozo |
+| `%gamblingdex_lottery_pot%` · `%gamblingdex_lottery_next%` | Pozo de la lotería y tiempo al sorteo |
+| `%gamblingdex_achievements%` · `_total` | Logros del jugador / cuántos hay |
+| `%gamblingdex_poker_hands%` · `_hands_won` · `_profit` · `_biggest_pot` · `_tournaments` | Estadísticas de póker (`weekly_poker_...` = semana) |
+| `%gamblingdex_top_poker_profit_1_name%` · `_value` | Top de póker (`topweek_poker_...` = semana; métricas `profit`, `hands`, `hands_won`, `biggest_pot`, `tournaments`) |
 
 En los `top_...` puedes cambiar `profit` por `wagered`, `paid` o `biggest`, y el número por el puesto (1, 2, 3...). El ranking semanal se reinicia el lunes (`stats.timezone` en `config.yml`).
 

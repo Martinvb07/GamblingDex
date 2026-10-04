@@ -135,10 +135,47 @@ public class ModuleManager {
         return null;
     }
 
+    /** Módulo (activo o no) por id o alias, o null. */
+    public GameModule find(String name) {
+        if (name == null)
+            return null;
+        for (GameModule m : modules.values()) {
+            if (m.id().equalsIgnoreCase(name))
+                return m;
+            for (String a : m.aliases())
+                if (a.equalsIgnoreCase(name))
+                    return m;
+        }
+        return null;
+    }
+
+    /**
+     * Apaga y vuelve a encender un módulo: su disable() devuelve las apuestas en
+     * curso y queda limpio (lo usa el modo mantenimiento).
+     */
+    public void restart(String id) {
+        GameModule m = modules.get(id.toLowerCase(Locale.ROOT));
+        if (m == null || !enabled.contains(m.id()))
+            return;
+        try {
+            m.shutdown();
+        } catch (Throwable t) {
+            plugin.getLogger().warning("[Módulos] Error apagando " + m.id() + ": " + t);
+        }
+        try {
+            m.enable();
+        } catch (Throwable t) {
+            enabled.remove(m.id());
+            plugin.getLogger().warning("[Módulos] Error encendiendo " + m.id() + ": " + t);
+        }
+    }
+
     public boolean dispatch(Player player, String sub, String[] fullArgs) {
         GameModule m = byCommand(sub);
         if (m == null)
             return false;
+        if (!m.isAdmin(player) && !m.isOpenFor(player))
+            return true;
         String[] rest = Arrays.copyOfRange(fullArgs, 1, fullArgs.length);
         try {
             m.onCommand(player, rest);

@@ -649,6 +649,8 @@ public class BaccaratModule extends GameModule {
                     "min", units(min), "max", max > 0 ? units(max) : "∞"));
             return;
         }
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, amount)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(p))));
@@ -671,6 +673,8 @@ public class BaccaratModule extends GameModule {
             p.sendMessage(msg("bets_closed", "&cApuestas cerradas. Espera la siguiente mano."));
             return;
         }
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, tot)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(p))));

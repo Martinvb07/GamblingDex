@@ -983,6 +983,8 @@ public class CarreraModule extends GameModule {
             p.sendMessage(msg("max_bet", "&cLa apuesta máxima es &e{max}&c.", "max", units(max)));
             return;
         }
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, amount)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(p))));

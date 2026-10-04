@@ -81,6 +81,8 @@ public class PlinkoModule extends GameModule {
 
     private final Map<String, Board> boards = new LinkedHashMap<>();
     private final Map<UUID, Long> lastBet = new HashMap<>();
+    private PlinkoMenu menu;
+    private com.gamblingdex.modules.SimpleStations menuStations;
 
     @Override
     public String id() {
@@ -111,12 +113,21 @@ public class PlinkoModule extends GameModule {
                 boards.put(name.toLowerCase(Locale.ROOT), b);
             }
         }
+        menu = new PlinkoMenu(this);
+        listen(menu);
+        menuStations = new com.gamblingdex.modules.SimpleStations(this,
+                () -> config().getString("station_holo", "&6&l✦ PLINKO ✦\n&7Click derecho para jugar"));
+        menuStations.load();
         listen(new Events());
         runTimer(this::tick, 1L, 1L);
     }
 
     @Override
     public void disable() {
+        if (menu != null)
+            menu.closeAll();
+        if (menuStations != null)
+            menuStations.removeHolos();
         for (Board b : boards.values()) {
             // Bolas en el aire: se pagan ya (el resultado ya estaba decidido)
             for (Ball ball : new ArrayList<>(b.balls))
@@ -130,18 +141,20 @@ public class PlinkoModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>();
         l.add("&6&lPlinko");
-        l.add("&8• &fClick derecho&7 a la mesa: soltar una bola &8| &fShift + click derecho&7: otra con la misma apuesta");
-        if (admin)
-            l.add("&8• &e/gdx station set plinko [6|8|10|12] &7- Construir el tablero (mirando el bloque de la mesa)");
+        l.add("&8• &fClick derecho&7 a la estación: abre el tablero (menú)");
+        if (admin) {
+            l.add("&8• &e/gdx station set plinko &7- Estación con menú (mirando un bloque)");
+            l.add("&8• &e/gdx station set plinko wall [6|8|10|12] &7- Construir la pared en el mundo");
+        }
         l.add("");
         return l;
     }
 
     @Override
     public boolean onCommand(Player player, String[] args) {
-        player.sendMessage(msg("use_station", "&7Plinko se juega en el tablero: &fclick derecho&7 a la mesa para soltar una bola."));
+        player.sendMessage(msg("use_station", "&7Plinko se juega en las estaciones: &fclick derecho&7 para abrir el tablero."));
         if (isAdmin(player))
-            player.sendMessage(msg("admin_hint", "&7Admin: &f/gdx station set plinko [6|8|10|12] &7(mirando la mesa) | &f/gdx station remove"));
+            player.sendMessage(msg("admin_hint", "&7Admin: &f/gdx station set plinko [wall [6|8|10|12]] &7(mirando un bloque) | &f/gdx station remove"));
         return true;
     }
 
@@ -156,16 +169,20 @@ public class PlinkoModule extends GameModule {
 
     @Override
     public String stationUsage() {
-        return "plinko [6|8|10|12]";
+        return "plinko [wall [6|8|10|12]]";
     }
 
     @Override
     public List<String> stationListLines() {
-        return List.of("&8- &6Plinko&7: &f" + boards.size());
+        return List.of("&8- &6Plinko&7: &f" + menuStations.size() + " &7(menú) &8+ &f" + boards.size() + " &7(pared)");
     }
 
     @Override
     public boolean removeStation(Player player, Block target) {
+        if (menuStations.remove(target)) {
+            player.sendMessage(msg("menu_station_removed", "&aEstación de Plinko eliminada."));
+            return true;
+        }
         Board b = byBlock(target);
         if (b == null)
             return false;
@@ -186,14 +203,23 @@ public class PlinkoModule extends GameModule {
      */
     @Override
     public void createStation(Player p, Block target, String[] args) {
-        if (byBlock(target) != null) {
+        boolean wall = args.length >= 1 && (args[0].equalsIgnoreCase("wall") || args[0].equalsIgnoreCase("pared"));
+        if (!wall) {
+            if (byBlock(target) != null || !menuStations.add(target)) {
+                p.sendMessage(msg("exists", "&cAhí ya hay una estación de Plinko."));
+                return;
+            }
+            p.sendMessage(msg("menu_station_created", "&aEstación de Plinko creada. &7Click derecho al bloque para jugar."));
+            return;
+        }
+        if (byBlock(target) != null || menuStations.contains(target)) {
             p.sendMessage(msg("exists", "&cAhí ya hay un tablero de Plinko."));
             return;
         }
         int rows = 8;
-        if (args.length >= 1) {
+        if (args.length >= 2) {
             try {
-                rows = Integer.parseInt(args[0]);
+                rows = Integer.parseInt(args[1]);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -284,7 +310,7 @@ public class PlinkoModule extends GameModule {
         return m == null || !m.isBlock() ? def : m;
     }
 
-    private Material slotMaterial(double mult) {
+    Material slotMaterial(double mult) {
         if (mult >= 5)
             return material("slot_materials.high", Material.RED_CONCRETE);
         if (mult >= 2)
@@ -300,7 +326,7 @@ public class PlinkoModule extends GameModule {
     }
 
     /** Multiplicadores para {@code rows} filas (rows+1 casillas), o null si no están en la config. */
-    private List<Double> multipliers(int rows) {
+    List<Double> multipliers(int rows) {
         List<Double> list = new ArrayList<>();
         for (Object o : config().getList("multipliers." + rows, List.of()))
             if (o instanceof Number num)
@@ -390,6 +416,8 @@ public class PlinkoModule extends GameModule {
                     "max", String.valueOf(maxBalls)));
             return;
         }
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, amount)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(p))));
@@ -440,6 +468,9 @@ public class PlinkoModule extends GameModule {
 
     private void tick() {
         tickCount++;
+        menu.tick();
+        if (tickCount % 100 == 0)
+            menuStations.refreshAll();
         for (Board b : boards.values()) {
             if (tickCount % 100 == 0)
                 updateDisplays(b); // hologramas (se pierden si el chunk se descarga o al reiniciar)
@@ -558,7 +589,7 @@ public class PlinkoModule extends GameModule {
         b.holo = null;
     }
 
-    private static String fmt(double d) {
+    static String fmt(double d) {
         String s = String.format(Locale.ROOT, "%.2f", d);
         return s.endsWith("0") ? s.substring(0, s.length() - 1) : s;
     }
@@ -571,6 +602,13 @@ public class PlinkoModule extends GameModule {
 
         @EventHandler
         public void onInteract(PlayerInteractEvent e) {
+            if (menuStations.contains(e.getClickedBlock())) {
+                e.setCancelled(true);
+                if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.RIGHT_CLICK_BLOCK
+                        && isOpenFor(e.getPlayer()))
+                    menu.open(e.getPlayer());
+                return;
+            }
             Board b = byBlock(e.getClickedBlock());
             if (b == null)
                 return;
@@ -578,6 +616,8 @@ public class PlinkoModule extends GameModule {
             if (e.getHand() != EquipmentSlot.HAND || e.getAction() != Action.RIGHT_CLICK_BLOCK)
                 return;
             Player p = e.getPlayer();
+            if (!isOpenFor(p))
+                return;
             Long last = lastBet.get(p.getUniqueId());
             if (p.isSneaking() && last != null)
                 drop(p, b, last);
@@ -587,7 +627,7 @@ public class PlinkoModule extends GameModule {
 
         @EventHandler
         public void onBreak(BlockBreakEvent e) {
-            if (byBlock(e.getBlock()) != null)
+            if (byBlock(e.getBlock()) != null || menuStations.contains(e.getBlock()))
                 e.setCancelled(true);
         }
     }
@@ -606,7 +646,9 @@ public class PlinkoModule extends GameModule {
 
     @Override
     public List<String> stationTabComplete(Player player, String[] args) {
-        if (args.length != 1)
+        if (args.length == 1)
+            return List.of("wall");
+        if (args.length != 2 || !args[0].equalsIgnoreCase("wall"))
             return List.of();
         List<String> out = new ArrayList<>(List.of("[rows]"));
         out.addAll(validRows());

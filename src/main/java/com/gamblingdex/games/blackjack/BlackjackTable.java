@@ -77,6 +77,7 @@ public class BlackjackTable {
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
     private UUID currentTurn;
+    private Float dealerYaw; // hacia dónde mira el dealer cuando no hay nadie cerca (null = sin definir)
 
     private BukkitTask bettingTask;
     private BukkitTask turnTask;
@@ -179,6 +180,75 @@ public class BlackjackTable {
 
     public Location getCenter() {
         return center;
+    }
+
+    public Float getDealerYaw() {
+        return dealerYaw;
+    }
+
+    public void setDealerYaw(Float yaw) {
+        this.dealerYaw = yaw;
+        World w = center.getWorld();
+        Entity e = w == null || dealerId == null ? null : w.getEntity(dealerId);
+        if (e instanceof Villager v && !v.isDead() && yaw != null)
+            v.setRotation(yaw, 0f);
+    }
+
+    /** Yaw para que el dealer mire hacia {@code target} (por ejemplo, el admin que creó la mesa). */
+    public float yawTowards(Location target) {
+        Location from = center.clone().add(0.5, 1.0, 0.5);
+        Location dir = from.clone();
+        dir.setDirection(target.toVector().subtract(from.toVector()).setY(0));
+        return dir.getYaw();
+    }
+
+    /**
+     * El dealer mira al jugador de turno o, si no, al jugador más cercano (hasta
+     * blackjack.dealer.look_range bloques). Sin nadie cerca vuelve a su dirección.
+     */
+    public void tickDealerLook() {
+        if (!plugin.getConfig().getBoolean("blackjack.dealer.look_at_players", true))
+            return;
+        World w = center.getWorld();
+        Entity e = w == null || dealerId == null ? null : w.getEntity(dealerId);
+        if (!(e instanceof Villager v) || v.isDead())
+            return;
+        Location eye = v.getEyeLocation();
+        Player target = currentTurn == null ? null : Bukkit.getPlayer(currentTurn);
+        if (target == null || !target.getWorld().equals(w)) {
+            double range = plugin.getConfig().getDouble("blackjack.dealer.look_range", 8.0);
+            double best = range * range;
+            target = null;
+            for (Player p : w.getPlayers()) {
+                double d = p.getLocation().distanceSquared(eye);
+                if (d <= best) {
+                    best = d;
+                    target = p;
+                }
+            }
+        }
+        float yaw, pitch = 0f;
+        if (target != null) {
+            Location look = eye.clone();
+            look.setDirection(target.getEyeLocation().toVector().subtract(eye.toVector()));
+            yaw = look.getYaw();
+            pitch = Math.max(-40f, Math.min(40f, look.getPitch()));
+        } else if (dealerYaw != null) {
+            yaw = dealerYaw;
+        } else {
+            return;
+        }
+        if (Math.abs(wrap(v.getLocation().getYaw() - yaw)) > 2f || Math.abs(v.getLocation().getPitch() - pitch) > 2f)
+            v.setRotation(yaw, pitch);
+    }
+
+    private static float wrap(float a) {
+        a %= 360f;
+        if (a >= 180f)
+            a -= 360f;
+        if (a < -180f)
+            a += 360f;
+        return a;
     }
 
     public UUID getDealerId() {
@@ -384,6 +454,8 @@ public class BlackjackTable {
             if (!isClose(v.getLocation(), desired)) {
                 v.teleport(desired);
             }
+            if (dealerYaw != null && !plugin.getConfig().getBoolean("blackjack.dealer.look_at_players", true))
+                v.setRotation(dealerYaw, 0f);
 
             // Keep name updated if table name changes.
             String name = resolveDealerName();
@@ -499,6 +571,8 @@ public class BlackjackTable {
     private Location dealerSpawnLocation() {
         // Spawn ABOVE the target block center (avoid spawning inside solid blocks).
         Location base = center.clone().add(0.5, 1.0, 0.5);
+        if (dealerYaw != null)
+            base.setYaw(dealerYaw);
         World w = base.getWorld();
         if (w == null) {
             return base;
@@ -527,6 +601,8 @@ public class BlackjackTable {
 
     public boolean join(Player player) {
         if (player == null)
+            return false;
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(player, "blackjack"))
             return false;
 
         if (plugin.getConfig().getBoolean("blackjack.seating.enabled", true)) {
@@ -1559,6 +1635,7 @@ public class BlackjackTable {
     }
 
     private void payNaturalNow(UUID id, Hand h) {
+        com.gamblingdex.GamblingDexPlugin.achievement(id, "blackjack_natural");
         long payout = blackjackTotalPayout(h.bet());
         long profit = Math.max(0L, payout - h.bet());
         earlyNet.merge(id, profit, Long::sum);

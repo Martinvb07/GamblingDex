@@ -1,0 +1,154 @@
+# ==============================
+# GamblingDex - Logros del casino
+# ==============================
+# Los jugadores los ven con /gdx achievements (o /gdx logros).
+# Placeholders: %gamblingdex_achievements%  (desbloqueados)  %gamblingdex_achievements_total%
+#
+# Tipos (type):
+#   rounds      -> jugar <amount> apuestas en total (todos los juegos)
+#   win         -> ganar al menos <amount> fichas netas en una sola apuesta (game: opcional)
+#   wager       -> apostar al menos <amount> en una sola apuesta (game: opcional)
+#   multiplier  -> cobrar x<amount> o más de lo apostado en una apuesta (game: opcional)
+#   game_win    -> ganar una apuesta en el juego <game>
+#   games       -> jugar <amount> juegos distintos
+#   event       -> lo activa el propio juego. Eventos:
+#                  blackjack_natural, roulette_jackpot, mines_clear,
+#                  poker_tournament, poker_pot (bote de al menos 'amount'), daily_bonus
+#
+# Ids de juegos: slots, ruleta, blackjack, baccarat, crash, rueda, carrera, coinflip,
+#                rasca, bingo, loteria, mines, plinko, poker
+#
+# Recompensa: reward (fichas) y/o commands (desde consola, {player} = nombre).
+
+enabled: true
+announce: true          # avisar a todo el servidor cuando alguien desbloquea un logro
+
+achievements:
+  first_bet:
+    name: "&aPrimera apuesta"
+    description: "Haz tu primera apuesta en el casino"
+    icon: PAPER
+    type: rounds
+    amount: 1
+    reward: 50
+  regular:
+    name: "&eCliente habitual"
+    description: "Juega 100 apuestas"
+    icon: CLOCK
+    type: rounds
+    amount: 100
+    reward: 500
+  veteran:
+    name: "&6Veterano del casino"
+    description: "Juega 1.000 apuestas"
+    icon: NETHERITE_INGOT
+    type: rounds
+    amount: 1000
+    reward: 5000
+  explorer:
+    name: "&bExplorador"
+    description: "Juega a 5 juegos distintos"
+    icon: COMPASS
+    type: games
+    amount: 5
+    reward: 1000
+  first_blackjack:
+    name: "&fPrimer blackjack"
+    description: "Saca un blackjack natural"
+    icon: BOOK
+    type: event
+    event: blackjack_natural
+    reward: 500
+  roulette_jackpot:
+    name: "&6&l¡Jackpot!"
+    description: "Gana el jackpot de la ruleta"
+    icon: NETHER_STAR
+    type: event
+    event: roulette_jackpot
+    reward: 5000
+  crash_x10:
+    name: "&cNervios de acero"
+    description: "Retírate en x10 o más en Crash"
+    icon: FIREWORK_ROCKET
+    type: multiplier
+    game: crash
+    amount: 10
+    reward: 2000
+  mines_clear:
+    name: "&aDesminador"
+    description: "Abre todas las casillas seguras en Mines"
+    icon: TNT
+    type: event
+    event: mines_clear
+    reward: 2000
+  plinko_edge:
+    name: "&6Por la orilla"
+    description: "Cae en una casilla de x5 o más en Plinko"
+    icon: SLIME_BALL
+    type: multiplier
+    game: plinko
+    amount: 5
+    reward: 1000
+  lucky_wheel:
+    name: "&dLa rueda gira a tu favor"
+    description: "Gana una apuesta en la Rueda"
+    icon: CLOCK
+    type: game_win
+    game: rueda
+    reward: 200
+  lottery_winner:
+    name: "&eBillete premiado"
+    description: "Gana la lotería"
+    icon: MAP
+    type: game_win
+    game: loteria
+    reward: 1000
+  bingo_winner:
+    name: "&b¡Bingo!"
+    description: "Gana una partida de bingo"
+    icon: FILLED_MAP
+    type: game_win
+    game: bingo
+    reward: 500
+  big_win:
+    name: "&6Golpe de suerte"
+    description: "Gana 100.000 fichas netas en una sola apuesta"
+    icon: GOLD_BLOCK
+    type: win
+    amount: 100000
+    reward: 5000
+  high_roller:
+    name: "&5High roller"
+    description: "Apuesta 50.000 fichas de una vez"
+    icon: DIAMOND
+    type: wager
+    amount: 50000
+    reward: 2500
+  poker_champion:
+    name: "&dCampeón de póker"
+    description: "Gana un torneo de póker"
+    icon: GOLDEN_HELMET
+    type: event
+    event: poker_tournament
+    reward: 5000
+  poker_big_pot:
+    name: "&dBote gordo"
+    description: "Gana un bote de 50.000 en el póker"
+    icon: EMERALD_BLOCK
+    type: event
+    event: poker_pot
+    amount: 50000
+    reward: 2500
+  daily:
+    name: "&aMadrugador"
+    description: "Reclama tu primer bono diario"
+    icon: SUNFLOWER
+    type: event
+    event: daily_bonus
+    reward: 0
+
+messages:
+  unlocked: "&6&l✦ LOGRO &8» &e{name} &7- {description}"
+  reward: "&7Recompensa: &e+{reward} fichas"
+  broadcast: "&6&l✦ &e{player} &7desbloqueó el logro &e{name}&7."
+  menu_title: "&8&l✦ &6&lLOGROS &8&l✦"

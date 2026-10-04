@@ -63,7 +63,20 @@ public class Messages {
             String ns = fileName.substring(0, fileName.length() - 4); // drop .yml
             if (ns.isBlank())
                 continue;
-            namespaces.put(ns, YamlConfiguration.loadConfiguration(f));
+            YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+            java.io.InputStream in = plugin.getResource("messages/" + fileName);
+            if (in != null) {
+                YamlConfiguration jar = YamlConfiguration.loadConfiguration(
+                        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+                if (CommandMigration.migrate(y, jar)) {
+                    try {
+                        y.save(f);
+                        plugin.getLogger().info("[Mensajes] " + fileName + ": comandos viejos actualizados a inglés.");
+                    } catch (java.io.IOException ignored) {
+                    }
+                }
+            }
+            namespaces.put(ns, y);
         }
     }
 

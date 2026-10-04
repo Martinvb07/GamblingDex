@@ -102,6 +102,8 @@ public class MinesModule extends GameModule {
 
     private final Map<String, Board> boards = new LinkedHashMap<>();
     private int tickCount;
+    private MinesMenu menu;
+    private com.gamblingdex.modules.SimpleStations menuStations;
 
     @Override
     public String id() {
@@ -138,12 +140,21 @@ public class MinesModule extends GameModule {
                 boards.put(name.toLowerCase(Locale.ROOT), b);
             }
         }
+        menu = new MinesMenu(this);
+        listen(menu);
+        menuStations = new com.gamblingdex.modules.SimpleStations(this,
+                () -> config().getString("station_holo", "&c&l✦ MINES ✦\n&7Click derecho para jugar"));
+        menuStations.load();
         listen(new Events());
         runTimer(this::tick, 20L, 10L);
     }
 
     @Override
     public void disable() {
+        if (menu != null)
+            menu.closeAll();
+        if (menuStations != null)
+            menuStations.removeHolos();
         for (Board b : boards.values()) {
             if (b.playing())
                 cashOut(b, true); // al apagar: se cobra lo que lleve (o se devuelve si no abrió nada)
@@ -155,19 +166,20 @@ public class MinesModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>();
         l.add("&6&lMines");
-        l.add("&8• &fClick derecho&7 a la mesa: elegir minas y apuesta");
-        l.add("&8• &fClick derecho&7 a una casilla: abrirla &8| &fShift + click derecho&7: retirarte");
-        if (admin)
-            l.add("&8• &e/gdx station set mines &7- Construir el tablero (mirando el bloque de la mesa)");
+        l.add("&8• &fClick derecho&7 a la estación: abre el tablero (menú)");
+        if (admin) {
+            l.add("&8• &e/gdx station set mines &7- Estación con menú (mirando un bloque)");
+            l.add("&8• &e/gdx station set mines wall &7- Construir la pared 5x5 en el mundo");
+        }
         l.add("");
         return l;
     }
 
     @Override
     public boolean onCommand(Player player, String[] args) {
-        player.sendMessage(msg("use_station", "&7Mines se juega en el tablero: &fclick derecho&7 a la mesa para empezar."));
+        player.sendMessage(msg("use_station", "&7Mines se juega en las estaciones: &fclick derecho&7 para abrir el tablero."));
         if (isAdmin(player))
-            player.sendMessage(msg("admin_hint", "&7Admin: &f/gdx station set mines &7(mirando el bloque de la mesa) | &f/gdx station remove"));
+            player.sendMessage(msg("admin_hint", "&7Admin: &f/gdx station set mines [wall] &7(mirando un bloque) | &f/gdx station remove"));
         return true;
     }
 
@@ -181,12 +193,26 @@ public class MinesModule extends GameModule {
     }
 
     @Override
+    public String stationUsage() {
+        return "mines [wall]";
+    }
+
+    @Override
+    public List<String> stationTabComplete(Player player, String[] args) {
+        return args.length == 1 ? List.of("wall") : List.of();
+    }
+
+    @Override
     public List<String> stationListLines() {
-        return List.of("&8- &6Mines&7: &f" + boards.size());
+        return List.of("&8- &6Mines&7: &f" + menuStations.size() + " &7(menú) &8+ &f" + boards.size() + " &7(pared)");
     }
 
     @Override
     public boolean removeStation(Player player, Block target) {
+        if (menuStations.remove(target)) {
+            player.sendMessage(msg("menu_station_removed", "&aEstación de Mines eliminada."));
+            return true;
+        }
         Board b = byBlock(target);
         if (b == null)
             return false;
@@ -206,7 +232,15 @@ public class MinesModule extends GameModule {
      */
     @Override
     public void createStation(Player p, Block target, String[] args) {
-        if (byBlock(target) != null) {
+        if (args.length == 0 || !(args[0].equalsIgnoreCase("wall") || args[0].equalsIgnoreCase("pared"))) {
+            if (byBlock(target) != null || !menuStations.add(target)) {
+                p.sendMessage(msg("exists", "&cAhí ya hay una estación de Mines."));
+                return;
+            }
+            p.sendMessage(msg("menu_station_created", "&aEstación de Mines creada. &7Click derecho al bloque para jugar."));
+            return;
+        }
+        if (byBlock(target) != null || menuStations.contains(target)) {
             p.sendMessage(msg("exists", "&cAhí ya hay un tablero de Mines."));
             return;
         }
@@ -329,7 +363,7 @@ public class MinesModule extends GameModule {
     }
 
     /** Multiplicador después de {@code safe} casillas seguras con {@code mines} minas. */
-    private double multiplier(int mines, int safe) {
+    double multiplier(int mines, int safe) {
         if (safe <= 0)
             return 1.0;
         double m = 1.0 - edge();
@@ -379,6 +413,8 @@ public class MinesModule extends GameModule {
                     "min", units(min), "max", max > 0 ? units(max) : "∞"));
             return;
         }
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, amount)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(p))));
@@ -429,6 +465,7 @@ public class MinesModule extends GameModule {
         b.safeOpened++;
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, 0.8f + b.safeOpened * 0.05f);
         if (b.safeOpened >= TILES - b.mines) {
+            GamblingDexPlugin.achievement(b.player, "mines_clear");
             cashOut(b, false); // abrió todas las seguras
             return;
         }
@@ -511,6 +548,8 @@ public class MinesModule extends GameModule {
             if (tickCount % 10 == 0)
                 updateHolo(b); // por si el chunk se recargó
         }
+        if (tickCount % 10 == 0)
+            menuStations.refreshAll();
     }
 
     private void actionBar(Board b) {
@@ -572,7 +611,7 @@ public class MinesModule extends GameModule {
         b.holo = null;
     }
 
-    private ItemStack item(Material m, String name, List<String> lore) {
+    ItemStack item(Material m, String name, List<String> lore) {
         ItemStack it = new ItemStack(m);
         ItemMeta meta = it.getItemMeta();
         if (meta != null) {
@@ -599,7 +638,7 @@ public class MinesModule extends GameModule {
         return null;
     }
 
-    private static String fmt(double d) {
+    static String fmt(double d) {
         return String.format(Locale.ROOT, "%.2f", d);
     }
 
@@ -612,6 +651,13 @@ public class MinesModule extends GameModule {
         @EventHandler
         public void onInteract(PlayerInteractEvent e) {
             Block blk = e.getClickedBlock();
+            if (menuStations.contains(blk)) {
+                e.setCancelled(true);
+                if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.RIGHT_CLICK_BLOCK
+                        && isOpenFor(e.getPlayer()))
+                    menu.open(e.getPlayer());
+                return;
+            }
             Board b = byBlock(blk);
             if (b == null)
                 return;
@@ -623,7 +669,7 @@ public class MinesModule extends GameModule {
             int tile = tileIndex(b, blk);
 
             if (b.player == null) {
-                if (isControl || tile >= 0)
+                if ((isControl || tile >= 0) && isOpenFor(p))
                     openSetup(p, b);
                 return;
             }
@@ -645,7 +691,7 @@ public class MinesModule extends GameModule {
 
         @EventHandler
         public void onBreak(BlockBreakEvent e) {
-            if (byBlock(e.getBlock()) == null)
+            if (byBlock(e.getBlock()) == null && !menuStations.contains(e.getBlock()))
                 return;
             e.setCancelled(true);
         }

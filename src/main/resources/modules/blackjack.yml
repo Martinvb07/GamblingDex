@@ -4,9 +4,15 @@
 # Admin: /gdx blackjack create <name> (mirando el bloque de la mesa)
 #        /gdx blackjack seat add <name> (parado en cada asiento)
 #        /gdx blackjack remove <name> | /gdx blackjack list
+#        /gdx blackjack face <name>  (el dealer mira hacia donde estás parado)
 # Jugadores: se paran en un asiento; los menús se abren solos.
 #
 # Recarga en caliente: /gdx reload
+
+# Dealer (aldeano): al crear la mesa mira hacia quien la creó.
+dealer:
+  look_at_players: true   # gira la cabeza hacia el jugador de turno o el más cercano
+  look_range: 8           # bloques
 
 min_players: 1   # 1 = se puede jugar solo contra el dealer
 max_players: 7

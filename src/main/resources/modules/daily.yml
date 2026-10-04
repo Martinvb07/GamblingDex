@@ -1,0 +1,32 @@
+# ==========================
+# GamblingDex - Bono diario
+# ==========================
+# Admin: mira un bloque y usa: /gdx station set daily   (quitar: /gdx station remove)
+# Jugadores: click derecho a la estación -> fichas gratis una vez al día.
+# El día cambia a medianoche según stats.timezone (config.yml).
+
+enabled: true
+
+amount: 500                 # fichas base
+streak_bonus_percent: 10    # +10% por cada día seguido...
+max_streak: 7               # ...hasta 7 días (día 7 = +60%)
+
+# Rangos: si el jugador tiene el permiso, recibe esta base (se usa el mayor)
+tiers:
+  vip:
+    permission: gamblingdex.daily.vip
+    amount: 1000
+  mvp:
+    permission: gamblingdex.daily.mvp
+    amount: 2000
+
+station_holo: "&a&l✦ BONO DIARIO ✦\n&7Click derecho para reclamar"
+station_holo_height: 1.3
+
+messages:
+  claimed: "&a&l✦ BONO DIARIO &8» &7Recibiste &e{amount} &7fichas. &8(racha: &f{streak} &8día(s))"
+  already: "&cYa reclamaste tu bono hoy. Vuelve en &f{time}&c."
+  use_station: "&7El bono diario se reclama en su estación del casino (&fclick derecho&7)."
+  exists: "&cEse bloque ya es una estación de bono diario."
+  station_created: "&aEstación de bono diario creada."
+  station_removed: "&aEstación de bono diario eliminada."

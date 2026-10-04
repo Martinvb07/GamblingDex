@@ -1,10 +1,13 @@
 # ======================
 # GamblingDex - Mines
 # ======================
-# Admin: mira el bloque que será la MESA y usa: /gdx station set mines
-#        Detrás de la mesa se construye una pared de 5x5 casillas con marco.
+# Admin: mira un bloque y usa: /gdx station set mines
+#        -> estación con MENÚ: click derecho abre el tablero 5x5 en un cofre (juegan varios a la vez).
+#        /gdx station set mines wall
+#        -> pared física: detrás de la mesa se construye una pared de 5x5 casillas con marco.
 #        Quitarlo: /gdx station remove (mirando la mesa o la pared); los bloques vuelven a como estaban.
-# Jugadores: click derecho a la mesa -> eligen cuántas minas y su apuesta.
+# Menú: apuesta y minas abajo, JUGAR/RETIRARSE a la derecha. Cerrar el menú = retirarse.
+# Pared: click derecho a la mesa -> eligen cuántas minas y su apuesta.
 #            Click derecho a una casilla: abrirla (esmeralda = segura, TNT = mina).
 #            Shift + click derecho: retirarse y cobrar apuesta x multiplicador.
 #            Sobre la barra de experiencia ven su apuesta, el multiplicador y lo que cobran.
@@ -30,8 +33,12 @@ hidden_safe_material: LIGHT_GRAY_CONCRETE  # seguras que no abriste (al terminar
 frame_material: POLISHED_BLACKSTONE_BRICKS # marco
 holo_offset: 0.3
 
+# Estación con menú
+station_holo: "&c&l✦ MINES ✦\n&7Click derecho para jugar"
+station_holo_height: 1.3
+
 messages:
-  use_station: "&7Mines se juega en el tablero: &fclick derecho&7 a la mesa para empezar."
+  use_station: "&7Mines se juega en las estaciones: &fclick derecho&7 para abrir el tablero."
   started: "&aEmpezaste con &e{amount}&a y &f{mines}&a minas. &7Click derecho a una casilla para abrirla."
   lost: "&c&l¡BOOM! &7Era una mina. Perdiste &e{amount}&7."
   cashed_out: "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}"
@@ -41,7 +48,9 @@ messages:
   hint: "&7Click derecho a una casilla para abrirla, &fshift + click derecho&7 para retirarte."
   not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
   bad_amount: "&cLa apuesta debe estar entre &e{min}&c y &e{max}&c."
-  exists: "&cAhí ya hay un tablero de Mines."
+  exists: "&cAhí ya hay una estación de Mines."
+  menu_station_created: "&aEstación de Mines creada. &7Click derecho al bloque para jugar."
+  menu_station_removed: "&aEstación de Mines eliminada."
   station_created: "&aTablero de Mines construido. &7Los jugadores empiezan con click derecho a la mesa."
   station_removed: "&aTablero de Mines eliminado y bloques restaurados."
   station_blocked: "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja detrás de la mesa."

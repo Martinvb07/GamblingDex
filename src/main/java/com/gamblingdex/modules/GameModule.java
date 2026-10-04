@@ -156,6 +156,10 @@ public abstract class GameModule {
         if (in != null) {
             config.setDefaults(YamlConfiguration.loadConfiguration(
                     new InputStreamReader(in, StandardCharsets.UTF_8)));
+            if (configFile.exists() && com.gamblingdex.config.CommandMigration.migrate(config, config.getDefaults())) {
+                saveConfigFile();
+                plugin.getLogger().info("[" + id() + "] Mensajes con comandos viejos actualizados a inglés.");
+            }
         }
     }
 
@@ -231,6 +235,23 @@ public abstract class GameModule {
 
     public boolean isAdmin(Player p) {
         return p.hasPermission("gamblingdex.admin");
+    }
+
+    /**
+     * false (y avisa al jugador) si el juego está en mantenimiento (/gdx disable).
+     * Los juegos lo comprueban antes de aceptar una apuesta o abrir su menú.
+     */
+    public boolean isOpenFor(Player p) {
+        var mt = plugin.getMaintenance();
+        return mt == null || mt.allow(p, id());
+    }
+
+    /**
+     * Placeholder en vivo del juego: %gamblingdex_&lt;juego&gt;_&lt;key&gt;% (ej. crash_multiplier,
+     * bingo_next). null si el juego no tiene ese dato.
+     */
+    public String placeholder(String key) {
+        return null;
     }
 
     public static String units(long v) {

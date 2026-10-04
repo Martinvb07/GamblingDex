@@ -62,6 +62,8 @@ public class GamblingDexPlugin extends JavaPlugin {
     private PlayerIndex playerIndex;
 
     private com.gamblingdex.stats.GameStats gameStats;
+    private com.gamblingdex.stats.Achievements achievements;
+    private com.gamblingdex.util.Maintenance maintenance;
 
     private Messages messages;
 
@@ -141,6 +143,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             pokerManager.reload();
         if (moduleManager != null)
             moduleManager.reloadAll();
+        if (achievements != null)
+            achievements.reload();
 
         if (playerIndex != null)
             playerIndex.load();
@@ -211,6 +215,8 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         this.playerIndex = new PlayerIndex(this);
         this.gameStats = new com.gamblingdex.stats.GameStats(this);
+        this.achievements = new com.gamblingdex.stats.Achievements(this);
+        this.maintenance = new com.gamblingdex.util.Maintenance(this);
 
         this.worldRouletteManager = new WorldRouletteManager(this);
 
@@ -285,6 +291,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (gameStats != null)
                 gameStats.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (achievements != null)
+                achievements.shutdown();
         } catch (Throwable ignored) {
         }
         getLogger().info("GamblingDex deshabilitado.");
@@ -399,6 +410,25 @@ public class GamblingDexPlugin extends JavaPlugin {
     /** Estadísticas de todos los juegos (puede ser null antes de habilitar). */
     public com.gamblingdex.stats.GameStats getGameStats() {
         return gameStats;
+    }
+
+    public com.gamblingdex.stats.Achievements getAchievements() {
+        return achievements;
+    }
+
+    public com.gamblingdex.util.Maintenance getMaintenance() {
+        return maintenance;
+    }
+
+    /** Atajo para que un juego avise de un evento de logro (blackjack_natural, mines_clear...). */
+    public static void achievement(java.util.UUID player, String event) {
+        achievement(player, event, 0L);
+    }
+
+    public static void achievement(java.util.UUID player, String event, long amount) {
+        GamblingDexPlugin p = getInstance();
+        if (p != null && p.achievements != null)
+            p.achievements.trigger(player, event, amount);
     }
 
     /** Atajo para que cada juego registre una apuesta resuelta. */

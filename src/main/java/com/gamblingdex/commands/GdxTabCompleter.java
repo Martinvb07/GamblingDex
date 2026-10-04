@@ -27,15 +27,24 @@ public class GdxTabCompleter implements TabCompleter {
         String a0 = args[0].toLowerCase(Locale.ROOT);
 
         if (args.length == 1) {
-            List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top"));
+            List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top", "history", "achievements"));
             if (admin)
-                out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token"));
-            else
-                out.add("poker");
+                out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
+                        "disable", "enable", "maintenance"));
             if (mm != null)
-                for (GameModule m : mm.getModules())
-                    if (mm.byCommand(m.id()) != null)
+                for (GameModule m : mm.getModules()) {
+                    if (mm.byCommand(m.id()) == null)
+                        continue;
+                    // Jugadores: solo juegos que tienen comandos de jugador (bingo, lotería...)
+                    boolean playerCmds;
+                    try {
+                        playerCmds = !m.tabComplete(p, new String[] { "" }).isEmpty();
+                    } catch (Throwable t) {
+                        playerCmds = false;
+                    }
+                    if (admin || playerCmds)
                         out.add(primaryCommand(m));
+                }
             return filter(out, args[0]);
         }
 
@@ -44,7 +53,7 @@ public class GdxTabCompleter implements TabCompleter {
 
         switch (a0) {
             case "help", "ayuda" -> {
-                if (n != 2)
+                if (n != 2 || !admin)
                     return List.of();
                 List<String> out = new ArrayList<>(List.of("player", "games", "blackjack", "poker", "roulette", "slots", "exchange"));
                 if (admin)
@@ -96,9 +105,19 @@ public class GdxTabCompleter implements TabCompleter {
                 case "reload" -> {
                     return List.of();
                 }
+                case "disable", "enable" -> {
+                    var mt = plugin.getMaintenance();
+                    if (n != 2 || mt == null)
+                        return List.of();
+                    if (a0.equals("enable")) {
+                        List<String> closed = new ArrayList<>();
+                        for (String g : mt.closedGames())
+                            closed.add(g.equals("ruleta") ? "roulette" : g);
+                        return filter(closed, cur);
+                    }
+                    return filter(mt.gameNames(), cur);
+                }
             }
-        } else if (a0.equals("poker") || a0.equals("pk")) {
-            return poker(args, cur, n, false);
         }
 
         // Juegos (módulos)
@@ -136,14 +155,14 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> blackjack(String[] args, String cur, int n) {
         if (n == 2)
-            return filter(List.of("create", "remove", "list", "seat", "displayname"), cur);
+            return filter(List.of("create", "remove", "list", "seat", "displayname", "face"), cur);
         String action = args[1].toLowerCase(Locale.ROOT);
         List<String> tables = blackjackTables();
         switch (action) {
             case "create", "add", "set" -> {
                 return n == 3 ? hint(cur, "<name>") : List.of();
             }
-            case "remove", "del", "delete" -> {
+            case "remove", "del", "delete", "face" -> {
                 return n == 3 ? filter(tables, cur) : List.of();
             }
             case "seat", "seats" -> {
@@ -159,12 +178,9 @@ public class GdxTabCompleter implements TabCompleter {
     }
 
     private List<String> poker(String[] args, String cur, int n, boolean admin) {
-        if (n == 2) {
-            List<String> out = new ArrayList<>(List.of("menu", "join"));
-            if (admin)
-                out.addAll(List.of("create", "remove", "list", "stakes", "seat", "tournament", "rake"));
-            return filter(out, cur);
-        }
+        if (n == 2)
+            return admin ? filter(List.of("create", "remove", "list", "stakes", "seat", "tournament", "rake"), cur)
+                    : List.of();
         if (!admin)
             return List.of();
         String action = args[1].toLowerCase(Locale.ROOT);

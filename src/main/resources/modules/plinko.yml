@@ -1,12 +1,15 @@
 # ======================
 # GamblingDex - Plinko
 # ======================
-# Admin: mira el bloque que será la MESA y usa: /gdx station set plinko [rows]
-#        Filas: 6, 8 (por defecto), 10 o 12. Detrás de la mesa se construye la pared
+# Admin: mira un bloque y usa: /gdx station set plinko
+#        -> estación con MENÚ: click derecho abre el Plinko en un cofre (8 filas, juegan varios a la vez).
+#        /gdx station set plinko wall [rows]
+#        -> pared física. Filas: 6, 8 (por defecto), 10 o 12. Detrás de la mesa se construye la pared
 #        con clavos (varillas del End) sobre un fondo, y abajo las casillas con su multiplicador.
 #        Tamaño: (2 x filas + 3) de ancho y de alto. 8 filas = 19 x 19, 6 filas = 15 x 15.
 #        Quitarlo: /gdx station remove (mirando la mesa o el tablero); los bloques vuelven a como estaban.
-# Jugadores: click derecho a la mesa -> eligen la apuesta y sueltan una bola.
+# Menú: apuesta abajo, SOLTAR BOLA (shift = 5 bolas). Usa los multiplicadores de "8".
+# Pared: click derecho a la mesa -> eligen la apuesta y sueltan una bola.
 #            Shift + click derecho -> otra bola con la misma apuesta.
 #
 # En cada fila la bola rebota a la izquierda o a la derecha (50/50). Las casillas de las
@@ -20,6 +23,10 @@ max_win: 0                  # premio máximo por bola (0 = sin tope)
 max_balls_per_player: 5     # bolas en el aire a la vez por jugador
 title_min_multiplier: 5     # mostrar título en pantalla desde este multiplicador
 ball_item: SLIME_BALL       # ítem que se ve como bola
+
+# Estación con menú
+station_holo: "&6&l✦ PLINKO ✦\n&7Click derecho para jugar"
+station_holo_height: 1.3
 
 # Multiplicador de cada casilla, de izquierda a derecha (filas + 1 valores)
 multipliers:
@@ -39,7 +46,9 @@ slot_materials:
   loss: LIME_CONCRETE       # menos de x1
 
 messages:
-  use_station: "&7Plinko se juega en el tablero: &fclick derecho&7 a la mesa para soltar una bola."
+  use_station: "&7Plinko se juega en las estaciones: &fclick derecho&7 para abrir el tablero."
+  menu_station_created: "&aEstación de Plinko creada. &7Click derecho al bloque para jugar."
+  menu_station_removed: "&aEstación de Plinko eliminada."
   landed: "&6&lPlinko &8» &7Cayó en &fx{mult} &8→ {result}"
   too_many: "&cEspera a que caigan tus bolas (máximo {max} a la vez)."
   not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."

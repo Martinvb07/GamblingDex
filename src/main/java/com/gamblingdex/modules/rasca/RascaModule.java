@@ -214,6 +214,8 @@ public class RascaModule extends GameModule {
         qty = Math.max(1, Math.min(Math.max(1, config().getInt("max_buy_at_once", 64)), qty));
         long price = tierPrice(tier);
         long total = price * qty;
+        if (!isOpenFor(player))
+            return;
         if (!TokenWallet.take(player, total)) {
             player.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Necesitas &e{price}&c y tienes &e{balance}&c.",
                     "price", units(total), "balance", units(TokenWallet.balance(player))));

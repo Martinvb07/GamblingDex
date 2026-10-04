@@ -145,6 +145,16 @@ public class LoteriaModule extends GameModule {
         return t;
     }
 
+    /** %gamblingdex_lottery_pot%, %gamblingdex_lottery_next%. */
+    @Override
+    public String placeholder(String key) {
+        return switch (key) {
+            case "pot" -> units(pot());
+            case "next" -> timeLeft();
+            default -> null;
+        };
+    }
+
     private long pot() {
         double cut = Math.max(0.0, Math.min(90.0, config().getDouble("house_cut_percent", 10.0))) / 100.0;
         return (long) Math.floor(soldUnits * (1.0 - cut)) + rollover;
@@ -164,6 +174,8 @@ public class LoteriaModule extends GameModule {
             }
         }
         long cost = price() * n;
+        if (!isOpenFor(p))
+            return;
         if (!TokenWallet.take(p, cost)) {
             p.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Necesitas &e{price}&c y tienes &e{balance}&c.",
                     "price", units(cost), "balance", units(TokenWallet.balance(p))));

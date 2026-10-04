@@ -133,6 +133,26 @@ public class CrashModule extends GameModule {
             removeHolo(st);
     }
 
+    /** %gamblingdex_crash_multiplier% (x1.00 en apuestas, el actual en vuelo, donde explotó en la pausa), _state, _seconds. */
+    @Override
+    public String placeholder(String key) {
+        return switch (key) {
+            case "multiplier" -> "x" + fmt(switch (state) {
+                case BETTING -> 1.0;
+                case RUNNING -> multiplier;
+                case PAUSE -> crashPoint;
+            });
+            case "state" -> switch (state) {
+                case BETTING -> "Apuestas abiertas";
+                case RUNNING -> "En vuelo";
+                case PAUSE -> "Explotó";
+            };
+            case "seconds" -> String.valueOf(secondsLeft);
+            case "players" -> String.valueOf(bets.size());
+            default -> null;
+        };
+    }
+
     @Override
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>();
@@ -425,6 +445,8 @@ public class CrashModule extends GameModule {
             player.sendMessage(msg("max_bet", "&cLa apuesta máxima es &e{max}&c.", "max", units(max)));
             return;
         }
+        if (!isOpenFor(player))
+            return;
         if (!TokenWallet.take(player, amount)) {
             player.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(player))));

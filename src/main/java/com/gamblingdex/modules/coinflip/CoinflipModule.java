@@ -180,6 +180,8 @@ public class CoinflipModule extends GameModule {
             player.sendMessage(msg("too_many", "&cYa tienes una apuesta abierta."));
             return false;
         }
+        if (!isOpenFor(player))
+            return false;
         if (!TokenWallet.take(player, amount)) {
             player.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(player))));
@@ -246,6 +248,8 @@ public class CoinflipModule extends GameModule {
             taker.sendMessage(msg("own_flip", "&cNo puedes aceptar tu propia apuesta."));
             return;
         }
+        if (!isOpenFor(taker))
+            return;
         if (!TokenWallet.take(taker, f.amount())) {
             taker.sendMessage(msg("not_enough", "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
                     "balance", units(TokenWallet.balance(taker))));

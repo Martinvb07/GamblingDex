@@ -317,10 +317,10 @@ public class StationManager {
             return map;
 
         for (String k : stations.getConfigurationSection("stations").getKeys(false)) {
-            String id = stations.getString("stations." + k);
-            if (id == null) {
-                id = stations.getString("stations." + k + ".type");
-            }
+            // Formato nuevo: stations.<k>.type ; formato viejo: stations.<k> = "slots"
+            String id = stations.isConfigurationSection("stations." + k)
+                    ? stations.getString("stations." + k + ".type")
+                    : stations.getString("stations." + k);
             if (id == null)
                 continue;
             for (GameItemType t : GameItemType.values()) {

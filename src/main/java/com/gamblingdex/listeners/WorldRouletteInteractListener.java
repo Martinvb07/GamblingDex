@@ -45,6 +45,8 @@ public class WorldRouletteInteractListener implements Listener {
         }
 
         event.setCancelled(true);
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(event.getPlayer(), "ruleta"))
+            return;
 
         boolean isRight = action == Action.RIGHT_CLICK_BLOCK;
         boolean isLeft = action == Action.LEFT_CLICK_BLOCK;

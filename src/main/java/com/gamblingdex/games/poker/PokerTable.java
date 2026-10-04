@@ -63,6 +63,7 @@ public class PokerTable {
         UUID player;
         String name;
         long stack;
+        long invested; // fichas compradas en esta sesión (para la ganancia del jugador)
         boolean boughtIn;
         boolean leaving;
         boolean forceOut;
@@ -77,6 +78,7 @@ public class PokerTable {
             player = null;
             name = null;
             stack = 0L;
+            invested = 0L;
             boughtIn = false;
             leaving = false;
             forceOut = false;
@@ -224,6 +226,7 @@ public class PokerTable {
         for (Seat s : old.values()) {
             if (s.player != null) {
                 payOut(s.player, s.stack, false);
+                recordSession(s, s.stack);
                 s.clearPlayer();
             }
         }
@@ -413,6 +416,8 @@ public class PokerTable {
     }
 
     private void sit(int i, Player p) {
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(p, "poker"))
+            return;
         if (tournament != null && tournament.started) {
             // Torneo en curso: no entra nadie nuevo.
             long now = System.currentTimeMillis();
@@ -512,12 +517,20 @@ public class PokerTable {
         UUID id = s.player;
         String pname = s.name;
         long amount = s.stack;
+        recordSession(s, amount);
         s.clearPlayer();
         buyInPromptAt.remove(id);
 
         payOut(id, amount, forcePending);
         broadcast(msg("player_left", "&7{player} se levantó de la mesa.", "player", pname == null ? "?" : pname));
         updateDisplays();
+    }
+
+    /** Estadísticas: ganancia de la sesión = lo que se lleva - lo que compró (solo mesas normales). */
+    private void recordSession(Seat s, long amount) {
+        var st = plugin.getGameStats();
+        if (st != null && s.player != null && s.invested > 0)
+            st.pokerSession(s.player, amount - s.invested);
     }
 
     private void payOut(UUID id, long amount, boolean forcePending) {
@@ -627,6 +640,8 @@ public class PokerTable {
 
         Seat s = seats.get(seatOf(player.getUniqueId()));
         s.stack += amount;
+        if (tournament == null)
+            s.invested += amount;
         boolean wasBoughtIn = s.boughtIn;
         if (s.stack >= getMinBuyIn())
             s.boughtIn = true;
@@ -1366,6 +1381,19 @@ public class PokerTable {
     }
 
     private void finishHand() {
+        // Estadísticas (solo mesas normales: en torneo son fichas de torneo)
+        var st = plugin.getGameStats();
+        if (st != null && tournament == null) {
+            for (int i : dealt) {
+                UUID id = seats.get(i).player;
+                if (id == null)
+                    continue;
+                long won = lastWin.getOrDefault(i, 0L);
+                st.pokerHand(id, won);
+                if (won > 0)
+                    com.gamblingdex.GamblingDexPlugin.achievement(id, "poker_pot", won);
+            }
+        }
         for (int i : new ArrayList<>(dealt)) {
             Seat s = seats.get(i);
             if (s.player == null)
@@ -1448,6 +1476,8 @@ public class PokerTable {
                 continue;
             UUID id = s.player;
             long amount = s.stack;
+            if (tournament == null)
+                recordSession(s, amount);
             s.clearPlayer();
             Player p = Bukkit.getPlayer(id);
             if (p != null)
@@ -1710,6 +1740,11 @@ public class PokerTable {
             UUID id = places.get(k);
             String pname = tournament.registered.getOrDefault(id, "?");
             com.gamblingdex.economy.TokenWallet.give(id, amounts[k]);
+            if (k == 0) {
+                if (plugin.getGameStats() != null)
+                    plugin.getGameStats().pokerTournamentWin(id);
+                com.gamblingdex.GamblingDexPlugin.achievement(id, "poker_tournament");
+            }
             String line = msg("tournament.prize", "&f{place}° &a{player} &7→ &e{amount}",
                     "place", String.valueOf(k + 1), "player", pname, "amount", units(amounts[k]));
             for (Player o : Bukkit.getOnlinePlayers())

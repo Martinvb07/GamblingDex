@@ -43,6 +43,7 @@ help:
 no_permission: "&cNo tienes permiso para hacer eso."
 console_only: "&cSolo jugadores pueden usar este comando."
 balance: "&aTu balance es: &e{amount}&a {currency}."
+balance_tokens: "&aTienes &e{amount}&a {currency} en fichas."
 redeem_success: "&aCanjeaste &e{amount}&a {currency}."
 
 stats:
@@ -63,3 +64,6 @@ top:
   header: "&6&lTop Ganancias &7(Slots+Ruleta)"
   line: "&8{pos}. &f{name} &7- &a{won} &7{currency}"
   empty: "&7Aún no hay ganancias registradas."
+
+maintenance:
+  closed: "&c&l⚠ &c{game} está en mantenimiento. Vuelve más tarde."

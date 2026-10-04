@@ -27,7 +27,7 @@ public class BalanceCommand implements CommandExecutor {
             return true;
         }
 
-        long balance = plugin.getEconomy().getBalance(player.getUniqueId());
+        long balance = com.gamblingdex.economy.TokenWallet.balance(player);
         String currencyName = plugin.color(plugin.getConfig().getString("currency.name", "Moneda GDX"));
         player.sendMessage(plugin.getMessages().format(
                 "messages.gdx.balance",

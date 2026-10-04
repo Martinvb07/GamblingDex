@@ -22,6 +22,7 @@ public class BlackjackManager {
     private final Map<String, BlackjackTable> tablesByName = new HashMap<>();
 
     private BukkitTask seatScanTask;
+    private BukkitTask lookTask;
 
     public BlackjackManager(GamblingDexPlugin plugin) {
         this.plugin = plugin;
@@ -43,6 +44,10 @@ public class BlackjackManager {
         if (seatScanTask != null) {
             seatScanTask.cancel();
             seatScanTask = null;
+        }
+        if (lookTask != null) {
+            lookTask.cancel();
+            lookTask = null;
         }
 
         for (BlackjackTable t : tablesByCenter.values()) {
@@ -100,6 +105,8 @@ public class BlackjackManager {
                 }
 
                 BlackjackTable table = new BlackjackTable(plugin, centerKey, center, holo, dealerId);
+                if (tables.contains(base + "dealer_yaw"))
+                    table.setDealerYaw((float) tables.getDouble(base + "dealer_yaw"));
                 table.setPersistDisplaysCallback(() -> persistDisplays(table));
                 table.setSeatKeys(seats);
                 table.setDisplayName(name);
@@ -135,6 +142,15 @@ public class BlackjackManager {
                 }
             }
         }, 20L, 20L);
+        if (lookTask == null)
+            lookTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+                for (BlackjackTable t : tablesByCenter.values()) {
+                    try {
+                        t.tickDealerLook();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }, 10L, 5L);
     }
 
     private void persistDisplays(BlackjackTable table) {
@@ -146,6 +162,7 @@ public class BlackjackManager {
         tables.set(base + "pretty_name", (pretty == null || pretty.isBlank()) ? null : pretty);
         tables.set(base + "displays.holo", toStringList(table.getHoloDisplayIds()));
         tables.set(base + "displays.dealer", table.getDealerId() == null ? null : table.getDealerId().toString());
+        tables.set(base + "dealer_yaw", table.getDealerYaw() == null ? null : (double) table.getDealerYaw());
         save();
     }
 
@@ -210,6 +227,20 @@ public class BlackjackManager {
         }
         names.sort(String.CASE_INSENSITIVE_ORDER);
         return names;
+    }
+
+    /** Crea la mesa con el dealer mirando hacia {@code facing} (el admin que la crea). */
+    public BlackjackTable createTable(String name, Block centerBlock, Location facing) {
+        BlackjackTable t = createTable(name, centerBlock);
+        if (t != null && facing != null)
+            faceTowards(t, facing);
+        return t;
+    }
+
+    /** Gira el dealer hacia {@code facing} y lo guarda. */
+    public void faceTowards(BlackjackTable t, Location facing) {
+        t.setDealerYaw(t.yawTowards(facing));
+        persistDisplays(t);
     }
 
     public BlackjackTable createTable(String name, Block centerBlock) {
