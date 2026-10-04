@@ -690,7 +690,7 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (args.length < 2) {
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.usage",
-                        "&cUso: /gdx blackjack <create|remove|list|seat|displayname|face|limits> ..."));
+                        "&cUso: /gdx blackjack <create|remove|list|seat|rename|face|limits> ..."));
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.example",
                             "&7Ej: &f/gdx blackjack create Mesa1&7 (mirando el bloque centro)"));
@@ -833,14 +833,15 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
-                if (action.equals("displayname") || action.equals("prettyname") || action.equals("name")) {
+                if (action.equals("rename") || action.equals("renombrar") || action.equals("displayname")
+                        || action.equals("prettyname") || action.equals("name")) {
                     if (args.length < 4) {
                         player.sendMessage(cfg(
-                                "messages.admin.blackjack.displayname_usage",
-                                "&cUso: /gdx blackjack displayname <table> <name...>"));
+                                "messages.admin.blackjack.rename_usage",
+                                "&cUso: /gdx blackjack rename <table> <name...>"));
                         player.sendMessage(cfg(
-                                "messages.admin.blackjack.displayname_example",
-                                "&7Ej: &f/gdx blackjack displayname Mesa1 &6&lBlackjack &8| &eVIP"));
+                                "messages.admin.blackjack.rename_example",
+                                "&7Ej: &f/gdx blackjack rename Mesa1 &6&l♠ BLACKJACK &8| &eVIP"));
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.displayname_reset",
                                 "&7Tip: usa &f- &7para resetear al nombre interno."));
@@ -868,11 +869,15 @@ public class GamblingDexCommand implements CommandExecutor {
                         return true;
                     }
 
+                    var bjTable = bm.getByName(name);
+                    if (bjTable != null)
+                        GamblingDexPlugin.getInstance().setTableNameInConfig("blackjack", bjTable.getDisplayName(), pretty);
                     boolean ok = bm.setPrettyName(name, pretty);
                     if (ok) {
-                        player.sendMessage(cfg(
-                                "messages.admin.blackjack.displayname_set",
-                                "&aNombre estético actualizado."));
+                        if (bjTable != null)
+                            bjTable.refreshHologram();
+                        player.sendMessage(GamblingDexPlugin.getInstance().color("&aMesa renombrada: &r"
+                                + GamblingDexPlugin.getInstance().color(pretty == null ? name : pretty)));
                     } else {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.not_found",
@@ -966,7 +971,7 @@ public class GamblingDexCommand implements CommandExecutor {
 
                 player.sendMessage(cfg(
                         "messages.admin.blackjack.invalid_action",
-                    "&cAcción inválida. Usa: create, remove, list, seat, displayname"));
+                    "&cAcción inválida. Usa: create, remove, list, seat, rename, face, limits"));
                 return true;
             }
 
@@ -1184,6 +1189,19 @@ public class GamblingDexCommand implements CommandExecutor {
                             "bb", String.valueOf(t.getBigBlind()),
                             "seats", String.valueOf(t.getSeatKeys().size())));
                 }
+            }
+            case "rename", "renombrar", "displayname", "name" -> {
+                if (args.length < 4 || pm.getByName(args[2]) == null) {
+                    player.sendMessage(pk("rename_usage", "&cUso: /gdx poker rename <table> <name...> &7(&f-&7 = nombre interno)"));
+                    return true;
+                }
+                var t = pm.getByName(args[2]);
+                String pretty = String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)).trim();
+                if (pretty.equals("-") || pretty.equalsIgnoreCase("reset"))
+                    pretty = null;
+                GamblingDexPlugin.getInstance().setTableNameInConfig("poker", t.getName(), pretty);
+                t.updateDisplays();
+                player.sendMessage(GamblingDexPlugin.getInstance().color("&aMesa renombrada: &r" + t.getDisplayName()));
             }
             case "stakes", "blinds", "ciegas" -> {
                 if (args.length < 5) {

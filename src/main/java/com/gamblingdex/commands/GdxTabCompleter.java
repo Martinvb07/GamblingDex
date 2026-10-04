@@ -155,7 +155,7 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> blackjack(String[] args, String cur, int n) {
         if (n == 2)
-            return filter(List.of("create", "remove", "list", "seat", "displayname", "face", "limits"), cur);
+            return filter(List.of("create", "remove", "list", "seat", "rename", "face", "limits"), cur);
         String action = args[1].toLowerCase(Locale.ROOT);
         List<String> tables = blackjackTables();
         switch (action) {
@@ -175,7 +175,7 @@ public class GdxTabCompleter implements TabCompleter {
                     return filter(List.of("add", "remove", "list", "clear"), cur);
                 return n == 4 ? filter(tables, cur) : List.of();
             }
-            case "displayname", "prettyname", "name" -> {
+            case "rename", "renombrar", "displayname", "prettyname", "name" -> {
                 return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<title...>") : List.of();
             }
         }
@@ -184,7 +184,7 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> poker(String[] args, String cur, int n, boolean admin) {
         if (n == 2)
-            return admin ? filter(List.of("create", "remove", "list", "stakes", "seat", "tournament", "rake"), cur)
+            return admin ? filter(List.of("create", "remove", "list", "stakes", "seat", "rename", "tournament", "rake"), cur)
                     : List.of();
         if (!admin)
             return List.of();
@@ -197,6 +197,9 @@ public class GdxTabCompleter implements TabCompleter {
             }
             case "remove", "del", "delete" -> {
                 return n == 3 ? filter(tables, cur) : List.of();
+            }
+            case "rename", "renombrar", "displayname", "name" -> {
+                return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<name...>") : List.of();
             }
             case "stakes", "blinds", "ciegas" -> {
                 return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<small>", "5", "10")

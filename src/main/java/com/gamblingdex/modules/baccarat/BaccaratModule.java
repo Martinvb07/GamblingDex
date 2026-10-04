@@ -171,6 +171,7 @@ public class BaccaratModule extends GameModule {
         if (admin) {
             l.add("&8• &e/gdx station set baccarat [name] &7- Crear mesa (mirando el bloque de la mesa)");
             l.add("&8• &e/gdx baccarat seat <add|remove|list|clear> <table> &7- Asientos (parado encima)");
+            l.add("&8• &e/gdx baccarat rename <table> <name...> &7- Título de la mesa (con colores)");
             l.add("&8• &e/gdx station remove &7- Quitar la mesa (mirando el bloque)");
         }
         l.add("");
@@ -182,6 +183,27 @@ public class BaccaratModule extends GameModule {
         String a = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "";
         if (isAdmin(player) && (a.equals("asiento") || a.equals("asientos") || a.equals("seat"))) {
             seatCommand(player, args);
+            return true;
+        }
+        if (isAdmin(player) && (a.equals("rename") || a.equals("renombrar"))) {
+            Table t = args.length < 3 ? null : tables.get(args[1].toLowerCase(Locale.ROOT));
+            if (t == null) {
+                player.sendMessage(msg("rename_usage", "&cUso: /gdx baccarat rename <table> <name...> &7(&f-&7 = título por defecto)"));
+                return true;
+            }
+            String pretty = String.join(" ", Arrays.copyOfRange(args, 2, args.length)).trim();
+            String key = t.name;
+            ConfigurationSection sec = config().getConfigurationSection("table_names");
+            if (sec != null)
+                for (String k : sec.getKeys(false))
+                    if (k.equalsIgnoreCase(t.name))
+                        key = k;
+            boolean reset = pretty.equals("-") || pretty.equalsIgnoreCase("reset");
+            config().set("table_names." + key, reset ? null : pretty);
+            saveConfigFile();
+            ensureDealer(t);
+            updateHolo(t);
+            player.sendMessage(color("&aMesa renombrada: &r" + title(t)));
             return true;
         }
         if (isAdmin(player) && (a.equals("lista") || a.equals("list"))) {
@@ -1042,8 +1064,10 @@ public class BaccaratModule extends GameModule {
         if (!isAdmin(player))
             return List.of();
         if (args.length == 1)
-            return List.of("seat", "list");
+            return List.of("seat", "list", "rename");
         String a = args[0].toLowerCase(Locale.ROOT);
+        if (a.equals("rename") || a.equals("renombrar"))
+            return args.length == 2 ? tableNames() : args.length == 3 ? List.of("<name...>") : List.of();
         if (!a.equals("seat") && !a.equals("asiento") && !a.equals("asientos"))
             return List.of();
         if (args.length == 2)

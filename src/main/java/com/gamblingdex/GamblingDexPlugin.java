@@ -676,6 +676,32 @@ public class GamblingDexPlugin extends JavaPlugin {
     }
 
     /**
+     * Cambia el nombre bonito de una mesa en modules/&lt;juego&gt;.yml → table_names
+     * (lo usa /gdx &lt;juego&gt; rename). {@code pretty} null = volver al nombre interno.
+     */
+    public void setTableNameInConfig(String game, String table, String pretty) {
+        if (table == null)
+            return;
+        java.io.File f = new java.io.File(new java.io.File(getDataFolder(), "modules"), game + ".yml");
+        org.bukkit.configuration.file.YamlConfiguration yml = org.bukkit.configuration.file.YamlConfiguration
+                .loadConfiguration(f);
+        String key = table;
+        org.bukkit.configuration.ConfigurationSection sec = yml.getConfigurationSection("table_names");
+        if (sec != null)
+            for (String k : sec.getKeys(false))
+                if (k.equalsIgnoreCase(table))
+                    key = k;
+        String value = pretty == null || pretty.isBlank() ? table : pretty;
+        yml.set("table_names." + key, value);
+        getConfig().set(game + ".table_names." + key, value);
+        try {
+            yml.save(f);
+        } catch (java.io.IOException e) {
+            getLogger().warning("No se pudo guardar modules/" + game + ".yml: " + e.getMessage());
+        }
+    }
+
+    /**
      * Nombre bonito de una mesa desde {@code <juego>.table_names.<table>} en
      * modules/&lt;juego&gt;.yml (sin importar mayúsculas), ya con colores. Null si no hay.
      */
