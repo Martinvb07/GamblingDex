@@ -152,7 +152,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx roulette <build\|remove\|list> [radius] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <name>` | Mesas de blackjack |
 | `/gdx blackjack seat <add\|remove\|list\|clear> <name>` | Asientos de blackjack |
-| `/gdx blackjack create <name> [min] [max]` · `limits <name> <min> [max]` | Apuesta mínima y máxima de cada mesa (ej. mesa VIP de 10k a 1m) |
+| `/gdx blackjack create <name> [min] [max]` · `limits <name> <min> [max]` | Apuesta mínima y máxima de cada mesa (ej. `create Blackjack2 25000 100000`); las laterales 21+3 y pares van a 1/5: 5.000 - 20.000 |
 | `/gdx blackjack face <name>` | El dealer mira hacia donde estás (al crear la mesa ya mira hacia ti) |
 | `/gdx poker create <name> [small] [big]` | Crear mesa de póker |
 | `/gdx poker <remove\|list\|stakes\|rake> ...` | Gestionar mesas de póker |

@@ -20,6 +20,9 @@ dealer:
 # (ej. mesa VIP: /gdx blackjack limits VIP 10k 1m). max 0 = sin tope.
 min_bet: 1
 max_bet: 0
+# Apuestas laterales (21+3 y pares): mínimo y máximo = los de la mesa divididos por esto.
+# Ej. mesa 25.000 - 100.000 con 5 -> laterales 5.000 - 20.000
+side_bet_divisor: 5
 
 min_players: 1   # 1 = se puede jugar solo contra el dealer
 max_players: 7

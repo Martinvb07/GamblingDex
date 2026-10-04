@@ -737,7 +737,9 @@ public class GamblingDexCommand implements CommandExecutor {
                         if (min > 0 && (max <= 0 || max >= min)) {
                             bm.setLimits(table, min, Math.max(0, max));
                             player.sendMessage(GamblingDexPlugin.getInstance().color("&7Apuesta de la mesa: &e"
-                                    + formatLong(min) + " &7- &e" + (max > 0 ? formatLong(max) : "∞")));
+                                    + formatLong(min) + " &7- &e" + (max > 0 ? formatLong(max) : "∞")
+                                    + " &8| &7Laterales: &e" + formatLong(table.getSideMinBet()) + " &7- &e"
+                                    + (table.getSideMaxBet() > 0 ? formatLong(table.getSideMaxBet()) : "∞")));
                         }
                     }
                     GamblingDexPlugin.getInstance().syncTableNames();
@@ -814,7 +816,9 @@ public class GamblingDexCommand implements CommandExecutor {
                     bm.setLimits(t, min, max);
                     player.sendMessage(GamblingDexPlugin.getInstance().color("&aMesa &f" + t.getDisplayName()
                             + "&a: apuesta &e" + formatLong(t.getMinBet()) + " &a- &e"
-                            + (t.getMaxBet() > 0 ? formatLong(t.getMaxBet()) : "∞")));
+                            + (t.getMaxBet() > 0 ? formatLong(t.getMaxBet()) : "∞")
+                            + " &8| &7Laterales: &e" + formatLong(t.getSideMinBet()) + " &7- &e"
+                            + (t.getSideMaxBet() > 0 ? formatLong(t.getSideMaxBet()) : "∞")));
                     return true;
                 }
 
