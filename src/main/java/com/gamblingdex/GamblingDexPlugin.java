@@ -170,6 +170,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         getLogger().info("GamblingDex habilitado.");
 
         saveDefaultConfig();
+        migrateHoloHeight();
 
         this.messages = new Messages(this);
         this.messages.reload();
@@ -249,6 +250,25 @@ public class GamblingDexPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * La altura vieja de los hologramas de slots/cambio (1.8) quedaba muy alta:
+     * si el config.yml del servidor aún la tiene, se pasa a 1.2 (como Crash).
+     * Se edita el texto para no tocar los comentarios del archivo.
+     */
+    private void migrateHoloHeight() {
+        java.io.File f = new java.io.File(getDataFolder(), "config.yml");
+        try {
+            String s = java.nio.file.Files.readString(f.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+            String n = s.replaceFirst("(?m)^(\\s+holo_height:\\s*)1\\.8\\b", "$11.2");
+            if (!n.equals(s)) {
+                java.nio.file.Files.writeString(f.toPath(), n, java.nio.charset.StandardCharsets.UTF_8);
+                reloadConfig();
+                getLogger().info("stations.holo_height: 1.8 -> 1.2 (hologramas de estaciones más bajos).");
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
     @Override
     public void onDisable() {
         // (las estadísticas se guardan al final, después de devolver las fichas)
@@ -266,6 +286,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (pokerManager != null)
                 pokerManager.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (slotsController != null)
+                slotsController.shutdown();
         } catch (Throwable ignored) {
         }
         try {

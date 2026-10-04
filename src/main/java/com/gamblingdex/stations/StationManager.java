@@ -98,7 +98,7 @@ public class StationManager {
             return;
 
         boolean changed = false;
-        double height = plugin.getConfig().getDouble("stations.holo_height", 1.8);
+        double height = plugin.getConfig().getDouble("stations.holo_height", 1.2);
 
         for (String k : stations.getConfigurationSection("stations").getKeys(false)) {
             Location stationLoc = parseKey(k);
@@ -364,7 +364,7 @@ public class StationManager {
         String title = plugin.color(plugin.getConfig().getString("stations.holograms." + type.getId(),
                 defaultHolo(type)));
 
-        Location holoLoc = location.clone().add(0.5, plugin.getConfig().getDouble("stations.holo_height", 1.8), 0.5);
+        Location holoLoc = location.clone().add(0.5, plugin.getConfig().getDouble("stations.holo_height", 1.2), 0.5);
         TextDisplay td = w.spawn(holoLoc, TextDisplay.class);
         td.setBillboard(Display.Billboard.CENTER);
         td.setSeeThrough(true);

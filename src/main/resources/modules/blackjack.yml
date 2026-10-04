@@ -5,6 +5,7 @@
 #        /gdx blackjack seat add <name> (parado en cada asiento)
 #        /gdx blackjack remove <name> | /gdx blackjack list
 #        /gdx blackjack face <name>  (el dealer mira hacia donde estás parado)
+#        /gdx blackjack limits <name> <min> [max]  (apuesta mínima/máxima de esa mesa)
 # Jugadores: se paran en un asiento; los menús se abren solos.
 #
 # Recarga en caliente: /gdx reload
@@ -13,6 +14,15 @@
 dealer:
   look_at_players: true   # gira la cabeza hacia el jugador de turno o el más cercano
   look_range: 8           # bloques
+
+# Apuesta principal por defecto de las mesas. Cada mesa puede tener la suya:
+#   /gdx blackjack create <name> [min] [max]   o   /gdx blackjack limits <name> <min> [max]
+# (ej. mesa VIP: /gdx blackjack limits VIP 10k 1m). max 0 = sin tope.
+min_bet: 1
+max_bet: 0
+# Apuestas laterales (21+3 y pares): mínimo y máximo = los de la mesa divididos por esto.
+# Ej. mesa 25.000 - 100.000 con 5 -> laterales 5.000 - 20.000
+side_bet_divisor: 5
 
 min_players: 1   # 1 = se puede jugar solo contra el dealer
 max_players: 7

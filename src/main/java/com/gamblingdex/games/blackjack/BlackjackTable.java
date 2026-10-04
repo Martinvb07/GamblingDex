@@ -77,7 +77,9 @@ public class BlackjackTable {
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
     private UUID currentTurn;
-    private Float dealerYaw; // hacia dónde mira el dealer cuando no hay nadie cerca (null = sin definir)
+    private Float dealerYaw;
+    private long minBet; // apuesta principal mínima de esta mesa (0 = la de blackjack.yml)
+    private long maxBet; // máxima (0 = la de blackjack.yml; 0 ahí también = sin tope) // hacia dónde mira el dealer cuando no hay nadie cerca (null = sin definir)
 
     private BukkitTask bettingTask;
     private BukkitTask turnTask;
@@ -180,6 +182,55 @@ public class BlackjackTable {
 
     public Location getCenter() {
         return center;
+    }
+
+    public long getMinBetRaw() {
+        return minBet;
+    }
+
+    public long getMaxBetRaw() {
+        return maxBet;
+    }
+
+    /** Al cargar (sin tocar hologramas todavía). */
+    void setBetLimitsSilently(long min, long max) {
+        this.minBet = Math.max(0, min);
+        this.maxBet = Math.max(0, max);
+    }
+
+    public void setBetLimits(long min, long max) {
+        this.minBet = Math.max(0, min);
+        this.maxBet = Math.max(0, max);
+        updateHologramText();
+    }
+
+    /** Apuesta principal mínima de la mesa (al menos 1). */
+    public long getMinBet() {
+        long m = minBet > 0 ? minBet : plugin.getConfig().getLong("blackjack.min_bet", 1);
+        return Math.max(1, m);
+    }
+
+    /** Máxima (0 = sin tope). */
+    public long getMaxBet() {
+        return maxBet > 0 ? maxBet : Math.max(0, plugin.getConfig().getLong("blackjack.max_bet", 0));
+    }
+
+    /** Las laterales (21+3 y pares) van a 1/side_bet_divisor de los límites de la mesa (por defecto 1/5). */
+    private long sideDivisor() {
+        return Math.max(1, plugin.getConfig().getLong("blackjack.side_bet_divisor", 5));
+    }
+
+    public long getSideMinBet() {
+        return getMinBet() > 1 ? Math.max(1, getMinBet() / sideDivisor()) : 1;
+    }
+
+    /** 0 = sin tope. */
+    public long getSideMaxBet() {
+        return getMaxBet() > 0 ? Math.max(1, getMaxBet() / sideDivisor()) : 0;
+    }
+
+    private boolean hasLimits() {
+        return getMinBet() > 1 || getMaxBet() > 0;
     }
 
     public Float getDealerYaw() {
@@ -981,6 +1032,15 @@ public class BlackjackTable {
 
         Map<UUID, Long> target = betMap(spot);
         long newBet = target.getOrDefault(player.getUniqueId(), 0L) + amountUnits;
+        long max = spot == BetSpot.MAIN ? getMaxBet() : getSideMaxBet();
+        if (max > 0 && newBet > max) {
+            player.sendMessage(plugin.getMessages().format(
+                    "blackjack.bet_over_max",
+                    "&cLa apuesta máxima {where} es &e{max}&c (llevas &e{current}&c).",
+                    Map.of("where", spot == BetSpot.MAIN ? "de esta mesa" : "de " + spotName(spot),
+                            "max", prettyUnits(max), "current", prettyUnits(newBet - amountUnits))));
+            return false;
+        }
         target.put(player.getUniqueId(), newBet);
 
         player.sendMessage(plugin.getMessages().format(
@@ -1510,6 +1570,40 @@ public class BlackjackTable {
 
     private void startRound() {
         int minPlayers = Math.max(1, plugin.getConfig().getInt("blackjack.min_players", 1));
+
+        // Apuestas por debajo del mínimo de la mesa: se devuelven (y no juega esta ronda).
+        long minBet = getMinBet();
+        for (UUID id : new ArrayList<>(seated)) {
+            long bet = bets.getOrDefault(id, 0L);
+            if (bet <= 0 || bet >= minBet)
+                continue;
+            bets.remove(id);
+            com.gamblingdex.economy.TokenWallet.give(id, bet);
+            Player p = Bukkit.getPlayer(id);
+            if (p != null)
+                p.sendMessage(plugin.getMessages().format(
+                        "blackjack.bet_under_min",
+                        "&cLa apuesta mínima de esta mesa es &e{min}&c. Se te devolvieron &e{amount}&c.",
+                        Map.of("min", prettyUnits(minBet), "amount", prettyUnits(bet))));
+        }
+
+        // Laterales por debajo de su mínimo (1/5 del mínimo de la mesa): se devuelven.
+        long sideMin = getSideMinBet();
+        for (Map<UUID, Long> side : List.of(pairsBets, plus3Bets)) {
+            for (UUID id : new ArrayList<>(side.keySet())) {
+                long b = side.getOrDefault(id, 0L);
+                if (b <= 0 || b >= sideMin)
+                    continue;
+                side.remove(id);
+                com.gamblingdex.economy.TokenWallet.give(id, b);
+                Player p = Bukkit.getPlayer(id);
+                if (p != null)
+                    p.sendMessage(plugin.getMessages().format(
+                            "blackjack.side_under_min",
+                            "&cLa apuesta lateral mínima de esta mesa es &e{min}&c. Se te devolvieron &e{amount}&c.",
+                            Map.of("min", prettyUnits(sideMin), "amount", prettyUnits(b))));
+            }
+        }
 
         // Participants: seated players with a bet.
         List<UUID> participants = new ArrayList<>();
@@ -2316,6 +2410,12 @@ public class BlackjackTable {
                             "turn", turnName,
                             "seconds", String.valueOf(Math.max(0, turnSecondsLeft))));
         }
+
+        // Límites de la mesa debajo del estado
+        if (hasLimits())
+            status = status + "\n" + plugin.getMessages().format("blackjack.holo.limits",
+                    "&7Apuesta: &e{min} &7- &e{max}",
+                    Map.of("min", prettyUnits(getMinBet()), "max", getMaxBet() > 0 ? prettyUnits(getMaxBet()) : "∞"));
 
         // Single line above the dealer showing current state.
         setHoloLine(0, status);

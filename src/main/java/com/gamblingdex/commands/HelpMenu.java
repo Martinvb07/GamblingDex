@@ -263,7 +263,8 @@ public final class HelpMenu {
                 "&8• &7Jugar: &fpárate en un asiento&7; el menú de apuestas se abre solo",
                 "&8• &7Apuestas laterales: &fPares Perfectos&7 y &f21+3&7; botón &fRepetir apuesta"));
         if (admin) {
-            l.add("&8• &e/gdx blackjack create <name> &7- Crear mesa (mirando el bloque)");
+            l.add("&8• &e/gdx blackjack create <name> [min] [max] &7- Crear mesa (mirando el bloque)");
+            l.add("&8• &e/gdx blackjack limits <name> <min> [max] &7- Apuesta mínima/máxima de la mesa");
             l.add("&8• &e/gdx blackjack seat <add|remove|list|clear> <name> &7- Asientos (parado encima)");
             l.add("&8• &e/gdx blackjack remove <name>&7|&elist &7- Gestionar mesas");
             l.add("&8• &e/gdx blackjack face <name> &7- El dealer mira hacia donde estás");

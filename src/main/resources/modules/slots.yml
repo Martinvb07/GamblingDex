@@ -2,9 +2,14 @@
 # GamblingDex - Tragamonedas
 # ======================
 # Admin: /gdx station set slots (mirando el bloque) | /gdx item slots
-# Jugadores: click derecho a la estación.
+# Jugadores: click derecho a la estación -> menú con 3 rodillos. Eligen la apuesta
+#            con los botones de abajo y pulsan GIRAR (se cobra de sus fichas).
 #
 # Recarga en caliente: /gdx reload
+
+# Apuesta (se elige con los botones del menú y se cobra al girar)
+min_bet: 10
+max_bet: 0                  # 0 = sin tope
 
 payout:
   triple_multiplier: 5
@@ -26,13 +31,7 @@ log_big_wins:
 
 # Menú
 gui:
-  title: "&dTragamonedas"
-  spin_button_name: "&a&lGirar"
-  spin_button_lore_bet: "&7Apuesta: &e{bet}"
-  spin_button_lore_pay: "&7Paga: &a{triple}x&7 (triple), &a{double}x&7 (doble)"
-  paytable_name: "&eTabla de pagos"
-  paytable_line_triple: "&7Triple: &a{triple}x"
-  paytable_line_double: "&7Doble: &a{double}x"
+  title: "&8&l✦ &d&lTRAGAMONEDAS &8&l✦"
 
 # Ítem que abre los slots (/gdx item slots)
 item:

@@ -1,320 +1,376 @@
 package com.gamblingdex.games.slots;
 
 import com.gamblingdex.GamblingDexPlugin;
-import com.gamblingdex.economy.TokenManager;
-import com.gamblingdex.gui.GuiItem;
+import com.gamblingdex.economy.TokenWallet;
+import com.gamblingdex.gui.AmountPickerMenu;
+import com.gamblingdex.gui.Icons;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.text.NumberFormat;
-import java.util.Locale;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Tragamonedas en un menú de 6 filas: tres rodillos que giran de verdad (se ven
+ * el símbolo de arriba, el de la línea de pago y el de abajo) y se detienen uno
+ * por uno. La apuesta se elige con botones (como Mines/Plinko) y se cobra al girar.
+ *
+ * <pre>
+ *  0..8   luces (parpadean al girar), 4 = título
+ * 11 13 15   rodillos (arriba)
+ * 20 22 24   línea de pago (19 y 25 = flechas)
+ * 29 31 33   rodillos (abajo)
+ *  9 tabla de pagos · 17 tus fichas · 27 último resultado · 35 estadísticas
+ * 45 mín · 46 ÷2 · 47 apuesta · 48 x2 · 49 máx · 53 GIRAR
+ * </pre>
+ */
 public class SlotsController {
+
+    private static final List<Material> REELS = List.of(Material.DIAMOND, Material.EMERALD, Material.GOLD_INGOT,
+            Material.IRON_INGOT, Material.AMETHYST_SHARD, Material.NETHER_STAR);
+    private static final int[][] REEL_SLOTS = { { 11, 20, 29 }, { 13, 22, 31 }, { 15, 24, 33 } };
+    private static final int[] STOP_FRAME = { 12, 17, 22 }; // cada rodillo frena después del anterior
+
+    private static final int S_PAYTABLE = 9, S_BALANCE = 17, S_LAST = 27, S_STATS = 35;
+    private static final int S_MIN = 45, S_HALF = 46, S_CUSTOM = 47, S_DOUBLE = 48, S_MAX = 49, S_SPIN = 53;
 
     private final GamblingDexPlugin plugin;
     private final Map<UUID, SlotsState> states = new HashMap<>();
-
-    private static final List<Material> REELS = List.of(
-            Material.DIAMOND,
-            Material.EMERALD,
-            Material.GOLD_INGOT,
-            Material.IRON_INGOT,
-            Material.AMETHYST_SHARD,
-            Material.NETHER_STAR);
-    private static final int[] BET_SLOTS = { 36, 37, 38 };
 
     public SlotsController(GamblingDexPlugin plugin) {
         this.plugin = plugin;
     }
 
+    private static final class SlotsState {
+        long bet;
+        boolean spinning;
+        long lastSpinAtMs;
+        long spinBet;
+        Material[][] reels = new Material[3][3]; // [rodillo][fila]
+        Material[] result;
+        long lastPay = -1;
+        BukkitTask task;
+        int frame;
+    }
+
+    // ------------------------------------------------------------------
+    // Config
+    // ------------------------------------------------------------------
+
+    private long min() {
+        return Math.max(1, plugin.getConfig().getLong("games.slots.min_bet", 10));
+    }
+
+    private long max() {
+        return Math.max(0, plugin.getConfig().getLong("games.slots.max_bet", 0));
+    }
+
+    private long tripleMult() {
+        return Math.max(1L, plugin.getConfig().getLong("games.slots.payout.triple_multiplier", 5L));
+    }
+
+    private long doubleMult() {
+        return Math.max(1L, plugin.getConfig().getLong("games.slots.payout.double_multiplier", 2L));
+    }
+
+    // ------------------------------------------------------------------
+
     public void open(Player player) {
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-
+        SlotsState s = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
+        if (s.bet <= 0)
+            s.bet = min();
+        if (s.reels[0][0] == null)
+            for (int r = 0; r < 3; r++)
+                for (int y = 0; y < 3; y++)
+                    s.reels[r][y] = randomSymbolWeighted();
         SlotsHolder holder = new SlotsHolder(player.getUniqueId());
-        String title = plugin.color(plugin.getConfig().getString("gui.slots.title", "&dTragamonedas"));
-        Inventory inv = Bukkit.createInventory(holder, 45, title);
+        String raw = plugin.getConfig().getString("gui.slots.title", "&8&l✦ &d&lTRAGAMONEDAS &8&l✦");
+        if (raw == null || raw.equals("&dTragamonedas")) // título de la versión anterior
+            raw = "&8&l✦ &d&lTRAGAMONEDAS &8&l✦";
+        String title = plugin.color(raw);
+        Inventory inv = Bukkit.createInventory(holder, 54, title);
         holder.setInventory(inv);
-
-        render(inv, state, null);
+        render(player, inv, s);
         player.openInventory(inv);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.2f);
     }
 
     public boolean isSlotsInventory(Inventory inv, Player player) {
-        if (inv == null || !(inv.getHolder() instanceof SlotsHolder holder))
-            return false;
-        return holder.getOwner().equals(player.getUniqueId());
+        return inv != null && inv.getHolder() instanceof SlotsHolder h && h.getOwner().equals(player.getUniqueId());
     }
 
-    public void handleClick(Player player, Inventory inv, ItemStack clicked) {
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-        String action = GuiItem.getAction(plugin, clicked);
-        if (action == null)
-            return;
+    private void render(Player p, Inventory inv, SlotsState s) {
+        inv.clear();
+        boolean flash = s.spinning && s.frame % 2 == 0;
 
-        switch (action) {
-            case "spin" -> spin(player, inv, state);
+        // Luces de arriba y abajo de los rodillos
+        for (int i = 0; i < 9; i++) {
+            boolean a = (i + s.frame) % 2 == 0;
+            Material light = s.spinning ? (a ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE)
+                    : s.lastPay > 0 ? Material.LIME_STAINED_GLASS_PANE : Material.MAGENTA_STAINED_GLASS_PANE;
+            inv.setItem(i, Icons.of(light, " ", null));
+            inv.setItem(36 + i, Icons.of(light, " ", null));
+        }
+        inv.setItem(4, Icons.of(Material.NETHER_STAR, 1, "&d&lTRAGAMONEDAS",
+                List.of("&7Tres iguales en la línea: &ax" + tripleMult(), "&7Dos iguales: &ax" + doubleMult()), true));
+
+        // Marco de los rodillos
+        for (int row = 1; row <= 3; row++)
+            for (int col : new int[] { 1, 3, 5, 7 })
+                inv.setItem(row * 9 + col, Icons.of(Material.BLACK_STAINED_GLASS_PANE, " ", null));
+
+        // Rodillos
+        for (int r = 0; r < 3; r++) {
+            for (int y = 0; y < 3; y++) {
+                Material m = s.reels[r][y];
+                boolean line = y == 1;
+                boolean winning = line && !s.spinning && s.lastPay > 0 && s.result != null && isWinning(s.result, r);
+                inv.setItem(REEL_SLOTS[r][y], Icons.of(m == null ? Material.BARRIER : m, 1,
+                        (line ? "&f&l" : "&7") + symbolName(m), null, winning));
+            }
+        }
+        // Flechas de la línea de pago
+        Material arrow = flash ? Material.YELLOW_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
+        inv.setItem(19, Icons.of(arrow, "&a&l▶ Línea de pago", null));
+        inv.setItem(25, Icons.of(arrow, "&a&l◀ Línea de pago", null));
+
+        // Lado izquierdo / derecho
+        List<String> pay = new ArrayList<>();
+        pay.add("&7Tres iguales: &a&lx" + tripleMult());
+        pay.add("&7Dos iguales: &ax" + doubleMult());
+        pay.add("");
+        pay.add("&7Símbolos:");
+        for (Material m : symbols())
+            pay.add("&8• &f" + symbolName(m));
+        inv.setItem(S_PAYTABLE, Icons.of(Material.BOOK, 1, "&e&lTabla de pagos", pay, false));
+        inv.setItem(S_BALANCE, Icons.of(Material.SUNFLOWER, "&7Tus fichas: &e" + fmt(TokenWallet.balance(p)), null));
+        if (s.lastPay < 0)
+            inv.setItem(S_LAST, Icons.of(Material.CLOCK, "&7Aún no has girado", null));
+        else if (s.lastPay > 0)
+            inv.setItem(S_LAST, Icons.of(Material.EMERALD, 1, "&a&l¡Premio! &e+" + fmt(s.lastPay),
+                    List.of("&7Apuesta: &e" + fmt(s.spinBet)), true));
+        else
+            inv.setItem(S_LAST, Icons.of(Material.REDSTONE, "&cSin premio", List.of("&7Apuesta: &e" + fmt(s.spinBet))));
+        var st = plugin.getGameStats() == null ? null : plugin.getGameStats().get(p.getUniqueId(), false);
+        if (st != null)
+            inv.setItem(S_STATS, Icons.of(Material.PAPER, "&fTus estadísticas", List.of(
+                    "&7Apuestas: &f" + fmt(st.rounds()),
+                    "&7Mejor premio: &a" + fmt(st.biggestWin()),
+                    "&7Ganancia neta: " + (st.profit() >= 0 ? "&a+" : "&c") + fmt(st.profit()),
+                    "&8(todos los juegos)")));
+
+        // Controles
+        String u = fmt(s.bet);
+        if (s.spinning) {
+            for (int i = 45; i <= 52; i++)
+                inv.setItem(i, Icons.of(Material.GRAY_STAINED_GLASS_PANE, "&8Girando...", null));
+            inv.setItem(S_SPIN, Icons.of(Material.MAGMA_CREAM, 1, "&e&lGIRANDO...", null, false));
+        } else {
+            inv.setItem(S_MIN, Icons.of(Material.IRON_NUGGET, "&fMínimo", List.of("&7Apuesta " + fmt(min()))));
+            inv.setItem(S_HALF, Icons.of(Material.RED_STAINED_GLASS_PANE, "&c÷2", List.of("&7Mitad de la apuesta")));
+            inv.setItem(S_CUSTOM, Icons.of(Material.GOLD_NUGGET, "&6Apuesta: &e" + u, List.of("&7Click para escribir otra cantidad")));
+            inv.setItem(S_DOUBLE, Icons.of(Material.LIME_STAINED_GLASS_PANE, "&ax2", List.of("&7Doble de la apuesta")));
+            inv.setItem(S_MAX, Icons.of(Material.GOLD_BLOCK, "&6Máximo", List.of("&7Todas tus fichas" + (max() > 0 ? " (hasta " + fmt(max()) + ")" : ""))));
+            inv.setItem(S_SPIN, Icons.of(Material.LEVER, 1, "&a&lGIRAR &8» &e" + u, List.of(
+                    "&7Tres iguales: &a" + fmt(s.bet * tripleMult()),
+                    "&7Dos iguales: &a" + fmt(s.bet * doubleMult())), true));
+        }
+        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+    }
+
+    /** ¿El rodillo r forma parte de la combinación ganadora? */
+    private static boolean isWinning(Material[] res, int r) {
+        if (res[0] == res[1] && res[1] == res[2])
+            return true;
+        for (int o = 0; o < 3; o++)
+            if (o != r && res[o] == res[r])
+                return true;
+        return false;
+    }
+
+    // ------------------------------------------------------------------
+    // Clicks (los manda SlotsMenuListener)
+    // ------------------------------------------------------------------
+
+    public void handleClick(Player p, Inventory inv, int slot, boolean shift) {
+        SlotsState s = states.computeIfAbsent(p.getUniqueId(), k -> new SlotsState());
+        if (s.spinning)
+            return;
+        long hi = max() > 0 ? max() : Long.MAX_VALUE;
+        switch (slot) {
+            case S_SPIN -> spin(p, inv, s);
+            case S_MIN -> setBet(p, inv, s, min());
+            case S_HALF -> setBet(p, inv, s, s.bet / 2);
+            case S_DOUBLE -> setBet(p, inv, s, Math.min(hi, s.bet * 2));
+            case S_MAX -> setBet(p, inv, s, Math.min(hi, Math.max(min(), TokenWallet.balance(p))));
+            case S_CUSTOM -> {
+                p.closeInventory();
+                AmountPickerMenu.open(p, "&d&lSlots &8- &eTu apuesta", min(), max(), s.bet, List.of(),
+                        amount -> {
+                            s.bet = amount;
+                            open(p);
+                        }, () -> open(p));
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void setBet(Player p, Inventory inv, SlotsState s, long v) {
+        long hi = max() > 0 ? max() : Long.MAX_VALUE;
+        s.bet = Math.max(min(), Math.min(hi, v));
+        render(p, inv, s);
+        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+    }
+
+    private void spin(Player p, Inventory inv, SlotsState s) {
+        long cooldownMs = Math.max(0L, plugin.getConfig().getLong("games.slots.spin_cooldown_ms", 0L));
+        long now = System.currentTimeMillis();
+        if (cooldownMs > 0 && now - s.lastSpinAtMs < cooldownMs) {
+            p.sendMessage(colorCfg("messages.slots.cooldown", "&cEspera {ms}ms para girar de nuevo.")
+                    .replace("{ms}", String.valueOf(cooldownMs - (now - s.lastSpinAtMs))));
+            return;
+        }
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(p, "slots"))
+            return;
+        if (!TokenWallet.take(p, s.bet)) {
+            p.sendMessage(plugin.color("&cNo te alcanzan las fichas. Tienes &e" + fmt(TokenWallet.balance(p)) + "&c."));
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+            return;
+        }
+        s.spinning = true;
+        s.lastSpinAtMs = now;
+        s.spinBet = s.bet;
+        s.frame = 0;
+        s.result = new Material[] { randomSymbolWeighted(), randomSymbolWeighted(), randomSymbolWeighted() };
+        try {
+            plugin.getSlotsStatsManager().recordSpin(p.getUniqueId(), s.spinBet);
+        } catch (Throwable ignored) {
+        }
+        p.playSound(p.getLocation(), Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
+        s.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> frame(p, inv, s), 2L, 2L);
+    }
+
+    private void frame(Player p, Inventory inv, SlotsState s) {
+        s.frame++;
+        for (int r = 0; r < 3; r++) {
+            if (s.frame < STOP_FRAME[r]) {
+                // baja una posición
+                s.reels[r][2] = s.reels[r][1];
+                s.reels[r][1] = s.reels[r][0];
+                s.reels[r][0] = randomSymbolWeighted();
+            } else if (s.frame == STOP_FRAME[r]) {
+                s.reels[r][0] = randomSymbolWeighted();
+                s.reels[r][1] = s.result[r];
+                s.reels[r][2] = randomSymbolWeighted();
+                if (p.isOnline())
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 0.8f, 1.0f + r * 0.2f);
+            }
+        }
+        if (s.frame < STOP_FRAME[2] && p.isOnline())
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.3f, 1.8f);
+        if (s.frame >= STOP_FRAME[2])
+            finish(p, s);
+        if (p.isOnline() && p.getOpenInventory().getTopInventory() == inv)
+            render(p, inv, s);
+    }
+
+    /** Termina el giro (también al cerrar el menú o desconectarse: el resultado ya estaba decidido). */
+    private void finish(Player p, SlotsState s) {
+        if (!s.spinning)
+            return;
+        if (s.task != null) {
+            s.task.cancel();
+            s.task = null;
+        }
+        for (int r = 0; r < 3; r++)
+            s.reels[r][1] = s.result[r];
+        s.spinning = false;
+        Material[] res = s.result;
+        long payout = 0;
+        boolean triple = res[0] == res[1] && res[1] == res[2];
+        if (triple)
+            payout = s.spinBet * tripleMult();
+        else if (res[0] == res[1] || res[1] == res[2] || res[0] == res[2])
+            payout = s.spinBet * doubleMult();
+        s.lastPay = payout;
+        if (payout > 0)
+            TokenWallet.give(p.getUniqueId(), payout);
+        try {
+            plugin.getSlotsStatsManager().recordPayout(p.getUniqueId(), payout);
+        } catch (Throwable ignored) {
+        }
+        GamblingDexPlugin.recordStats(p.getUniqueId(), "slots", s.spinBet, payout);
+        long big = Math.max(0L, plugin.getConfig().getLong("games.slots.log_big_wins.threshold_units", 0L));
+        if (big > 0 && payout >= big)
+            plugin.getLogger().info("[Slots] Big win player=" + p.getName() + " bet=" + s.spinBet + " payout=" + payout);
+        if (!p.isOnline())
+            return;
+        String currencyName = plugin.color(plugin.getConfig().getString("currency.name", "⛃"));
+        if (payout > 0) {
+            p.sendMessage(colorCfg("messages.slots.win", "&a¡Premio! &7Ganaste fichas equivalentes a &e{amount} &7{currency}")
+                    .replace("{amount}", fmt(payout)).replace("{currency}", currencyName));
+            p.playSound(p.getLocation(), triple ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
+            if (triple)
+                p.sendTitle(plugin.color("&d&l¡TRIPLE!"), plugin.color("&e+" + fmt(payout)), 5, 40, 10);
+        } else {
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
         }
     }
 
     public void handleClose(Player player) {
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-        if (state.betTokens.isEmpty())
-            return;
-        for (Map.Entry<Material, Integer> e : state.betTokens.entrySet()) {
-            int left = e.getValue();
-            while (left > 0) {
-                int give = Math.min(64, left);
-                ItemStack stack = plugin.getTokenManager().createToken(e.getKey(), give);
-                var leftover = player.getInventory().addItem(stack);
-                if (!leftover.isEmpty()) {
-                    leftover.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-                }
-                left -= give;
-            }
-        }
-        state.betTokens.clear();
+        SlotsState s = states.get(player.getUniqueId());
+        if (s != null && s.spinning)
+            finish(player, s);
     }
 
-    private void spin(Player player, Inventory inv, SlotsState state) {
-        if (state.spinning) {
-            player.sendMessage(colorCfg("messages.slots.spin_in_progress", "&cYa estás girando..."));
-            return;
+    /** Al apagar el plugin: termina los giros en curso. */
+    public void shutdown() {
+        for (Map.Entry<UUID, SlotsState> e : states.entrySet()) {
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (p != null && e.getValue().spinning)
+                finish(p, e.getValue());
         }
-
-        long betUnits = getBetUnits(state);
-        if (betUnits <= 0) {
-            player.sendMessage(colorCfg("messages.slots.need_bet", "&cDebes ingresar fichas para apostar."));
-            return;
-        }
-
-        long cooldownMs = Math.max(0L, plugin.getConfig().getLong("games.slots.spin_cooldown_ms", 0L));
-        long now = System.currentTimeMillis();
-        if (cooldownMs > 0 && (now - state.lastSpinAtMs) < cooldownMs) {
-            long left = Math.max(0L, cooldownMs - (now - state.lastSpinAtMs));
-            player.sendMessage(colorCfg("messages.slots.cooldown", "&cEspera {ms}ms para girar de nuevo.")
-                    .replace("{ms}", String.valueOf(left)));
-            return;
-        }
-
-        state.spinning = true;
-        state.lastSpinAtMs = now;
-
-        // Stats: record wager at spin start (payout recorded at end)
-        try {
-            plugin.getSlotsStatsManager().recordSpin(player.getUniqueId(), betUnits);
-        } catch (Throwable ignored) {
-        }
-
-        // Animación lenta
-        new org.bukkit.scheduler.BukkitRunnable() {
-            int ticks = 0;
-            Material[] result = new Material[3];
-
-            @Override
-            public void run() {
-                // If the player closed the inventory or switched GUI, cancel to avoid exploits.
-                try {
-                    if (!player.isOnline() || player.getOpenInventory() == null
-                            || player.getOpenInventory().getTopInventory() != inv) {
-                        state.spinning = false;
-                        this.cancel();
-                        return;
-                    }
-                } catch (Throwable ignored) {
-                    state.spinning = false;
-                    this.cancel();
-                    return;
-                }
-
-                if (ticks < 20) {
-                    // Girar reels
-                    inv.setItem(11, symbolItem(randomSymbolWeighted()));
-                    inv.setItem(13, symbolItem(randomSymbolWeighted()));
-                    inv.setItem(15, symbolItem(randomSymbolWeighted()));
-
-                    // Sonido por frame mientras los ítems se mueven
-                    // (solo si el jugador sigue con el inventario abierto)
-                    try {
-                        if (player.isOnline() && player.getOpenInventory() != null
-                                && player.getOpenInventory().getTopInventory() == inv) {
-                            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.45f, 1.7f);
-                        }
-                    } catch (Throwable ignored) {
-                        // ignore sound errors (version differences)
-                    }
-                } else if (ticks == 20) {
-                    // Resultado final
-                    result[0] = randomSymbolWeighted();
-                    result[1] = randomSymbolWeighted();
-                    result[2] = randomSymbolWeighted();
-                    inv.setItem(11, symbolItem(result[0]));
-                    inv.setItem(13, symbolItem(result[1]));
-                    inv.setItem(15, symbolItem(result[2]));
-
-                    long tripleMult = Math.max(1L, plugin.getConfig().getLong("games.slots.payout.triple_multiplier",
-                            5L));
-                    long doubleMult = Math.max(1L, plugin.getConfig().getLong("games.slots.payout.double_multiplier",
-                            2L));
-
-                    // Calcular premio
-                    long payout = 0;
-                    if (result[0] == result[1] && result[1] == result[2]) {
-                        payout = betUnits * tripleMult;
-                    } else if (result[0] == result[1] || result[1] == result[2] || result[0] == result[2]) {
-                        payout = betUnits * doubleMult;
-                    }
-                    if (payout > 0) {
-                        plugin.getTokenPayout().pay(player, payout);
-                    }
-                    String currencyName = plugin.color(plugin.getConfig().getString("currency.name", "⛃"));
-                    String msg;
-                    if (payout > 0) {
-                        msg = colorCfg("messages.slots.win",
-                                "&a¡Premio! &7Ganaste fichas equivalentes a &e{amount} &7{currency}")
-                                .replace("{amount}", formatUnits(payout))
-                                .replace("{currency}", currencyName);
-                    } else {
-                        msg = colorCfg("messages.slots.lose", "&cNada esta vez...");
-                    }
-                    player.sendMessage(msg);
-                    player.playSound(player.getLocation(),
-                            payout > 0 ? org.bukkit.Sound.ENTITY_PLAYER_LEVELUP : org.bukkit.Sound.ENTITY_ITEM_BREAK,
-                            0.8f, payout > 0 ? 1.2f : 0.9f);
-                    state.betTokens.clear();
-                    state.spinning = false;
-
-                    // Stats: record payout at the end
-                    try {
-                        plugin.getSlotsStatsManager().recordPayout(player.getUniqueId(), payout);
-                    } catch (Throwable ignored) {
-                    }
-                    GamblingDexPlugin.recordStats(player.getUniqueId(), "slots", betUnits, payout);
-
-                    // Optional: log big wins
-                    long big = Math.max(0L, plugin.getConfig().getLong("games.slots.log_big_wins.threshold_units", 0L));
-                    if (big > 0 && payout >= big) {
-                        plugin.getLogger().info("[Slots] Big win player=" + player.getName() + " bet=" + betUnits
-                                + " payout=" + payout);
-                    }
-                    render(inv, state, result);
-                    this.cancel();
-                }
-                ticks++;
-            }
-        }.runTaskTimer(plugin, 0L, 4L); // 4 ticks = 0.2s entre frames
     }
 
-    private void render(Inventory inv, SlotsState state, Material[] last) {
-        inv.clear();
+    // ------------------------------------------------------------------
 
-        ItemStack filler = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
-        ItemMeta fm = filler.getItemMeta();
-        if (fm != null) {
-            fm.setDisplayName(" ");
-            filler.setItemMeta(fm);
-        }
-        for (int i = 0; i < inv.getSize(); i++)
-            inv.setItem(i, filler);
-
-        // reels in the middle row
-        inv.setItem(11, symbolItem(last != null ? last[0] : Material.BARRIER));
-        inv.setItem(13, symbolItem(last != null ? last[1] : Material.BARRIER));
-        inv.setItem(15, symbolItem(last != null ? last[2] : Material.BARRIER));
-
-        // bet slots (tokens inserted)
-        for (int slot : BET_SLOTS) {
-            inv.setItem(slot, placeholder(Material.RED_STAINED_GLASS_PANE));
-        }
-        int slotIdx = 0;
-        for (Map.Entry<Material, Integer> e : state.betTokens.entrySet()) {
-            if (slotIdx >= BET_SLOTS.length)
-                break;
-            Material mat = e.getKey();
-            int amount = e.getValue();
-            ItemStack token = plugin.getTokenManager().createToken(mat, Math.min(64, amount));
-            ItemMeta meta = token.getItemMeta();
-            if (meta != null) {
-                List<String> lore = new ArrayList<>();
-                lore.add(plugin.color("&7Apuesta"));
-                lore.add(plugin.color("&fCantidad: &e" + amount));
-                lore.add(plugin.color("&fValor unitario: &e" + TokenManager.getDenoms().get(mat) + " ⛃"));
-                meta.setLore(lore);
-                token.setItemMeta(meta);
+    private List<Material> symbols() {
+        ConfigurationSection sec = plugin.getConfig().getConfigurationSection("games.slots.symbol_weights");
+        List<Material> out = new ArrayList<>();
+        if (sec != null)
+            for (String k : sec.getKeys(false)) {
+                Material m = Material.matchMaterial(k);
+                if (m != null && m.isItem() && sec.getInt(k, 0) > 0)
+                    out.add(m);
             }
-            inv.setItem(BET_SLOTS[slotIdx], token);
-            slotIdx++;
-        }
-
-        // spin
-        long tripleMult = Math.max(1L,
-                plugin.getConfig().getLong("games.slots.payout.triple_multiplier", 5L));
-        long doubleMult = Math.max(1L,
-                plugin.getConfig().getLong("games.slots.payout.double_multiplier", 2L));
-        String spinName = plugin.getConfig().getString("gui.slots.spin_button_name", "&a&lGirar");
-        String spinLoreBet = plugin.getConfig().getString("gui.slots.spin_button_lore_bet", "&7Apuesta: &e{bet}");
-        String spinLorePay = plugin.getConfig().getString("gui.slots.spin_button_lore_pay",
-                "&7Paga: &a{triple}x&7 (triple), &a{double}x&7 (doble)");
-        inv.setItem(40, GuiItem.button(plugin, Material.EMERALD_BLOCK, plugin.color(spinName),
-                List.of(plugin.color(spinLoreBet.replace("{bet}", String.valueOf(getBetUnits(state)))),
-                        plugin.color(spinLorePay
-                                .replace("{triple}", String.valueOf(tripleMult))
-                                .replace("{double}", String.valueOf(doubleMult)))),
-                "spin", null, true));
-
-        // info
-        String payTitle = plugin.getConfig().getString("gui.slots.paytable_name", "&eTabla de pagos");
-        String payLine1 = plugin.getConfig().getString("gui.slots.paytable_line_triple", "&7Triple: &a{triple}x");
-        String payLine2 = plugin.getConfig().getString("gui.slots.paytable_line_double", "&7Doble: &a{double}x");
-        inv.setItem(31, GuiItem.button(plugin, Material.PAPER, plugin.color(payTitle),
-                List.of(plugin.color(payLine1.replace("{triple}", String.valueOf(tripleMult))),
-                        plugin.color(payLine2.replace("{double}", String.valueOf(doubleMult)))),
-                "noop", null, false));
-    }
-
-    private ItemStack symbolItem(Material material) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(plugin.color("&f" + material.name()));
-            item.setItemMeta(meta);
-        }
-        return item;
+        return out.isEmpty() ? REELS : out;
     }
 
     private Material randomSymbolWeighted() {
         ConfigurationSection sec = plugin.getConfig().getConfigurationSection("games.slots.symbol_weights");
-        if (sec == null) {
+        if (sec == null)
             return REELS.get(ThreadLocalRandom.current().nextInt(REELS.size()));
-        }
-
         List<Material> mats = new ArrayList<>();
         List<Integer> weights = new ArrayList<>();
         int total = 0;
         for (String k : sec.getKeys(false)) {
             Material mat = Material.matchMaterial(k);
-            if (mat == null)
-                continue;
             int w = Math.max(0, sec.getInt(k, 0));
-            if (w <= 0)
+            if (mat == null || !mat.isItem() || w <= 0)
                 continue;
             mats.add(mat);
             weights.add(w);
             total += w;
         }
-
-        if (total <= 0 || mats.isEmpty()) {
+        if (total <= 0)
             return REELS.get(ThreadLocalRandom.current().nextInt(REELS.size()));
-        }
-
         int r = ThreadLocalRandom.current().nextInt(total);
         int acc = 0;
         for (int i = 0; i < mats.size(); i++) {
@@ -325,86 +381,34 @@ public class SlotsController {
         return mats.get(mats.size() - 1);
     }
 
+    private static String symbolName(Material m) {
+        if (m == null)
+            return "?";
+        return switch (m) {
+            case DIAMOND -> "Diamante";
+            case EMERALD -> "Esmeralda";
+            case GOLD_INGOT -> "Oro";
+            case IRON_INGOT -> "Hierro";
+            case AMETHYST_SHARD -> "Amatista";
+            case NETHER_STAR -> "Estrella";
+            default -> {
+                String n = m.name().toLowerCase(Locale.ROOT).replace('_', ' ');
+                yield Character.toUpperCase(n.charAt(0)) + n.substring(1);
+            }
+        };
+    }
+
     private String colorCfg(String path, String def) {
-        if (path != null && path.startsWith("messages.")) {
+        if (path != null && path.startsWith("messages."))
             return plugin.getMessages().getString(path, def);
-        }
         return plugin.color(plugin.getConfig().getString(path, def));
     }
 
-    private static ItemStack placeholder(Material material) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(" ");
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    private static String formatUnits(long units) {
+    private static String fmt(long units) {
         try {
-            return NumberFormat.getInstance(new Locale("es", "ES")).format(units);
+            return NumberFormat.getInstance(Locale.forLanguageTag("es-ES")).format(units);
         } catch (Exception ignored) {
             return String.valueOf(units);
         }
-    }
-
-    private long getBetUnits(SlotsState state) {
-        long total = 0L;
-        for (Map.Entry<Material, Integer> e : state.betTokens.entrySet()) {
-            Integer denom = TokenManager.getDenoms().get(e.getKey());
-            if (denom != null) {
-                total += (long) denom * (long) e.getValue();
-            }
-        }
-        return total;
-    }
-
-    public boolean isBetSlot(int slot) {
-        for (int s : BET_SLOTS) {
-            if (s == slot)
-                return true;
-        }
-        return false;
-    }
-
-    public int addBetTokens(Player player, Material mat, int amount) {
-        if (mat == null || amount <= 0)
-            return 0;
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-        // Durante el giro la apuesta está bloqueada.
-        if (state.spinning)
-            return 0;
-        if (!state.betTokens.containsKey(mat) && state.betTokens.size() >= BET_SLOTS.length)
-            return 0;
-        int current = state.betTokens.getOrDefault(mat, 0);
-        int updated = Math.min(9999, current + amount);
-        state.betTokens.put(mat, updated);
-        // Solo lo que realmente entró (el resto se queda en el inventario).
-        return updated - current;
-    }
-
-    public int removeBetTokens(Player player, Material mat) {
-        if (mat == null)
-            return 0;
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-        // No se puede retirar la apuesta mientras gira (antes daba giros gratis).
-        if (state.spinning)
-            return 0;
-        Integer removed = state.betTokens.remove(mat);
-        return removed == null ? 0 : removed;
-    }
-
-    public void refresh(Player player, Inventory inv) {
-        SlotsState state = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
-        render(inv, state, state.last);
-    }
-
-    private static final class SlotsState {
-        Material[] last = null;
-        private final Map<Material, Integer> betTokens = new LinkedHashMap<>();
-        private boolean spinning = false;
-        private long lastSpinAtMs = 0L;
     }
 }

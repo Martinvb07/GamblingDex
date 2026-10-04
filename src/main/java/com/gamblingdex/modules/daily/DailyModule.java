@@ -66,7 +66,7 @@ public class DailyModule extends GameModule {
             }
         }
         stations = new SimpleStations(this,
-                () -> config().getString("station_holo", "&a&l✦ BONO DIARIO ✦\n&7Click derecho para reclamar"));
+                () -> config().getString("station_holo", "&a&lBONO DIARIO\n&7Click para reclamar"));
         stations.load();
         listen(new Events());
         runTimer(stations::refreshAll, 40L, 100L);

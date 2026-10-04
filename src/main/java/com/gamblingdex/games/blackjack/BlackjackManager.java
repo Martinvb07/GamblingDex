@@ -105,6 +105,7 @@ public class BlackjackManager {
                 }
 
                 BlackjackTable table = new BlackjackTable(plugin, centerKey, center, holo, dealerId);
+                table.setBetLimitsSilently(tables.getLong(base + "min_bet", 0), tables.getLong(base + "max_bet", 0));
                 if (tables.contains(base + "dealer_yaw"))
                     table.setDealerYaw((float) tables.getDouble(base + "dealer_yaw"));
                 table.setPersistDisplaysCallback(() -> persistDisplays(table));
@@ -163,6 +164,8 @@ public class BlackjackManager {
         tables.set(base + "displays.holo", toStringList(table.getHoloDisplayIds()));
         tables.set(base + "displays.dealer", table.getDealerId() == null ? null : table.getDealerId().toString());
         tables.set(base + "dealer_yaw", table.getDealerYaw() == null ? null : (double) table.getDealerYaw());
+        tables.set(base + "min_bet", table.getMinBetRaw() > 0 ? table.getMinBetRaw() : null);
+        tables.set(base + "max_bet", table.getMaxBetRaw() > 0 ? table.getMaxBetRaw() : null);
         save();
     }
 
@@ -235,6 +238,12 @@ public class BlackjackManager {
         if (t != null && facing != null)
             faceTowards(t, facing);
         return t;
+    }
+
+    /** Apuesta mínima y máxima de una mesa (0 = la de blackjack.yml). */
+    public void setLimits(BlackjackTable t, long min, long max) {
+        t.setBetLimits(min, max);
+        persistDisplays(t);
     }
 
     /** Gira el dealer hacia {@code facing} y lo guarda. */
