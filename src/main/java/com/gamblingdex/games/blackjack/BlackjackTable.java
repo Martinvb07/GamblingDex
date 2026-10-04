@@ -2344,7 +2344,7 @@ public class BlackjackTable {
     }
 
     private double handHoloHeight() {
-        return plugin.getConfig().getDouble("blackjack.hand_holo_height", 2.55);
+        return plugin.getConfig().getDouble("blackjack.hand_holo_height", 2.25);
     }
 
     private TextDisplay spawnPlayerHandDisplay(Player owner) {
@@ -2426,7 +2426,7 @@ public class BlackjackTable {
                 }
             }
             p.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
-                    .deserialize(sb.toString()));
+                    .deserialize(plugin.color(sb.toString())));
         }
     }
 

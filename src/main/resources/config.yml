@@ -130,7 +130,7 @@ roulette_world:
   bet_window_seconds: 25
   spin_ticks: 120
   step_ticks: 2
-  max_bets_per_player: 10
+  max_bets_per_player: 30      # cuántas apuestas DISTINTAS por ronda (el monto no tiene tope)
   broadcast_winners: false
   holo_height: 2.3
   holo_lines:
@@ -182,7 +182,7 @@ blackjack:
     resplit_aces: false       # volver a dividir Ases
     double_after_split: true  # doblar después de dividir
   # Altura de tus cartas sobre tu cabeza (los demás las ven; tú las ves en pantalla)
-  hand_holo_height: 2.55
+  hand_holo_height: 2.25
   # Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
   decks: 6
   reshuffle_at_percent: 25

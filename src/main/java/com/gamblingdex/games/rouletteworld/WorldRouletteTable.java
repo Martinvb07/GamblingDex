@@ -187,13 +187,7 @@ public class WorldRouletteTable {
                 return "NÚMERO (sin seleccionar)";
             return "NÚMERO " + WorldRouletteTables.formatNumber(sel.getNumber());
         }
-        return switch (sel.getType()) {
-            case RED -> "ROJO";
-            case BLACK -> "NEGRO";
-            case EVEN -> "PAR";
-            case ODD -> "IMPAR";
-            case NUMBER -> "NÚMERO";
-        };
+        return sel.getType().label();
     }
 
     public void selectNumber(Player player, int number) {
@@ -232,7 +226,7 @@ public class WorldRouletteTable {
 
         // (state == COUNTDOWN here)
 
-        int maxBets = Math.max(1, plugin.getConfig().getInt("roulette_world.max_bets_per_player", 10));
+        int maxBets = Math.max(1, plugin.getConfig().getInt("roulette_world.max_bets_per_player", 30));
         int currentCount = getBetCount(player.getUniqueId());
 
         WorldRouletteSelection sel = getSelection(player.getUniqueId());
@@ -413,14 +407,10 @@ public class WorldRouletteTable {
     }
 
     private static String describeBet(WorldRouletteBet bet) {
-        return switch (bet.getType()) {
-            case RED -> "ROJO";
-            case BLACK -> "NEGRO";
-            case EVEN -> "PAR";
-            case ODD -> "IMPAR";
-            case NUMBER ->
-                "NÚMERO " + (bet.getNumber() == null ? "?" : WorldRouletteTables.formatNumber(bet.getNumber()));
-        };
+        if (bet.getType() == WorldRouletteBetType.NUMBER) {
+            return "NÚMERO " + (bet.getNumber() == null ? "?" : WorldRouletteTables.formatNumber(bet.getNumber()));
+        }
+        return bet.getType().label();
     }
 
     private void startCountdown() {
@@ -717,15 +707,11 @@ public class WorldRouletteTable {
         if (bet.getAmount() <= 0)
             return 0;
 
-        boolean isZero = WorldRouletteTables.isZero(winningNumber);
-
-        return switch (bet.getType()) {
-            case RED -> (!isZero && isRed) ? bet.getAmount() * 2L : 0L;
-            case BLACK -> (!isZero && !isRed) ? bet.getAmount() * 2L : 0L;
-            case EVEN -> (!isZero && winningNumber % 2 == 0) ? bet.getAmount() * 2L : 0L;
-            case ODD -> (!isZero && winningNumber % 2 == 1) ? bet.getAmount() * 2L : 0L;
-            case NUMBER -> (bet.getNumber() != null && bet.getNumber() == winningNumber) ? bet.getAmount() * 36L : 0L;
-        };
+        WorldRouletteBetType type = bet.getType();
+        if (!type.wins(winningNumber, bet.getNumber(), isRed))
+            return 0L;
+        // Paga "X a 1" + la apuesta (rojo 2x, docena 3x, número 36x).
+        return bet.getAmount() * (type.payoutToOne() + 1L);
     }
 
     public void removeDisplays() {
