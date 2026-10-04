@@ -131,6 +131,11 @@ public class PokerListener implements Listener {
             player.closeInventory();
             return;
         }
+        if (action.equals("register")) {
+            table.register(player);
+            new PokerBuyInMenu(plugin).open(player, table);
+            return;
+        }
         if (!action.equals("denom"))
             return;
 
