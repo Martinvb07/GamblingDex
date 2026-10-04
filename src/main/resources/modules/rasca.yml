@@ -1,0 +1,61 @@
+# ======================
+# GamblingDex - Rasca y Gana
+# ======================
+# /gdx rasca                       -> tienda de boletos
+# /gdx rasca comprar <tipo> [cant] -> comprar directo
+# Click derecho con el boleto en la mano para rascarlo.
+#
+# Se gana con 3 símbolos iguales. El premio = precio del boleto x multiplicador.
+# El resultado se sortea al COMPRAR (no se puede hacer trampa cerrando el menú).
+
+enabled: true
+
+max_buy_at_once: 64
+# Anunciar a todo el server premios desde este multiplicador
+broadcast_min_multiplier: 10
+
+# Tipos de boleto
+tiers:
+  bronce:
+    name: "&6Rasca y Gana &7- &cBronce"
+    price: 10
+  plata:
+    name: "&6Rasca y Gana &7- &fPlata"
+    price: 100
+  oro:
+    name: "&6Rasca y Gana &7- &eOro"
+    price: 1000
+
+# Premios: símbolo (Material), multiplicador y probabilidad (peso sobre 1000).
+# Lo que sobra hasta 1000 es "sin premio".
+# Con estos valores la casa se queda con ~15% a la larga (devuelve 85%).
+prizes:
+  - material: DIAMOND
+    name: "&bDiamante"
+    multiplier: 50
+    weight: 2
+  - material: EMERALD
+    name: "&aEsmeralda"
+    multiplier: 10
+    weight: 15
+  - material: GOLD_INGOT
+    name: "&6Oro"
+    multiplier: 5
+    weight: 40
+  - material: IRON_INGOT
+    name: "&fHierro"
+    multiplier: 2
+    weight: 120
+  - material: COPPER_INGOT
+    name: "&cCobre"
+    multiplier: 1
+    weight: 160
+
+messages:
+  bought: "&aCompraste &e{amount} &aboleto(s) &f{tier}&a por &e{price}&a."
+  not_enough: "&cNo te alcanzan las fichas. Necesitas &e{price}&c y tienes &e{balance}&c."
+  unknown_tier: "&cEse boleto no existe. Tipos: &f{tiers}"
+  win: "&a&l¡PREMIO! &f3x {symbol} &7→ &e+{amount} &7fichas"
+  lose: "&7Sin premio esta vez. ¡Suerte para la próxima!"
+  big_win_broadcast: "&6&lRasca y Gana &8» &f{player} &7ganó &e{amount} &7con 3x {symbol}&7!"
+  usage: "&cUso: /gdx rasca [comprar <tipo> [cantidad]]"
