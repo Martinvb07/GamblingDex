@@ -1,0 +1,40 @@
+# ======================
+# GamblingDex - Coinflip (cara o sello 1 vs 1)
+# ======================
+# /gdx coinflip            -> sala con las apuestas abiertas
+# /gdx coinflip crear <monto> [cara|sello]
+# /gdx coinflip cancelar   -> retira tu apuesta abierta
+#
+# El que crea pone sus fichas; otro jugador acepta poniendo lo mismo.
+# Gana uno (50/50). La casa se queda con fee_percent del bote.
+
+enabled: true
+
+min_bet: 10
+max_bet: 1000000          # 0 = sin tope
+fee_percent: 5.0          # comisión de la casa sobre el bote total
+max_open_per_player: 1
+expire_minutes: 10        # si nadie acepta, se devuelve
+animation_ticks: 50       # duración del giro (20 ticks = 1 segundo)
+broadcast:
+  enabled: true
+  min_amount: 1000        # anunciar a todo el server apuestas desde este monto
+
+messages:
+  prefix: "&6&lCoinflip &8» "
+  created: "&aCreaste una apuesta de &e{amount}&a por &f{side}&a. Esperando rival..."
+  broadcast: "&6&lCoinflip &8» &f{player} &7apuesta &e{amount}&7 a &f{side}&7. &e/gdx coinflip &7para aceptar"
+  cancelled: "&7Retiraste tu apuesta. Se te devolvieron &e{amount}&7."
+  expired: "&7Nadie aceptó tu coinflip. Se te devolvieron &e{amount}&7."
+  no_open: "&cNo tienes ninguna apuesta abierta."
+  too_many: "&cYa tienes una apuesta abierta. Cancélala con &f/gdx coinflip cancelar&c."
+  min_bet: "&cLa apuesta mínima es &e{min}&c."
+  max_bet: "&cLa apuesta máxima es &e{max}&c."
+  not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
+  own_flip: "&cNo puedes aceptar tu propia apuesta."
+  gone: "&cEsa apuesta ya no está disponible."
+  accepted: "&e{player} &aaceptó tu coinflip de &e{amount}&a. ¡Gira la moneda!"
+  win: "&a&l¡Ganaste! &7Salió &f{side}&7. Cobras &e{amount}&7."
+  lose: "&c&lPerdiste. &7Salió &f{side}&7. Ganó &f{winner}&7."
+  result_broadcast: "&6&lCoinflip &8» &f{winner} &7le ganó &e{amount}&7 a &f{loser}&7."
+  usage: "&cUso: /gdx coinflip [crear <monto> [cara|sello] | cancelar]"
