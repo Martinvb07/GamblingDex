@@ -46,8 +46,10 @@ import java.util.*;
  * Así P(llegar a m) = (1 - edge) / m y cualquier estrategia de retiro devuelve
  * (1 - edge) de lo apostado a la larga.
  *
- * Se juega en mesas: /gdx station set crash (mirando un bloque) y click
- * derecho al bloque. El holograma de la mesa muestra la ronda en vivo.
+ * Se juega en mesas: /gdx station set crash (mirando un bloque). Click derecho
+ * a la mesa = apostar; shift + click derecho = retirar. El holograma muestra
+ * el multiplicador y cada jugador ve su apuesta y lo que cobraría sobre la
+ * barra de experiencia.
  */
 public class CrashModule extends GameModule {
 
@@ -98,6 +100,8 @@ public class CrashModule extends GameModule {
     private int tickCounter;
     private BossBar bar;
     private final Map<String, Station> stations = new LinkedHashMap<>();
+    /** Últimos retiros de la ronda, para el holograma. */
+    private final Deque<String> recentCashouts = new ArrayDeque<>();
 
     @Override
     public String id() {
@@ -150,7 +154,7 @@ public class CrashModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>();
         l.add("&6&lCrash");
-        l.add("&8• &7Jugar: &fclick derecho&7 a una mesa de Crash");
+        l.add("&8• &fClick derecho&7 a la mesa: apostar &8| &fShift + click derecho&7: retirar");
         if (commandAllowed(admin)) {
             l.add("&8• &e/gdx crash &7- Abrir el menú");
             l.add("&8• &e/gdx crash apostar <monto> [auto] &7- Ej: &f/gdx crash apostar 100 2");
@@ -240,6 +244,39 @@ public class CrashModule extends GameModule {
         return List.of("&8- &6Crash&7: &f" + stations.size());
     }
 
+    /** Click derecho a la mesa = apostar; shift + click derecho = retirar. */
+    private void stationClick(Player p, boolean sneaking) {
+        Bet b = bets.get(p.getUniqueId());
+        switch (state) {
+            case BETTING -> {
+                if (b != null) {
+                    p.sendMessage(msg("already_in_station", "&7Ya apostaste &e{amount}&7. Despega en &f{seconds}s&7.",
+                            "amount", units(b.amount), "seconds", String.valueOf(secondsLeft)));
+                    return;
+                }
+                long min = Math.max(1, config().getLong("min_bet", 10L));
+                long max = Math.max(0, config().getLong("max_bet", 0L));
+                AmountPickerMenu.open(p, "&6&lCrash &8- &eTu apuesta", min, max, min,
+                        List.of("&7Despega en &f" + secondsLeft + "s",
+                                "&7Shift + click derecho a la mesa para retirar"),
+                        amount -> placeBet(p, amount, chosenAuto.getOrDefault(p.getUniqueId(), 0.0)), null);
+            }
+            case RUNNING -> {
+                if (b == null) {
+                    p.sendMessage(msg("wait_next", "&7Ronda en curso. Apuesta en la próxima."));
+                } else if (b.cashedAt > 0) {
+                    p.sendMessage(msg("already_cashed", "&7Ya retiraste en &fx{mult}&7.", "mult", fmt(b.cashedAt)));
+                } else if (sneaking) {
+                    cashOut(p);
+                } else {
+                    p.sendMessage(msg("cashout_hint", "&eShift + click derecho &7a la mesa para retirar."));
+                }
+            }
+            case PAUSE -> p.sendMessage(msg("wait_next_seconds", "&7Siguiente ronda en &f{seconds}s&7.",
+                    "seconds", String.valueOf(secondsLeft)));
+        }
+    }
+
     private void saveStations() {
         YamlConfiguration d = new YamlConfiguration();
         d.set("stations", new ArrayList<>(stations.keySet()));
@@ -276,16 +313,24 @@ public class CrashModule extends GameModule {
             td.setLineWidth(300);
             st.holo = td.getUniqueId();
         }
+        long total = 0;
+        for (Bet b : bets.values())
+            total += b.amount;
+        String players = "&7Jugadores: &f" + bets.size() + " &8| &7Apostado: &e" + units(total);
         StringBuilder sb = new StringBuilder("&6&l✦ CRASH ✦\n");
         switch (state) {
-            case BETTING -> sb.append("&eApuestas abiertas: &f").append(secondsLeft).append("s\n&7Jugadores: &f")
-                    .append(bets.size());
-            case RUNNING -> sb.append(multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l").append("x")
-                    .append(fmt(multiplier)).append("\n&7Jugadores: &f").append(bets.size());
-            case PAUSE -> sb.append("&c&lExplotó en x").append(fmt(crashPoint)).append("\n&7Siguiente en &f")
+            case BETTING -> sb.append("&eApuestas abiertas: &f").append(secondsLeft).append("s\n").append(players)
+                    .append("\n&7Click derecho: &fapostar");
+            case RUNNING -> {
+                sb.append(multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l").append("x")
+                        .append(fmt(multiplier)).append("\n").append(players);
+                for (String c : recentCashouts)
+                    sb.append("\n").append(c);
+                sb.append("\n&7Shift + click derecho: &fretirar");
+            }
+            case PAUSE -> sb.append("&c&lEXPLOTÓ en x").append(fmt(crashPoint)).append("\n&7Siguiente ronda en &f")
                     .append(secondsLeft).append("s");
         }
-        sb.append("\n&7Click derecho para jugar");
         td.setText(color(sb.toString()));
     }
 
@@ -306,6 +351,7 @@ public class CrashModule extends GameModule {
     private void startBetting() {
         state = State.BETTING;
         bets.clear();
+        recentCashouts.clear();
         secondsLeft = Math.max(3, config().getInt("bet_window_seconds", 15));
         tickCounter = 0;
         multiplier = 1.0;
@@ -342,6 +388,8 @@ public class CrashModule extends GameModule {
             case BETTING -> {
                 if (tickCounter % 10 == 0 && --secondsLeft <= 0)
                     startRun();
+                else
+                    sendActionBars();
             }
             case RUNNING -> {
                 double growth = Math.max(0.01, config().getDouble("growth_per_second", 0.07));
@@ -487,6 +535,9 @@ public class CrashModule extends GameModule {
         long payout = payoutFor(b, mult);
         TokenWallet.give(id, payout);
         Player p = Bukkit.getPlayer(id);
+        recentCashouts.addFirst("&f" + (p == null ? "?" : p.getName()) + " &7retiró en &ax" + fmt(mult));
+        while (recentCashouts.size() > 3)
+            recentCashouts.removeLast();
         if (p != null) {
             p.sendMessage(msg("cashed_out", "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}",
                     "mult", fmt(mult), "amount", units(payout)));
@@ -567,10 +618,19 @@ public class CrashModule extends GameModule {
             if (p == null)
                 continue;
             Bet b = e.getValue();
-            String text = b.cashedAt > 0
-                    ? "&aRetiraste en x" + fmt(b.cashedAt) + " &8| &e+" + units(payoutFor(b, b.cashedAt))
-                    : "&a&lx" + fmt(multiplier) + " &8| &7Si retiras ahora: &e" + units(payoutFor(b, multiplier))
-                            + " &8| &fclick a la mesa o /gdx crash retirar";
+            String text;
+            if (state == State.BETTING) {
+                text = "&7Tu apuesta: &e" + units(b.amount) + " &8| &7Despega en &f" + secondsLeft + "s"
+                        + (b.auto > 0 ? " &8| &7Auto: &fx" + fmt(b.auto) : "");
+            } else if (b.cashedAt > 0) {
+                long pay = payoutFor(b, b.cashedAt);
+                text = "&aRetiraste en x" + fmt(b.cashedAt) + " &8| &7Cobraste &e" + units(pay)
+                        + " &a(+" + units(pay - b.amount) + ")";
+            } else {
+                long pay = payoutFor(b, multiplier);
+                text = "&7Apuesta: &e" + units(b.amount) + " &8| &a&lx" + fmt(multiplier) + " &8| &7Cobras: &e"
+                        + units(pay) + " &a(+" + units(pay - b.amount) + ") &8| &fShift+Click derecho = retirar";
+            }
             p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(color(text)));
         }
     }
@@ -693,7 +753,7 @@ public class CrashModule extends GameModule {
                 return;
             e.setCancelled(true);
             if (e.getHand() == EquipmentSlot.HAND)
-                openMenu(e.getPlayer());
+                stationClick(e.getPlayer(), e.getPlayer().isSneaking());
         }
 
         @EventHandler

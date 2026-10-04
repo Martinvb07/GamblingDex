@@ -186,6 +186,7 @@ public class CarreraModule extends GameModule {
                 "&8• &e/gdx carrera [pista] &7- Apostar (o click derecho a la mesa o a un caballo)"));
         if (admin) {
             l.add("&8• &e/gdx station set carrera <distancia> <carriles> &7- Construir pista (mirando un bloque)");
+            l.add("&8• &e/gdx station remove &7- Quitar la pista (mirando su mesa; restaura los bloques)");
             l.add("&8• &e/gdx carrera crear <nombre> [carriles] [largo] &7- Pista manual, en la salida mirando a la meta");
             l.add("&8• &e/gdx carrera borrar <nombre>&7|&elista&7|&einiciar <nombre>");
         }

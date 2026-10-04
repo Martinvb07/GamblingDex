@@ -77,12 +77,17 @@ public class GamblingDexPlugin extends JavaPlugin {
                 .listFiles((d, n) -> n.toLowerCase(java.util.Locale.ROOT).endsWith(".yml"));
         if (msgs != null)
             files.addAll(java.util.Arrays.asList(msgs));
+        java.io.File[] games = new java.io.File(getDataFolder(), "modules")
+                .listFiles((d, n) -> n.toLowerCase(java.util.Locale.ROOT).endsWith(".yml"));
+        if (games != null)
+            files.addAll(java.util.Arrays.asList(games));
 
         java.util.List<String> errors = new java.util.ArrayList<>();
         for (java.io.File f : files) {
             if (!f.exists())
                 continue;
-            String name = f.getParentFile().getName().equals("messages") ? "messages/" + f.getName() : f.getName();
+            String parent = f.getParentFile().getName();
+            String name = parent.equals("messages") || parent.equals("modules") ? parent + "/" + f.getName() : f.getName();
             try {
                 new org.bukkit.configuration.file.YamlConfiguration().load(f);
             } catch (org.bukkit.configuration.InvalidConfigurationException e) {
@@ -96,6 +101,13 @@ public class GamblingDexPlugin extends JavaPlugin {
             }
         }
         return errors;
+    }
+
+    /** config.yml + la config de cada juego (modules/blackjack.yml, poker.yml, ruleta.yml, slots.yml). */
+    @Override
+    public void reloadConfig() {
+        super.reloadConfig();
+        com.gamblingdex.config.GameConfigFiles.merge(this, getConfig());
     }
 
     /**

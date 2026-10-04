@@ -3,7 +3,7 @@
 # ======================
 # /gdx bingo                -> comprar cartones / ver tus cartones
 # /gdx bingo comprar <n>    -> comprar n cartones (durante la venta)
-# Admin: /gdx bingo iniciar -> abrir la venta ahora
+# Admin: /gdx bingo iniciar -> abrir la venta ahora (sin esperar la hora)
 #
 # Premios: LÍNEA (fila, columna o diagonal) y BINGO (cartón lleno).
 # Los números se marcan solos.
@@ -17,7 +17,12 @@ line_prize_percent: 30.0      # % del pozo para la línea; el resto es para el b
 min_players: 2
 
 auto_start: true
-interval_minutes: 15          # cada cuánto empieza una partida automática
+# Horas de las partidas automáticas (formato 24h HH:mm). Pon las que quieras.
+start_times: ["14:00", "20:00"]
+# Zona horaria de esas horas (ej: America/Bogota, America/Mexico_City, Europe/Madrid). Vacío = la del servidor.
+timezone: "America/Bogota"
+# Solo si start_times está vacío: empezar cada X minutos
+interval_minutes: 15
 sale_seconds: 60              # tiempo para comprar cartones
 call_seconds: 4               # segundos entre bolas
 
@@ -37,3 +42,4 @@ messages:
   you_won_bingo: "&6&l¡BINGO! &7Cobras &e{amount}"
   near: "&e¡Te falta 1 número para BINGO!"
   usage: "&cUso: /gdx bingo [comprar <cantidad>]"
+  already_running: "&cYa hay un bingo en curso."

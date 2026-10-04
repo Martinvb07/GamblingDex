@@ -20,6 +20,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.security.SecureRandom;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -159,7 +163,8 @@ public class BingoModule extends GameModule {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lBingo",
                 "&8• &e/gdx bingo &7- Comprar y ver tus cartones",
-                "&8• &e/gdx bingo comprar <cantidad> &7- Comprar cartones (durante la venta)"));
+                "&8• &e/gdx bingo comprar <cantidad> &7- Comprar cartones (durante la venta)",
+                "&8• &7Partidas automáticas: &f" + String.join("&7, &f", config().getStringList("start_times"))));
         if (admin)
             l.add("&8• &e/gdx bingo iniciar &7- Abrir la venta ahora");
         l.add("");
@@ -184,7 +189,11 @@ public class BingoModule extends GameModule {
                 buy(player, n);
             }
             case "iniciar", "start" -> {
-                if (isAdmin(player) && state == State.IDLE)
+                if (!isAdmin(player))
+                    player.sendMessage(msg("usage", "&cUso: /gdx bingo [comprar <cantidad>]"));
+                else if (state != State.IDLE)
+                    player.sendMessage(msg("already_running", "&cYa hay un bingo en curso."));
+                else
                     openSale();
             }
             default -> player.sendMessage(msg("usage", "&cUso: /gdx bingo [comprar <cantidad>]"));
@@ -196,8 +205,51 @@ public class BingoModule extends GameModule {
     // Ciclo
     // ------------------------------------------------------------------
 
+    /**
+     * Próxima partida automática: la siguiente hora de start_times (en
+     * timezone). Si start_times está vacío, cada interval_minutes.
+     */
     private void scheduleNextAuto() {
-        nextAutoStart = System.currentTimeMillis() + Math.max(1, config().getLong("interval_minutes", 15)) * 60_000L;
+        List<String> times = config().getStringList("start_times");
+        if (times.isEmpty()) {
+            nextAutoStart = System.currentTimeMillis()
+                    + Math.max(1, config().getLong("interval_minutes", 15)) * 60_000L;
+            return;
+        }
+        ZoneId zone;
+        String tz = config().getString("timezone", "");
+        try {
+            zone = tz == null || tz.isBlank() ? ZoneId.systemDefault() : ZoneId.of(tz);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[Bingo] Zona horaria inválida: " + tz + " (se usa la del servidor)");
+            zone = ZoneId.systemDefault();
+        }
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        ZonedDateTime best = null;
+        for (String t : times) {
+            try {
+                LocalTime lt = LocalTime.parse(t.trim(), DateTimeFormatter.ofPattern("H:mm"));
+                ZonedDateTime c = now.with(lt).withSecond(0).withNano(0);
+                if (!c.isAfter(now.plusSeconds(30)))
+                    c = c.plusDays(1);
+                if (best == null || c.isBefore(best))
+                    best = c;
+            } catch (Exception e) {
+                plugin.getLogger().warning("[Bingo] Hora inválida en start_times: " + t + " (usa HH:mm, ej. 14:00)");
+            }
+        }
+        nextAutoStart = best == null ? Long.MAX_VALUE : best.toInstant().toEpochMilli();
+    }
+
+    @Override
+    public void reload() {
+        if (state == State.IDLE)
+            scheduleNextAuto();
+    }
+
+    private static String timeLeft(long ms) {
+        long min = Math.max(0, ms / 60_000L);
+        return min >= 60 ? (min / 60) + " h " + (min % 60) + " min" : min + " min";
     }
 
     private long price() {
@@ -491,8 +543,9 @@ public class BingoModule extends GameModule {
         String status = switch (state) {
             case SALE -> "&eVenta: &f" + countdown + "s";
             case PLAYING -> "&aJugando &8| &7Bolas: &f" + drawn.size();
-            default -> "&7Próxima partida en &f"
-                    + Math.max(0, (nextAutoStart - System.currentTimeMillis()) / 60000) + " min";
+            default -> !config().getBoolean("auto_start", true) || nextAutoStart == Long.MAX_VALUE
+                    ? "&7Sin partidas automáticas"
+                    : "&7Próxima partida en &f" + timeLeft(nextAutoStart - System.currentTimeMillis());
         };
         inv.setItem(0, item(Material.GOLD_BLOCK, "&6&lPozo: &e" + units(pot()), List.of(
                 status,

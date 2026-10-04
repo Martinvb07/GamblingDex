@@ -1,0 +1,74 @@
+# ======================
+# GamblingDex - Blackjack físico
+# ======================
+# Admin: /gdx blackjack create <nombre> (mirando el bloque de la mesa)
+#        /gdx blackjack seat add <nombre> (parado en cada asiento)
+#        /gdx blackjack remove <nombre> | /gdx blackjack list
+# Jugadores: se paran en un asiento; los menús se abren solos.
+#
+# Recarga en caliente: /gdx reload
+
+min_players: 2
+max_players: 7
+# Asientos físicos: los jugadores deben pararse en estas losas/bloques alrededor de la mesa.
+seating:
+  enabled: true
+  # "manual" = tú defines los asientos con /gdx blackjack seat ...
+  # "auto"   = asientos en círculo usando radius_blocks + materials
+  mode: manual
+  # Distancia (en bloques) desde el centro hacia cada asiento.
+  radius_blocks: 2
+  # Materiales válidos para los asientos (usa nombres de Bukkit Material)
+  materials:
+    - QUARTZ_SLAB
+    - QUARTZ_BLOCK
+# Tiempo para apostar antes de repartir
+bet_window_seconds: 20
+# Tiempo por turno (hit/stand)
+turn_timeout_seconds: 20
+# Delay (en segundos) antes de abrir el menú de acciones (al iniciar el turno y tras pedir).
+# Esto te da tiempo para ver las cartas.
+action_menu_delay_seconds: 5
+# Marcador visual de turno (se dibuja una “flecha” con partículas sobre el jugador actual)
+turn_marker:
+  enabled: true
+  particle: END_ROD
+  count: 1
+# Regla del dealer: pide carta hasta llegar a 17.
+# false = se planta en TODO 17 (regla clásica "S17", mejor para el jugador)
+# true  = también pide con 17 suave (A+6)
+dealer_hits_soft_17: false
+# Pago de blackjack natural: "3:2" o "6:5" (se cobra al instante, tras revisar el dealer)
+blackjack_payout: "3:2"
+# Dividir (split): con 2 cartas iguales se separan en 2 manos con otra apuesta igual.
+split:
+  max_hands: 4              # máximo de manos por jugador
+  any_ten_value: false      # true = permite dividir K+Q, J+10, etc. (cualquier carta de 10)
+  resplit_aces: false       # volver a dividir Ases
+  double_after_split: true  # doblar después de dividir
+# Altura de tus cartas sobre tu cabeza (los demás las ven; tú las ves en pantalla)
+hand_holo_height: 2.25
+# Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
+decks: 6
+reshuffle_at_percent: 25
+# Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
+dealer_draw_interval_ticks: 40
+# Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda
+result_display_seconds: 7
+# Apuestas laterales (se pagan apenas se reparten las cartas). Pagos "X a 1".
+# Requieren tener apuesta principal; si no, se devuelven.
+side_bets:
+  enabled: true
+  perfect_pairs:
+    perfect_pair: 25   # mismo número y mismo palo
+    colored_pair: 12   # mismo número y mismo color
+    mixed_pair: 6      # mismo número, distinto color
+  21_plus_3:
+    suited_trips: 100     # trío del mismo palo
+    straight_flush: 40    # escalera de color
+    three_of_a_kind: 30   # trío
+    straight: 10          # escalera
+    flush: 5              # color (mismo palo)
+# Altura del holograma (TextDisplay) por encima del dealer (se dibuja un poco más arriba
+# para no encimarse con el nombre del aldeano)
+holo_height: 2.3

@@ -1,0 +1,67 @@
+# ======================
+# GamblingDex - Póker Texas Hold'em No-Limit
+# ======================
+# Montaje (admin):
+#   1) Mira el bloque centro de la mesa:  /gdx poker create Mesa1 5 10   (ciegas 5/10)
+#   2) Párate en cada asiento (en orden horario): /gdx poker seat add Mesa1
+# Los jugadores se paran en un asiento, compran fichas (tokens -> fichas de mesa)
+# y al bajarse del asiento se les devuelven como tokens.
+# Las cartas de cada jugador solo las ve él (en pantalla, sobre la barra de ítems).
+#
+# Recarga en caliente: /gdx reload
+
+min_players: 2
+max_seats: 9
+# Ciegas por defecto si no se indican en /gdx poker create
+default_small_blind: 5
+default_big_blind: 10
+# Apuesta obligatoria de todos antes de repartir (0 = sin ante)
+ante: 0
+# Compra de fichas, en ciegas grandes (BB). Ej: 20-100 BB con ciegas 5/10 = 200-1000
+buyin:
+  min_bb: 20
+  max_bb: 100
+# Comisión de la casa sobre cada bote
+rake:
+  enabled: true
+  percent: 5.0
+  # Máximo por mano, en ciegas grandes (0 = sin tope)
+  cap_bb: 3
+  # Sin comisión si la mano termina antes del flop
+  no_flop_no_drop: true
+# Tiempos (segundos)
+start_delay_seconds: 8        # espera antes de cada mano
+turn_timeout_seconds: 30      # tiempo por turno (al agotarse: pasa si puede, si no se retira)
+action_menu_delay_seconds: 1  # demora antes de abrir el menú de tu turno
+menu_reopen_seconds: 3        # si cierras el menú en tu turno, se reabre tras esto
+runout_delay_seconds: 2       # pausa entre calles cuando todos van all-in
+showdown_seconds: 8           # resultados visibles antes de la siguiente mano
+uncontested_seconds: 3        # pausa cuando todos se retiran
+leave_grace_seconds: 4        # tiempo fuera del asiento antes de levantarte
+# Turnos seguidos sin actuar antes de sacarte de la mesa
+max_missed_turns: 2
+# Radio (bloques) en el que los espectadores ven los mensajes de la mesa
+spectator_radius: 10
+# Hologramas
+holo_height: 1.0              # mesa (cartas, bote): bloques sobre el bloque centro
+player_holo_height: 2.55      # info de cada jugador SOBRE SU CABEZA (él no la ve: la tiene en pantalla)
+player_holo_scale: 0.8
+free_seat_holo_height: 1.0    # cartel "Asiento libre": bloques sobre la superficie del asiento
+free_seat_holo_scale: 0.6
+turn_marker:
+  enabled: true
+  particle: END_ROD
+# Registrar cada mano en la consola
+log_hands: true
+# Torneos (sit & go): /gdx poker torneo <mesa> <inscripción> [fichas] [minutos]
+tournament:
+  starting_stack_bb: 100    # fichas iniciales si no se indican (en ciegas grandes de la mesa)
+  level_minutes: 5          # cada cuánto suben las ciegas
+  house_cut_percent: 10.0   # comisión de la casa sobre las inscripciones
+  # Multiplicador de las ciegas de la mesa en cada nivel
+  blind_levels: [1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
+  # Premios según cuántos se inscribieron: "desde N jugadores": [1°, 2°, 3°...] en %
+  payouts:
+    "2": [100]
+    "4": [70, 30]
+    "7": [50, 30, 20]

@@ -3,8 +3,10 @@
 # ======================
 # Admin: /gdx station set crash      -> crear una mesa (mirando cualquier bloque)
 #        /gdx station remove         -> quitarla (mirando el bloque)
-# Jugadores: click derecho a la mesa -> menú (apostar / retirar)
-#            /gdx crash retirar      -> cobrar ahora (también desde el menú)
+# Jugadores: click derecho a la mesa          -> poner la apuesta
+#            shift + click derecho a la mesa  -> retirarse (cobrar)
+#            Sobre la barra de experiencia ves tu apuesta, el multiplicador y lo que cobras.
+#            /gdx crash retirar               -> también retira
 #
 # Un multiplicador sube desde x1.00 hasta que "explota". Si retiras antes,
 # cobras apuesta x multiplicador. Si explota antes, pierdes la apuesta.
@@ -49,3 +51,8 @@ messages:
   station_exists: "&eEse bloque ya es una mesa de Crash."
   station_removed: "&aMesa de Crash eliminada."
   cannot_break: "&cEs una mesa de Crash. Quítala con &f/gdx station remove&c."
+  already_in_station: "&7Ya apostaste &e{amount}&7. Despega en &f{seconds}s&7."
+  wait_next: "&7Ronda en curso. Apuesta en la próxima."
+  wait_next_seconds: "&7Siguiente ronda en &f{seconds}s&7."
+  already_cashed: "&7Ya retiraste en &fx{mult}&7."
+  cashout_hint: "&eShift + click derecho &7a la mesa para retirar."

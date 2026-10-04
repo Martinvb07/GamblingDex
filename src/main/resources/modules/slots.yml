@@ -1,0 +1,45 @@
+# ======================
+# GamblingDex - Tragamonedas
+# ======================
+# Admin: /gdx station set slots (mirando el bloque) | /gdx item slots
+# Jugadores: click derecho a la estación.
+#
+# Recarga en caliente: /gdx reload
+
+payout:
+  triple_multiplier: 5
+  double_multiplier: 2
+# Anti-spam: cooldown entre giros (0 para desactivar)
+spin_cooldown_ms: 0
+# Probabilidades por símbolo (peso relativo). Si lo dejas vacío/no definido, es uniforme.
+# Materiales sugeridos: DIAMOND, EMERALD, GOLD_INGOT, IRON_INGOT, AMETHYST_SHARD, NETHER_STAR
+symbol_weights:
+  DIAMOND: 10
+  EMERALD: 10
+  GOLD_INGOT: 10
+  IRON_INGOT: 10
+  AMETHYST_SHARD: 10
+  NETHER_STAR: 10
+log_big_wins:
+  # Si es >0, loggea premios >= threshold_units
+  threshold_units: 0
+
+# Menú
+gui:
+  title: "&dTragamonedas"
+  spin_button_name: "&a&lGirar"
+  spin_button_lore_bet: "&7Apuesta: &e{bet}"
+  spin_button_lore_pay: "&7Paga: &a{triple}x&7 (triple), &a{double}x&7 (doble)"
+  paytable_name: "&eTabla de pagos"
+  paytable_line_triple: "&7Triple: &a{triple}x"
+  paytable_line_double: "&7Doble: &a{double}x"
+
+# Ítem que abre los slots (/gdx item slots)
+item:
+  glow: true
+  name: "&d&lTragamonedas"
+  lore:
+    - "&8────────────────────────"
+    - "&7Click derecho para abrir"
+    - "&7los &dTragamonedas&7."
+    - "&8────────────────────────"
