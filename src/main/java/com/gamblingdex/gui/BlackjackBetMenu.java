@@ -66,6 +66,21 @@ public class BlackjackBetMenu {
             int denom = entry.getValue();
             int count = countTokens(player, mat);
 
+            if (denom < table.getMinChip()) {
+                // La mesa no acepta fichas tan pequeñas
+                ItemStack no = new ItemStack(Material.GRAY_DYE);
+                ItemMeta nm = no.getItemMeta();
+                if (nm != null) {
+                    nm.setDisplayName("§8" + denom + " ⛃");
+                    nm.setLore(List.of("§cEsta mesa no acepta esta ficha.",
+                            "§7Ficha mínima: §e" + prettyUnits(table.getMinChip())));
+                    no.setItemMeta(nm);
+                }
+                inv.setItem(tokenSlots[idx], no);
+                idx++;
+                continue;
+            }
+
             ItemStack icon = tokenManager.createToken(mat, 1);
             icon.setAmount(Math.min(64, Math.max(1, count)));
 

@@ -229,6 +229,14 @@ public class BlackjackTable {
         return getMaxBet() > 0 ? Math.max(1, getMaxBet() / sideDivisor()) : 0;
     }
 
+    /**
+     * Ficha más pequeña que acepta la mesa: la apuesta lateral mínima (mínimo / 5).
+     * Ej. mesa de 25.000 → solo fichas de 5.000 o más.
+     */
+    public long getMinChip() {
+        return getSideMinBet();
+    }
+
     private boolean hasLimits() {
         return getMinBet() > 1 || getMaxBet() > 0;
     }
