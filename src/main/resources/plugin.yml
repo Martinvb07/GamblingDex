@@ -34,11 +34,3 @@ permissions:
   gamblingdex.admin:
     description: Permite usar comandos administrativos de GamblingDex.
     default: op
-
-  gamblingdex.daily.vip:
-    description: Bono diario de rango VIP (modules/daily.yml -> tiers).
-    default: false
-
-  gamblingdex.daily.mvp:
-    description: Bono diario de rango MVP (modules/daily.yml -> tiers).
-    default: false

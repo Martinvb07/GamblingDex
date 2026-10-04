@@ -40,15 +40,6 @@ wagering:
   enabled: true
   multiplier: 3
 
-# Rangos: si el jugador tiene el permiso, sus bonos se multiplican (se usa el mayor)
-tiers:
-  vip:
-    permission: gamblingdex.daily.vip
-    multiplier: 2
-  mvp:
-    permission: gamblingdex.daily.mvp
-    multiplier: 4
-
 station_holo: "&a&lBONOS\n&7Click para reclamar"
 station_holo_height: 1.2
 

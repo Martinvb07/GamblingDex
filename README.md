@@ -181,7 +181,6 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `gamblingdex.top` | Ver el ranking | Todos |
 | `gamblingdex.stats.others` | Ver estadísticas de otros | OP |
 | `gamblingdex.admin` | Comandos de administración | OP |
-| `gamblingdex.daily.vip` · `gamblingdex.daily.mvp` | Bonos x2 / x4 (`modules/daily.yml` → `tiers`) | Nadie |
 
 Ejemplo con LuckPerms:
 

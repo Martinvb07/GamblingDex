@@ -190,19 +190,6 @@ public class DailyModule extends GameModule {
         return out;
     }
 
-    /** Multiplicador por rango (tiers con permiso; se usa el mayor). */
-    private double tierMultiplier(Player p) {
-        double best = 1.0;
-        ConfigurationSection tiers = config().getConfigurationSection("tiers");
-        if (tiers != null)
-            for (String k : tiers.getKeys(false)) {
-                String perm = tiers.getString(k + ".permission", "");
-                if (!perm.isBlank() && p.hasPermission(perm))
-                    best = Math.max(best, tiers.getDouble(k + ".multiplier", 1.0));
-            }
-        return best;
-    }
-
     private int currentStreak(UUID id, Reward r) {
         Long last = lastClaim.getOrDefault(id, Map.of()).get(r.id());
         // La racha sigue si reclama antes de que pase el doble del tiempo de espera
@@ -212,7 +199,7 @@ public class DailyModule extends GameModule {
     }
 
     private long amountFor(Player p, Reward r, int streakDays) {
-        double amount = r.amount() * tierMultiplier(p);
+        double amount = r.amount();
         if (r.streak()) {
             int max = Math.max(1, config().getInt("max_streak", 7));
             int s = Math.min(max, streakDays + 1);
