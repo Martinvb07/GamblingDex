@@ -28,6 +28,7 @@ help:
     - "&6&lAdmin"
     - "&8• &e/gdx reload &7- Recargar config y datos"
     - "&8• &e/gdx station set <slots|exchange|crash> &7- Registrar mesa (mirando el bloque)"
+    - "&8• &e/gdx station set rueda &7- Construir rueda física (mirando un faro)"
     - "&8• &e/gdx station set carrera <distancia> <carriles> &7- Construir pista de carreras"
     - "&8• &e/gdx station remove&7|&elist &7- Gestionar mesas"
     - "&8• &e/gdx roulette build [radio] [yOffset] &7- Construir ruleta física"

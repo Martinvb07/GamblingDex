@@ -11,6 +11,8 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Lightable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
@@ -37,6 +39,11 @@ import java.util.*;
  * Rueda de la Fortuna: un bloque con un holograma de rueda. Los jugadores
  * apuestan a un segmento (x1, x2, x5...), la rueda gira y frena, y paga a
  * quienes acertaron. Cada rueda funciona por separado.
+ *
+ * Rueda física: /gdx station set rueda mirando un faro. Alrededor del faro se
+ * construye una pared de lámparas de redstone con una fila de 7 bloques de
+ * concreto encima del faro; al girar el concreto se desplaza, las lámparas se
+ * encienden en cadena y gana el color que queda encima del faro.
  */
 public class RuedaModule extends GameModule {
 
@@ -69,6 +76,13 @@ public class RuedaModule extends GameModule {
         int nextStepIn;
         UUID displayId;
         Segment last;
+        /** Rueda física construida con /gdx station set rueda. */
+        boolean physical;
+        int rx, rz; // derecha vista de frente
+        final Map<String, String> built = new LinkedHashMap<>();
+        final List<Location> lamps = new ArrayList<>();
+        final List<Location> row = new ArrayList<>();
+        int lampPhase;
 
         Wheel(String name, Location loc) {
             this.name = name;
@@ -118,8 +132,21 @@ public class RuedaModule extends GameModule {
         if (sec != null) {
             for (String name : sec.getKeys(false)) {
                 Location l = BlackjackTables.parseKey(sec.getString(name + ".location"));
-                if (l != null)
-                    wheels.put(name.toLowerCase(Locale.ROOT), new Wheel(name, l));
+                if (l == null)
+                    continue;
+                Wheel w = new Wheel(name, l);
+                if (sec.getBoolean(name + ".physical", false)) {
+                    w.physical = true;
+                    w.rx = sec.getInt(name + ".rx");
+                    w.rz = sec.getInt(name + ".rz");
+                    for (String b : sec.getStringList(name + ".built")) {
+                        int bar = b.indexOf('|');
+                        if (bar > 0)
+                            w.built.put(b.substring(0, bar), b.substring(bar + 1));
+                    }
+                    layout(w);
+                }
+                wheels.put(name.toLowerCase(Locale.ROOT), w);
             }
         }
         listen(new Events());
@@ -143,9 +170,12 @@ public class RuedaModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lRueda de la Fortuna",
-                "&8• &7Apostar: &fclick derecho&7 al bloque de la rueda"));
-        if (admin)
-            l.add("&8• &e/gdx rueda crear <nombre>&7|&eborrar <nombre>&7|&elista &7- Gestionar ruedas");
+                "&8• &7Apostar: &fclick derecho&7 al faro o al bloque de la rueda"));
+        if (admin) {
+            l.add("&8• &e/gdx station set rueda &7- Construir la rueda física (mirando un faro)");
+            l.add("&8• &e/gdx station remove &7- Quitarla (mirando el faro; restaura los bloques)");
+            l.add("&8• &e/gdx rueda crear <nombre>&7|&eborrar <nombre>&7|&elista &7- Ruedas de solo holograma");
+        }
         l.add("");
         return l;
     }
@@ -186,10 +216,7 @@ public class RuedaModule extends GameModule {
                     player.sendMessage(msg("not_found", "&cNo existe una rueda con ese nombre."));
                     return true;
                 }
-                refundAll(w);
-                removeDisplay(w);
-                wheels.remove(w.name.toLowerCase(Locale.ROOT));
-                save();
+                removeWheel(w);
                 player.sendMessage(msg("removed", "&aRueda eliminada (se devolvieron las apuestas)."));
             }
             case "lista", "list" -> {
@@ -256,6 +283,10 @@ public class RuedaModule extends GameModule {
     private void tick() {
         tickCount++;
         for (Wheel w : wheels.values()) {
+            if (w.physical && tickCount % 10 == 0 && (w.state == State.BETTING || w.state == State.RESULT)) {
+                w.lampPhase++;
+                renderBlocks(w);
+            }
             switch (w.state) {
                 case BETTING -> {
                     if (tickCount % 20 == 0) {
@@ -302,6 +333,7 @@ public class RuedaModule extends GameModule {
         // 1 tick por paso al principio; el frenado reparte el tiempo que sobra.
         double slow = Math.max(0.0, (spinTicks - w.totalSteps) * 5.0 / Math.max(1, w.totalSteps));
         w.nextStepIn = 1 + (int) Math.round(Math.pow(progress, 4) * slow);
+        w.lampPhase++;
         updateDisplay(w);
         playNear(w, Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1.6f);
         if (w.stepsLeft <= 0) {
@@ -317,6 +349,18 @@ public class RuedaModule extends GameModule {
         w.countdown = Math.max(2, config().getInt("result_seconds", 6));
         announce(w, msg("result", "&6&lRueda &8» &7Salió {segment}&7!", "segment", result.label()));
         playNear(w, Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+
+        // Ganadores, para avisarles a todos los que jugaron esta ronda.
+        List<String> winners = new ArrayList<>();
+        for (Map.Entry<UUID, Map<Long, Long>> e : w.bets.entrySet()) {
+            long onResult = e.getValue().getOrDefault(result.multiplier(), 0L);
+            if (onResult > 0) {
+                String n = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
+                winners.add("&f" + n + " &e+" + units(onResult * (result.multiplier() + 1)));
+            }
+        }
+        String summary = msg("summary", "&6&lRueda &8» &7Ganadores: {players}", "players",
+                winners.isEmpty() ? color("&8nadie") : color(String.join("&7, ", winners)));
 
         long paidTotal = 0, betTotal = 0;
         for (Map.Entry<UUID, Map<Long, Long>> e : w.bets.entrySet()) {
@@ -342,6 +386,8 @@ public class RuedaModule extends GameModule {
                 p.sendMessage(msg("lose", "&7Salió {segment}&7. Perdiste &e{amount}&7.",
                         "segment", result.label(), "amount", units(staked)));
             }
+            if (p != null)
+                p.sendMessage(summary);
         }
         w.bets.clear();
         plugin.getLogger().info("[Rueda] " + w.name + " salió x" + result.multiplier() + " | apostado " + betTotal
@@ -424,6 +470,163 @@ public class RuedaModule extends GameModule {
     }
 
     // ------------------------------------------------------------------
+    // Rueda física (/gdx station set rueda, mirando un faro)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> stationTypes() {
+        return List.of("rueda", "wheel", "ruedafortuna");
+    }
+
+    @Override
+    public String stationUsage() {
+        return "rueda (mirando un faro)";
+    }
+
+    @Override
+    public List<String> stationListLines() {
+        int n = 0;
+        for (Wheel w : wheels.values())
+            if (w.physical)
+                n++;
+        return List.of("&8- &6Rueda&7: &f" + n + " &8(" + wheels.size() + " ruedas en total)");
+    }
+
+    @Override
+    public boolean removeStation(Player player, Block target) {
+        Wheel w = byBlock(target);
+        if (w == null)
+            return false;
+        removeWheel(w);
+        player.sendMessage(msg("station_removed",
+                "&aRueda &f{name}&a eliminada: se devolvieron las apuestas y se restauraron los bloques.",
+                "name", w.name));
+        return true;
+    }
+
+    @Override
+    public void createStation(Player p, Block target, String[] args) {
+        if (target.getType() != Material.BEACON) {
+            p.sendMessage(msg("need_beacon", "&cMira un &ffaro&c (beacon). La rueda se construye alrededor de él."));
+            return;
+        }
+        if (byBlock(target) != null) {
+            p.sendMessage(msg("exists", "&cYa existe una rueda con ese nombre o en ese bloque."));
+            return;
+        }
+        String name;
+        if (args.length >= 1) {
+            name = args[0].replaceAll("[^a-zA-Z0-9_\\-]", "");
+            if (name.isBlank() || wheels.containsKey(name.toLowerCase(Locale.ROOT))) {
+                p.sendMessage(msg("exists", "&cYa existe una rueda con ese nombre o en ese bloque."));
+                return;
+            }
+        } else {
+            int n = 1;
+            while (wheels.containsKey("rueda" + n))
+                n++;
+            name = "rueda" + n;
+        }
+
+        BlockFace f = p.getFacing();
+        Wheel w = new Wheel(name, target.getLocation());
+        w.physical = true;
+        w.rx = -f.getModZ();
+        w.rz = f.getModX();
+        layout(w);
+
+        List<Location> all = new ArrayList<>(w.lamps);
+        all.addAll(w.row);
+        for (Location l : all) {
+            Block b = l.getBlock();
+            if (b.getType().isSolid() && b.getType() != Material.REDSTONE_LAMP && byBlock(b) == null) {
+                p.sendMessage(msg("station_blocked",
+                        "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja alrededor del faro.",
+                        "x", String.valueOf(b.getX()), "y", String.valueOf(b.getY()), "z", String.valueOf(b.getZ()),
+                        "block", b.getType().name()));
+                return;
+            }
+        }
+        for (Location l : all) {
+            Block b = l.getBlock();
+            w.built.putIfAbsent(BlackjackTables.key(l), b.getBlockData().getAsString());
+            b.setType(w.lamps.contains(l) ? Material.REDSTONE_LAMP : Material.WHITE_CONCRETE, false);
+        }
+        wheels.put(name.toLowerCase(Locale.ROOT), w);
+        save();
+        updateDisplay(w);
+        p.sendMessage(msg("station_created",
+                "&aRueda &f{name}&a construida. &7Los jugadores apuestan con click derecho al faro.", "name", name));
+    }
+
+    /** Posiciones de la pared: lámparas en el borde (en orden, girando) y 7 de concreto encima del faro. */
+    private void layout(Wheel w) {
+        w.lamps.clear();
+        w.row.clear();
+        for (int o = -4; o <= 4; o++)
+            w.lamps.add(wallPos(w, o, 2));
+        w.lamps.add(wallPos(w, 4, 1));
+        for (int o = 4; o >= -4; o--)
+            if (o != 0)
+                w.lamps.add(wallPos(w, o, 0));
+        w.lamps.add(wallPos(w, -4, 1));
+        for (int k = -3; k <= 3; k++)
+            w.row.add(wallPos(w, k, 1));
+    }
+
+    private static Location wallPos(Wheel w, int offset, int height) {
+        return w.loc.clone().add(w.rx * offset, height, w.rz * offset);
+    }
+
+    /** Pone el concreto según la franja actual y anima las lámparas según el estado. */
+    private void renderBlocks(Wheel w) {
+        if (!w.physical || !loaded(w) || strip.isEmpty())
+            return;
+        int n = strip.size();
+        for (int k = 0; k < w.row.size(); k++) {
+            Material m = strip.get(Math.floorMod(w.pointer + k - 3, n)).icon();
+            if (!m.isBlock())
+                m = Material.WHITE_CONCRETE;
+            Block b = w.row.get(k).getBlock();
+            if (b.getType() != m)
+                b.setType(m, false);
+        }
+        for (int i = 0; i < w.lamps.size(); i++) {
+            boolean lit = switch (w.state) {
+                case IDLE -> true;
+                case BETTING -> Math.floorMod(i + w.lampPhase, 2) == 0;
+                case SPINNING -> Math.floorMod(i - w.lampPhase, 4) == 0;
+                case RESULT -> w.lampPhase % 2 == 0;
+            };
+            Block b = w.lamps.get(i).getBlock();
+            if (b.getBlockData() instanceof Lightable lamp && lamp.isLit() != lit) {
+                lamp.setLit(lit);
+                b.setBlockData(lamp, false);
+            }
+        }
+    }
+
+    private void removeWheel(Wheel w) {
+        refundAll(w);
+        removeDisplay(w);
+        List<Map.Entry<String, String>> entries = new ArrayList<>(w.built.entrySet());
+        Collections.reverse(entries);
+        for (Map.Entry<String, String> e : entries) {
+            Location l = BlackjackTables.parseKey(e.getKey());
+            if (l == null)
+                continue;
+            try {
+                l.getBlock().setBlockData(Bukkit.createBlockData(e.getValue()), false);
+            } catch (IllegalArgumentException ex) {
+                plugin.getLogger().warning("[Rueda] No se pudo restaurar " + e.getKey() + ": " + e.getValue());
+            }
+        }
+        w.built.clear();
+        wheels.remove(w.name.toLowerCase(Locale.ROOT));
+        save();
+    }
+
+    // ------------------------------------------------------------------
     // Holograma
     // ------------------------------------------------------------------
 
@@ -436,7 +639,10 @@ public class RuedaModule extends GameModule {
         if (!loaded(w))
             return;
         World world = w.loc.getWorld();
-        Location at = w.loc.clone().add(0.5, config().getDouble("holo_height", 1.0), 0.5);
+        renderBlocks(w);
+        Location at = w.physical
+                ? w.loc.clone().add(0.5, config().getDouble("physical.holo_height", 3.4), 0.5)
+                : w.loc.clone().add(0.5, config().getDouble("holo_height", 1.0), 0.5);
         Entity e = w.displayId == null ? null : world.getEntity(w.displayId);
         TextDisplay td;
         if (e instanceof TextDisplay existing && existing.isValid()) {
@@ -456,9 +662,17 @@ public class RuedaModule extends GameModule {
 
         StringBuilder sb = new StringBuilder();
         sb.append("&6&l✦ RUEDA DE LA FORTUNA ✦\n");
-        sb.append(ticker(w)).append('\n');
+        if (w.physical) {
+            // Lo que paga cada color (la rueda en sí son los bloques)
+            List<String> legend = new ArrayList<>();
+            for (Segment s : segments)
+                legend.add(s.color() + "■ x" + s.multiplier());
+            sb.append(String.join("  ", legend)).append('\n');
+        } else {
+            sb.append(ticker(w)).append('\n');
+        }
         switch (w.state) {
-            case IDLE -> sb.append("&7Click derecho para apostar");
+            case IDLE -> sb.append(w.physical ? "&7Click derecho al faro para apostar" : "&7Click derecho para apostar");
             case BETTING -> sb.append("&eGira en &f").append(w.countdown).append("s &8| &7Apostado: &e")
                     .append(units(totalBets(w)));
             case SPINNING -> sb.append("&e¡Girando!");
@@ -502,18 +716,11 @@ public class RuedaModule extends GameModule {
         w.displayId = null;
     }
 
+    /** Mensaje para los que apostaron en esta rueda (nadie más). */
     private void announce(Wheel w, String text) {
-        double r = config().getDouble("announce_radius", 16.0);
-        Set<UUID> sent = new HashSet<>();
-        if (loaded(w)) {
-            for (Player p : w.loc.getWorld().getNearbyPlayers(w.loc, r)) {
-                p.sendMessage(text);
-                sent.add(p.getUniqueId());
-            }
-        }
         for (UUID id : w.bets.keySet()) {
             Player p = Bukkit.getPlayer(id);
-            if (p != null && sent.add(id))
+            if (p != null)
                 p.sendMessage(text);
         }
     }
@@ -524,17 +731,30 @@ public class RuedaModule extends GameModule {
     }
 
     private Wheel byBlock(Block b) {
+        if (b == null)
+            return null;
         String key = BlackjackTables.key(b.getLocation());
         for (Wheel w : wheels.values())
-            if (key != null && key.equals(BlackjackTables.key(w.loc)))
+            if (key != null && (key.equals(BlackjackTables.key(w.loc)) || w.built.containsKey(key)))
                 return w;
         return null;
     }
 
     private void save() {
         YamlConfiguration data = new YamlConfiguration();
-        for (Wheel w : wheels.values())
-            data.set("wheels." + w.name + ".location", BlackjackTables.key(w.loc));
+        for (Wheel w : wheels.values()) {
+            String b = "wheels." + w.name + ".";
+            data.set(b + "location", BlackjackTables.key(w.loc));
+            if (w.physical) {
+                data.set(b + "physical", true);
+                data.set(b + "rx", w.rx);
+                data.set(b + "rz", w.rz);
+                List<String> built = new ArrayList<>();
+                for (Map.Entry<String, String> e : w.built.entrySet())
+                    built.add(e.getKey() + "|" + e.getValue());
+                data.set(b + "built", built);
+            }
+        }
         saveData(data);
     }
 
@@ -593,13 +813,14 @@ public class RuedaModule extends GameModule {
 
         @EventHandler
         public void onInteract(PlayerInteractEvent e) {
-            if (e.getHand() != EquipmentSlot.HAND || e.getAction() != Action.RIGHT_CLICK_BLOCK)
+            if (e.getAction() != Action.RIGHT_CLICK_BLOCK)
                 return;
             Wheel w = byBlock(e.getClickedBlock());
             if (w == null)
                 return;
-            e.setCancelled(true);
-            openBetMenu(e.getPlayer(), w);
+            e.setCancelled(true); // también la otra mano: que no se abra el menú del faro
+            if (e.getHand() == EquipmentSlot.HAND)
+                openBetMenu(e.getPlayer(), w);
         }
 
         @EventHandler
@@ -607,7 +828,7 @@ public class RuedaModule extends GameModule {
             if (byBlock(e.getBlock()) == null)
                 return;
             e.setCancelled(true);
-            e.getPlayer().sendMessage(msg("cannot_break", "&cNo puedes romper la rueda."));
+            e.getPlayer().sendMessage(msg("cannot_break", "&cNo puedes romper la rueda. Un admin la quita con &f/gdx station remove&c."));
         }
 
         @EventHandler

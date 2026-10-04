@@ -43,9 +43,9 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🃏 **Blackjack** | Mesa con dealer y asientos reales (hasta 7 jugadores). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
 | ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
 | 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), rondas automáticas y apuestas con click directo sobre los números. |
-| 🎡 **Rueda de la Fortuna** | Rueda con segmentos x1, x2, x5, x10, x20 y x40. Click derecho al bloque para apostar. |
+| 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
-| 📈 **Crash** | Mesa con holograma en vivo: el multiplicador sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
+| 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 
 ### Juegos por menú / comando
@@ -133,6 +133,7 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx reload` | Recarga configuración y mensajes |
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
+| `/gdx station set rueda` | Construir la rueda física (mirando un faro) |
 | `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
@@ -201,7 +202,7 @@ Ejemplo con LuckPerms:
 <details>
 <summary><b>🎡 Rueda de la Fortuna</b></summary>
 
-Mira el bloque de la rueda: `/gdx rueda crear Rueda1`
+Coloca un **faro**, míralo y usa `/gdx station set rueda`. Alrededor del faro se construye la pared de lámparas con los 7 colores encima; arriba sale un holograma con lo que paga cada color. Los jugadores apuestan con click derecho al faro. Para quitarla: `/gdx station remove` mirando el faro.
 
 </details>
 
