@@ -52,6 +52,8 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private PokerManager pokerManager;
 
+    private com.gamblingdex.modules.ModuleManager moduleManager;
+
     private StationManager stationManager;
 
     private TokenTypeMenu tokenTypeMenu;
@@ -123,6 +125,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             blackjackManager.reload();
         if (pokerManager != null)
             pokerManager.reload();
+        if (moduleManager != null)
+            moduleManager.reloadAll();
 
         if (playerIndex != null)
             playerIndex.load();
@@ -206,6 +210,10 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         registerCommands();
         registerListeners();
+
+        // Minijuegos (cada uno en com.gamblingdex.modules.<juego>, se detectan solos).
+        this.moduleManager = new com.gamblingdex.modules.ModuleManager(this);
+        this.moduleManager.enableAll();
     }
 
     @Override
@@ -224,6 +232,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (pokerManager != null)
                 pokerManager.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (moduleManager != null)
+                moduleManager.disableAll();
         } catch (Throwable ignored) {
         }
         try {
@@ -280,6 +293,15 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public TokenPayout getTokenPayout() {
         return tokenPayout;
+    }
+
+    public com.gamblingdex.modules.ModuleManager getModuleManager() {
+        return moduleManager;
+    }
+
+    /** El .jar del plugin (para que ModuleManager encuentre los minijuegos). */
+    public java.io.File getPluginJar() {
+        return getFile();
     }
 
     public com.gamblingdex.economy.PendingPayouts getPendingPayouts() {

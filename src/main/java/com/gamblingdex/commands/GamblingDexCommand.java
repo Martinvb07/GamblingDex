@@ -564,6 +564,12 @@ public class GamblingDexCommand implements CommandExecutor {
                 return true;
             }
 
+            // Minijuegos (módulos): /gdx <juego> ...
+            var modules = GamblingDexPlugin.getInstance().getModuleManager();
+            if (modules != null && modules.dispatch(player, sub, args)) {
+                return true;
+            }
+
             if (sub.equals("poker") || sub.equals("pk")) {
                 return handlePoker(player, args);
             }
@@ -948,6 +954,12 @@ public class GamblingDexCommand implements CommandExecutor {
                     "&8• &e/gdx poker stakes <nombre> <chica> <grande> &7- Cambiar ciegas",
                     "&8• &e/gdx poker remove <nombre>&7|&elist&7|&erake &7- Gestionar mesas",
                     ""));
+        }
+
+        var moduleManager = GamblingDexPlugin.getInstance().getModuleManager();
+        if (moduleManager != null) {
+            for (String line : moduleManager.helpLines(player.hasPermission("gamblingdex.admin")))
+                player.sendMessage(line.isBlank() ? " " : line);
         }
 
         player.sendMessage(cfg("messages.gdx.help.footer",
