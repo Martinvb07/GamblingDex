@@ -649,6 +649,7 @@ public class GamblingDexCommand implements CommandExecutor {
                                 "&cNo se pudo crear el dealer."));
                         return true;
                     }
+                    GamblingDexPlugin.getInstance().syncTableNames();
 
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.created",
@@ -1109,6 +1110,7 @@ public class GamblingDexCommand implements CommandExecutor {
                             "&cNo se pudo crear: ya existe una mesa con ese nombre o en ese bloque."));
                     return true;
                 }
+                GamblingDexPlugin.getInstance().syncTableNames();
                 player.sendMessage(pk("created",
                         "&aMesa de póker &f{table}&a creada (ciegas &e{sb}/{bb}&a). Agrega asientos con &f/gdx poker seat add {table}&a, en orden horario.",
                         "table", t.getName(), "sb", String.valueOf(t.getSmallBlind()),

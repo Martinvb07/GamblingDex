@@ -121,6 +121,26 @@ public class BlackjackBetMenu {
         inv.setItem(24, actionButton("§cRetirar apuestas", Material.REDSTONE, "clear"));
         // Close
         inv.setItem(26, actionButton("§7Cerrar", Material.BARRIER, "close"));
+        // Repetir la apuesta de la ronda anterior
+        long last = table.lastBetTotal(id);
+        if (last > 0) {
+            ItemStack repeat = actionButton("§a§lRepetir apuesta", Material.EMERALD, "repeat");
+            ItemMeta rm = repeat.getItemMeta();
+            if (rm != null) {
+                List<String> lore = new ArrayList<>();
+                lore.add("§6Principal: §e" + prettyUnits(table.lastBetUnits(id, BetSpot.MAIN)));
+                if (sideBets) {
+                    lore.add("§dPares Perfectos: §e" + prettyUnits(table.lastBetUnits(id, BetSpot.PERFECT_PAIRS)));
+                    lore.add("§b21+3: §e" + prettyUnits(table.lastBetUnits(id, BetSpot.TWENTY_ONE_PLUS_THREE)));
+                }
+                lore.add("");
+                lore.add("§7Total: §e" + prettyUnits(last));
+                lore.add("§eClick para apostar lo mismo otra vez");
+                rm.setLore(lore);
+                repeat.setItemMeta(rm);
+            }
+            inv.setItem(25, repeat);
+        }
 
         // Selector de apuesta (fila inferior)
         if (sideBets) {

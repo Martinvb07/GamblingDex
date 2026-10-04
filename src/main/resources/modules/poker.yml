@@ -65,3 +65,10 @@ tournament:
     "2": [100]
     "4": [70, 30]
     "7": [50, 30, 20]
+
+# Nombre que se muestra en cada mesa (holograma, barra y mensajes). Escríbelo aquí en
+# vez de por el chat: acepta colores &a &l..., hexadecimales &#FF8800, símbolos y espacios.
+# La clave es el nombre con el que creaste la mesa (/gdx poker create <nombre>).
+# Después de editar: /gdx reload
+table_names:
+  # Mesa1: "&#00FFAA&l♠ Mesa High Roller ♠"

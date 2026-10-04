@@ -226,6 +226,8 @@ public class GamblingDexPlugin extends JavaPlugin {
         // Minijuegos (cada uno en com.gamblingdex.modules.<juego>, se detectan solos).
         this.moduleManager = new com.gamblingdex.modules.ModuleManager(this);
         this.moduleManager.enableAll();
+
+        syncTableNames();
     }
 
     @Override
@@ -520,10 +522,89 @@ public class GamblingDexPlugin extends JavaPlugin {
         }
     }
 
+    private static final java.util.regex.Pattern HEX_COLOR = java.util.regex.Pattern.compile("&#([0-9a-fA-F]{6})");
+
+    /** Colores con & (ej. &a, &l) y hexadecimales con &#RRGGBB (ej. &#FF8800). */
     public String color(String text) {
         if (text == null)
             return "";
-        return text.replace('&', '§');
+        java.util.regex.Matcher m = HEX_COLOR.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            StringBuilder hex = new StringBuilder("§x");
+            for (char c : m.group(1).toCharArray())
+                hex.append('§').append(c);
+            m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(hex.toString()));
+        }
+        m.appendTail(sb);
+        return sb.toString().replace('&', '§');
+    }
+
+    /**
+     * Agrega a modules/blackjack.yml y modules/poker.yml (sección table_names)
+     * cada mesa que todavía no esté, con su nombre como título. Así el admin ve
+     * ahí la lista de mesas y solo cambia el título.
+     */
+    public void syncTableNames() {
+        java.util.List<String> bj = new java.util.ArrayList<>();
+        if (blackjackManager != null)
+            bj.addAll(blackjackManager.getTableNames());
+        java.util.List<String> pk = new java.util.ArrayList<>();
+        if (pokerManager != null)
+            for (com.gamblingdex.games.poker.PokerTable t : pokerManager.getTables())
+                pk.add(t.getName());
+        addTableNames("blackjack", bj);
+        addTableNames("poker", pk);
+    }
+
+    private void addTableNames(String game, java.util.List<String> tables) {
+        java.io.File f = new java.io.File(new java.io.File(getDataFolder(), "modules"), game + ".yml");
+        if (!f.exists() || tables.isEmpty())
+            return;
+        org.bukkit.configuration.file.YamlConfiguration yml = org.bukkit.configuration.file.YamlConfiguration
+                .loadConfiguration(f);
+        org.bukkit.configuration.ConfigurationSection sec = yml.getConfigurationSection("table_names");
+        boolean changed = false;
+        for (String t : tables) {
+            if (t == null || t.isBlank())
+                continue;
+            boolean found = false;
+            if (sec != null)
+                for (String k : sec.getKeys(false))
+                    if (k.equalsIgnoreCase(t))
+                        found = true;
+            if (!found) {
+                yml.set("table_names." + t, t);
+                getConfig().set(game + ".table_names." + t, t);
+                changed = true;
+            }
+        }
+        if (changed) {
+            try {
+                yml.save(f);
+            } catch (java.io.IOException e) {
+                getLogger().warning("No se pudo actualizar modules/" + game + ".yml: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Nombre bonito de una mesa desde {@code <juego>.table_names.<mesa>} en
+     * modules/&lt;juego&gt;.yml (sin importar mayúsculas), ya con colores. Null si no hay.
+     */
+    public String tableNameFromConfig(String game, String table) {
+        if (table == null)
+            return null;
+        org.bukkit.configuration.ConfigurationSection sec = getConfig().getConfigurationSection(game + ".table_names");
+        if (sec == null)
+            return null;
+        for (String k : sec.getKeys(false)) {
+            if (k.equalsIgnoreCase(table)) {
+                String v = sec.getString(k);
+                return v == null || v.isBlank() ? null : color(v);
+            }
+        }
+        return null;
     }
 
 }

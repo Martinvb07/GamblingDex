@@ -33,25 +33,13 @@ public class RouletteNumberMenu {
             inv.setItem(i, filler());
         }
 
-        List<Integer> numbers = new ArrayList<>();
-        for (int n = 0; n <= 36; n++)
-            numbers.add(n);
-        numbers.add(WorldRouletteTables.DOUBLE_ZERO);
-
-        int slot = 0;
-        for (int n : numbers) {
-            Material mat;
-            if (WorldRouletteTables.isZero(n)) {
-                mat = Material.LIME_CONCRETE;
-            } else {
-                mat = WorldRouletteTables.isRed(n) ? Material.RED_CONCRETE : Material.BLACK_CONCRETE;
-            }
-
-            inv.setItem(slot, numberButton(n, mat));
-            slot++;
-            if (slot >= 45)
-                break; // keep bottom row for controls
+        // 1-36 en orden (4 filas de 9), el 0 y el 00 aparte.
+        for (int n = 1; n <= 36; n++) {
+            Material mat = WorldRouletteTables.isRed(n) ? Material.RED_CONCRETE : Material.BLACK_CONCRETE;
+            inv.setItem(n - 1, numberButton(n, mat));
         }
+        inv.setItem(39, numberButton(0, Material.LIME_CONCRETE));
+        inv.setItem(41, numberButton(WorldRouletteTables.DOUBLE_ZERO, Material.LIME_CONCRETE));
 
         inv.setItem(49, backButton());
 
@@ -89,7 +77,7 @@ public class RouletteNumberMenu {
         ItemMeta im = it.getItemMeta();
         if (im != null) {
             im.setDisplayName("§f" + WorldRouletteTables.formatNumber(number));
-            im.setLore(List.of("§7Seleccionar número"));
+            im.setLore(List.of("§7Paga: §f35 a 1 §8(36x)", "", "§eClick para apostar"));
             im.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             NamespacedKey kAction = new NamespacedKey(plugin, RouletteBetMenu.KEY_ACTION);
             NamespacedKey kValue = new NamespacedKey(plugin, RouletteBetMenu.KEY_VALUE);

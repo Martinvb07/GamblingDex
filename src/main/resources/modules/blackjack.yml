@@ -8,7 +8,7 @@
 #
 # Recarga en caliente: /gdx reload
 
-min_players: 2
+min_players: 1   # 1 = se puede jugar solo contra el dealer
 max_players: 7
 # Asientos físicos: los jugadores deben pararse en estas losas/bloques alrededor de la mesa.
 seating:
@@ -72,3 +72,10 @@ side_bets:
 # Altura del holograma (TextDisplay) por encima del dealer (se dibuja un poco más arriba
 # para no encimarse con el nombre del aldeano)
 holo_height: 2.3
+
+# Nombre que se muestra en cada mesa (holograma y dealer). Escríbelo aquí en vez
+# de por el chat: acepta colores &a &l..., hexadecimales &#FF8800, símbolos y espacios.
+# La clave es el nombre con el que creaste la mesa (/gdx blackjack create <nombre>).
+# Después de editar: /gdx reload
+table_names:
+  # Mesa1: "&6&l✦ &#FFD700&lBLACKJACK VIP &6&l✦"

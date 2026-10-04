@@ -3,6 +3,8 @@ package com.gamblingdex.listeners;
 import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.games.rouletteworld.WorldRouletteBetType;
 import com.gamblingdex.games.rouletteworld.WorldRouletteTable;
+import com.gamblingdex.games.rouletteworld.WorldRouletteTables;
+import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.gui.RouletteBetMenu;
 import com.gamblingdex.gui.RouletteBetMenuHolder;
 import com.gamblingdex.gui.RouletteNumberMenu;
@@ -76,10 +78,7 @@ public class RouletteBetMenuListener implements Listener {
                     return;
                 }
                 table.setSelectionType(player, type);
-                player.sendMessage(plugin.getMessages().format(
-                        "roulette_world.bet_menu.selection",
-                        "&eApuesta seleccionada: &f{selection}",
-                        java.util.Map.of("selection", table.describeSelection(player.getUniqueId()))));
+                askAmount(player, table, type, null);
             }
             case "open" -> {
                 String open = pdc.get(kValue, PersistentDataType.STRING);
@@ -93,17 +92,37 @@ public class RouletteBetMenuListener implements Listener {
                 Integer number = pdc.get(kValue, PersistentDataType.INTEGER);
                 if (number == null)
                     return;
-                table.selectNumber(player, number);
-                player.sendMessage(plugin.getMessages().format(
-                        "roulette_world.bet_menu.selection",
-                        "&eApuesta seleccionada: &f{selection}",
-                        java.util.Map.of("selection", table.describeSelection(player.getUniqueId()))));
-                player.closeInventory();
+                askAmount(player, table, WorldRouletteBetType.NUMBER, number);
+            }
+            case "repeat" -> {
+                table.repeatLastBet(player);
+                new RouletteBetMenu(plugin).open(player, table);
             }
             case "back" -> {
                 new RouletteBetMenu(plugin).open(player, table);
             }
             case "close" -> player.closeInventory();
         }
+    }
+
+    /** Elegir cuántas fichas apostar (sin tope salvo roulette_world.max_bet) y volver al menú. */
+    private void askAmount(Player player, WorldRouletteTable table, WorldRouletteBetType type, Integer number) {
+        if (table.getState() != WorldRouletteTable.State.COUNTDOWN) {
+            player.sendMessage(plugin.getMessages().getString("roulette_world.bets_closed",
+                    "&cApuestas cerradas. &7Espera a que se abran."));
+            return;
+        }
+        long min = Math.max(1, plugin.getConfig().getLong("roulette_world.min_bet", 1));
+        long max = Math.max(0, plugin.getConfig().getLong("roulette_world.max_bet", 0));
+        String what = type == WorldRouletteBetType.NUMBER && number != null
+                ? "NÚMERO " + WorldRouletteTables.formatNumber(number)
+                : type.label();
+        int p = type.payoutToOne();
+        AmountPickerMenu.open(player, "&6&lRuleta &8- &f" + what, min, max, min,
+                java.util.List.of("&7Apuesta: &f" + what, "&7Paga: &f" + p + " a 1 &8(" + (p + 1) + "x)"),
+                amount -> {
+                    table.placeBetFromWallet(player, type, number, amount);
+                    new RouletteBetMenu(plugin).open(player, table);
+                }, () -> new RouletteBetMenu(plugin).open(player, table));
     }
 }
