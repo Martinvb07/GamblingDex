@@ -32,7 +32,8 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * Crash: rondas globales. Un multiplicador sube desde x1.00 y "explota" en un
+ * Crash: cada mesa tiene su propia ronda (estado, apuestas y punto de
+ * explosión independientes). Un multiplicador sube desde x1.00 y "explota" en un
  * punto sorteado al empezar la ronda. Quien retira antes cobra apuesta x
  * multiplicador.
  *
@@ -66,24 +67,24 @@ public class CrashModule extends GameModule {
         }
     }
 
-    /** Mesa de Crash: un bloque con holograma. */
+    /** Mesa de Crash: un bloque con holograma y su propia ronda. */
     private static final class Station {
         final Location loc;
         UUID holo;
+        State state = State.PAUSE;
+        final Map<UUID, Bet> bets = new LinkedHashMap<>();
+        double crashPoint = 1.0;
+        double multiplier = 1.0;
+        long runStartMs;
+        int secondsLeft;
+        int tickCounter;
+        BossBar bar;
 
         Station(Location loc) {
             this.loc = loc;
         }
     }
 
-    private State state = State.PAUSE;
-    private final Map<UUID, Bet> bets = new LinkedHashMap<>();
-    private double crashPoint = 1.0;
-    private double multiplier = 1.0;
-    private long runStartMs;
-    private int secondsLeft;
-    private int tickCounter;
-    private BossBar bar;
     private final Map<String, Station> stations = new LinkedHashMap<>();
 
     @Override
@@ -102,21 +103,35 @@ public class CrashModule extends GameModule {
         for (String k : loadData().getStringList("stations")) {
             Location l = BlackjackTables.parseKey(k);
             if (l != null)
-                stations.put(k, new Station(l));
+                stations.put(k, newStation(l));
         }
-        bar = Bukkit.createBossBar("", BarColor.GREEN, BarStyle.SOLID);
         listen(new Events());
-        startBetting();
         // 2 ticks = 0,1 s: suficiente para que el número suba suave.
         runTimer(this::tick, 2L, 2L);
     }
 
     @Override
     public void disable() {
-        // Ronda cancelada: devolver lo apostado a quien no retiró. En la pausa
-        // la ronda ya terminó (lo que no se retiró ya se perdió).
-        for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
-            if (e.getValue().cashedAt > 0 || state == State.PAUSE)
+        for (Station st : stations.values()) {
+            closeStation(st);
+            removeHolo(st);
+        }
+    }
+
+    private Station newStation(Location l) {
+        Station st = new Station(l);
+        st.bar = Bukkit.createBossBar("", BarColor.GREEN, BarStyle.SOLID);
+        startBetting(st);
+        return st;
+    }
+
+    /**
+     * Ronda cancelada (apagado o mesa quitada): devolver lo apostado a quien no
+     * retiró. En la pausa la ronda ya terminó (lo que no se retiró ya se perdió).
+     */
+    private void closeStation(Station st) {
+        for (Map.Entry<UUID, Bet> e : st.bets.entrySet()) {
+            if (e.getValue().cashedAt > 0 || st.state == State.PAUSE)
                 continue;
             TokenWallet.give(e.getKey(), e.getValue().amount);
             Player p = Bukkit.getPlayer(e.getKey());
@@ -124,18 +139,35 @@ public class CrashModule extends GameModule {
                 p.sendMessage(msg("refunded", "&7La ronda de Crash se canceló. Se te devolvieron &e{amount}&7.",
                         "amount", units(e.getValue().amount)));
         }
-        bets.clear();
-        if (bar != null) {
-            bar.removeAll();
-            bar = null;
+        st.bets.clear();
+        if (st.bar != null) {
+            st.bar.removeAll();
+            st.bar = null;
         }
+    }
+
+    /** Mesa donde apostó el jugador en la ronda actual, o null. */
+    private Station stationOf(UUID id) {
         for (Station st : stations.values())
-            removeHolo(st);
+            if (st.bets.containsKey(id))
+                return st;
+        return null;
     }
 
     /** %gamblingdex_crash_multiplier% (x1.00 en apuestas, el actual en vuelo, donde explotó en la pausa), _state, _seconds. */
     @Override
     public String placeholder(String key) {
+        Station st = null;
+        for (Station s2 : stations.values())
+            if (st == null || (s2.state == State.RUNNING && st.state != State.RUNNING)
+                    || (s2.state == st.state && s2.bets.size() > st.bets.size()))
+                st = s2;
+        if (st == null)
+            return key.equals("multiplier") ? "x1.00" : null;
+        State state = st.state;
+        double multiplier = st.multiplier, crashPoint = st.crashPoint;
+        int secondsLeft = st.secondsLeft;
+        Map<UUID, Bet> bets = st.bets;
         return switch (key) {
             case "multiplier" -> "x" + fmt(switch (state) {
                 case BETTING -> 1.0;
@@ -190,7 +222,7 @@ public class CrashModule extends GameModule {
             player.sendMessage(msg("station_exists", "&eEse bloque ya es una mesa de Crash."));
             return;
         }
-        Station st = new Station(target.getLocation());
+        Station st = newStation(target.getLocation());
         stations.put(k, st);
         saveStations();
         updateHolo(st);
@@ -202,6 +234,7 @@ public class CrashModule extends GameModule {
         Station st = stations.remove(BlackjackTables.key(target.getLocation()));
         if (st == null)
             return false;
+        closeStation(st);
         removeHolo(st);
         saveStations();
         player.sendMessage(msg("station_removed", "&aMesa de Crash eliminada."));
@@ -214,9 +247,15 @@ public class CrashModule extends GameModule {
     }
 
     /** Click derecho a la mesa = apostar; shift + click derecho = retirar. */
-    private void stationClick(Player p, boolean sneaking) {
-        Bet b = bets.get(p.getUniqueId());
-        switch (state) {
+    private void stationClick(Player p, Station st, boolean sneaking) {
+        Station mine = stationOf(p.getUniqueId());
+        if (mine != null && mine != st && !(mine.state == State.PAUSE)) {
+            p.sendMessage(msg("other_station", "&cYa estás jugando en otra mesa de Crash."));
+            return;
+        }
+        Bet b = st.bets.get(p.getUniqueId());
+        int secondsLeft = st.secondsLeft;
+        switch (st.state) {
             case BETTING -> {
                 if (b != null) {
                     p.sendMessage(msg("already_in_station", "&7Ya apostaste &e{amount}&7. Despega en &f{seconds}s&7.",
@@ -228,7 +267,7 @@ public class CrashModule extends GameModule {
                 AmountPickerMenu.open(p, "&6&lCrash &8- &eTu apuesta", min, max, min,
                         List.of("&7Despega en &f" + secondsLeft + "s",
                                 "&7Shift + click derecho a la mesa para retirar"),
-                        amount -> placeBet(p, amount, 0.0), null);
+                        amount -> placeBet(p, st, amount, 0.0), null);
             }
             case RUNNING -> {
                 if (b == null) {
@@ -236,7 +275,7 @@ public class CrashModule extends GameModule {
                 } else if (b.cashedAt > 0) {
                     p.sendMessage(msg("already_cashed", "&7Ya retiraste en &fx{mult}&7.", "mult", fmt(b.cashedAt)));
                 } else if (sneaking) {
-                    cashOut(p);
+                    cashOut(p, st);
                 } else {
                     p.sendMessage(msg("cashout_hint", "&eShift + click derecho &7a la mesa para retirar."));
                 }
@@ -283,10 +322,10 @@ public class CrashModule extends GameModule {
             st.holo = td.getUniqueId();
         }
         // Solo el multiplicador (lo de cada jugador va sobre su barra de experiencia).
-        String text = switch (state) {
-            case BETTING -> "&e&lx1.00\n&7Apuestas: &f" + secondsLeft + "s";
-            case RUNNING -> (multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l") + "x" + fmt(multiplier);
-            case PAUSE -> "&c&lx" + fmt(crashPoint) + "\n&7Explotó";
+        String text = switch (st.state) {
+            case BETTING -> "&e&lx1.00\n&7Apuestas: &f" + st.secondsLeft + "s";
+            case RUNNING -> (st.multiplier < 2 ? "&a&l" : st.multiplier < 5 ? "&e&l" : "&c&l") + "x" + fmt(st.multiplier);
+            case PAUSE -> "&c&lx" + fmt(st.crashPoint) + "\n&7Explotó";
         };
         td.setText(color(text));
     }
@@ -305,29 +344,29 @@ public class CrashModule extends GameModule {
     // Rondas
     // ------------------------------------------------------------------
 
-    private void startBetting() {
-        state = State.BETTING;
-        bets.clear();
-        secondsLeft = Math.max(3, config().getInt("bet_window_seconds", 15));
-        tickCounter = 0;
-        multiplier = 1.0;
+    private void startBetting(Station st) {
+        st.state = State.BETTING;
+        st.bets.clear();
+        st.secondsLeft = Math.max(3, config().getInt("bet_window_seconds", 15));
+        st.tickCounter = 0;
+        st.multiplier = 1.0;
     }
 
-    private void startRun() {
-        if (bets.isEmpty()) {
+    private void startRun(Station st) {
+        if (st.bets.isEmpty()) {
             // Nadie apostó: otra ventana de apuestas sin despegar.
-            startBetting();
+            startBetting(st);
             return;
         }
-        state = State.RUNNING;
+        st.state = State.RUNNING;
         double edge = Math.max(0.0, Math.min(50.0, config().getDouble("house_edge_percent", 4.0))) / 100.0;
         double maxMult = Math.max(2.0, config().getDouble("max_multiplier", 1000.0));
         double u = RNG.nextDouble();
         double cp = Math.floor(100.0 * (1.0 - edge) / (1.0 - u)) / 100.0;
-        crashPoint = Math.max(1.0, Math.min(maxMult, cp));
-        multiplier = 1.0;
-        runStartMs = System.currentTimeMillis();
-        for (UUID id : bets.keySet()) {
+        st.crashPoint = Math.max(1.0, Math.min(maxMult, cp));
+        st.multiplier = 1.0;
+        st.runStartMs = System.currentTimeMillis();
+        for (UUID id : st.bets.keySet()) {
             Player p = Bukkit.getPlayer(id);
             if (p != null)
                 p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f, 1.0f);
@@ -335,51 +374,54 @@ public class CrashModule extends GameModule {
     }
 
     private void tick() {
-        tickCounter++;
-        switch (state) {
+        for (Station st : stations.values())
+            tick(st);
+    }
+
+    private void tick(Station st) {
+        st.tickCounter++;
+        switch (st.state) {
             case BETTING -> {
-                if (tickCounter % 10 == 0 && --secondsLeft <= 0)
-                    startRun();
+                if (st.tickCounter % 10 == 0 && --st.secondsLeft <= 0)
+                    startRun(st);
                 else
-                    sendActionBars();
+                    sendActionBars(st);
             }
             case RUNNING -> {
                 double growth = Math.max(0.01, config().getDouble("growth_per_second", 0.07));
-                double t = (System.currentTimeMillis() - runStartMs) / 1000.0;
-                multiplier = Math.floor(Math.exp(growth * t) * 100.0) / 100.0;
+                double t = (System.currentTimeMillis() - st.runStartMs) / 1000.0;
+                st.multiplier = Math.floor(Math.exp(growth * t) * 100.0) / 100.0;
 
                 // Retiros automáticos que ya se alcanzaron (antes de explotar).
-                for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
+                for (Map.Entry<UUID, Bet> e : st.bets.entrySet()) {
                     Bet b = e.getValue();
-                    if (b.cashedAt == 0 && b.auto >= 1.01 && b.auto <= Math.min(multiplier, crashPoint)) {
-                        doCashOut(e.getKey(), b, b.auto);
-                    }
+                    if (b.cashedAt == 0 && b.auto >= 1.01 && b.auto <= Math.min(st.multiplier, st.crashPoint))
+                        doCashOut(st, e.getKey(), b, b.auto);
                 }
-                if (multiplier >= crashPoint) {
-                    multiplier = crashPoint;
-                    crash();
+                if (st.multiplier >= st.crashPoint) {
+                    st.multiplier = st.crashPoint;
+                    crash(st);
                 } else {
-                    sendActionBars();
+                    sendActionBars(st);
                 }
             }
             case PAUSE -> {
-                if (tickCounter % 10 == 0 && --secondsLeft <= 0)
-                    startBetting();
+                if (st.tickCounter % 10 == 0 && --st.secondsLeft <= 0)
+                    startBetting(st);
             }
         }
-        updateBar();
-        for (Station st : stations.values())
-            updateHolo(st);
+        updateBar(st);
+        updateHolo(st);
     }
 
-    private void crash() {
-        state = State.PAUSE;
-        secondsLeft = Math.max(1, config().getInt("pause_seconds", 5));
+    private void crash(Station st) {
+        st.state = State.PAUSE;
+        st.secondsLeft = Math.max(1, config().getInt("pause_seconds", 5));
 
-        // Resumen solo para los que jugaron la ronda.
+        // Resumen solo para los que jugaron la ronda de esta mesa.
         List<String> winners = new ArrayList<>();
         List<String> losers = new ArrayList<>();
-        for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
+        for (Map.Entry<UUID, Bet> e : st.bets.entrySet()) {
             Bet b = e.getValue();
             GamblingDexPlugin.recordStats(e.getKey(), "crash", b.amount, b.cashedAt > 0 ? payoutFor(b, b.cashedAt) : 0L);
             String name = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
@@ -388,32 +430,32 @@ public class CrashModule extends GameModule {
             else
                 losers.add("&f" + name);
         }
-        String summary = msg("crashed_all", "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}", "mult", fmt(crashPoint))
+        String summary = msg("crashed_all", "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}", "mult", fmt(st.crashPoint))
                 + "\n" + msg("summary_winners", "&7Ganaron: {players}", "players",
                         winners.isEmpty() ? color("&8nadie") : color(String.join("&7, ", winners)))
                 + "\n" + msg("summary_losers", "&7Perdieron: {players}", "players",
                         losers.isEmpty() ? color("&8nadie") : color(String.join("&7, ", losers)));
-        for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
+        for (Map.Entry<UUID, Bet> e : st.bets.entrySet()) {
             Player p = Bukkit.getPlayer(e.getKey());
             if (p == null)
                 continue;
             Bet b = e.getValue();
             if (b.cashedAt == 0) {
                 p.sendMessage(msg("crashed_lost", "&c&l¡EXPLOTÓ en x{mult}! &7Perdiste &e{amount}&7.",
-                        "mult", fmt(crashPoint), "amount", units(b.amount)));
-                p.sendTitle(color("&c&lx" + fmt(crashPoint)), color("&7Explotó"), 2, 30, 10);
+                        "mult", fmt(st.crashPoint), "amount", units(b.amount)));
+                p.sendTitle(color("&c&lx" + fmt(st.crashPoint)), color("&7Explotó"), 2, 30, 10);
                 p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.0f);
             }
             p.sendMessage(summary);
         }
         long totalBet = 0, totalPaid = 0;
-        for (Bet b : bets.values()) {
+        for (Bet b : st.bets.values()) {
             totalBet += b.amount;
             if (b.cashedAt > 0)
                 totalPaid += payoutFor(b, b.cashedAt);
         }
-        plugin.getLogger().info("[Crash] Explotó en x" + fmt(crashPoint) + " | apostado " + totalBet
-                + " pagado " + totalPaid + " jugadores " + bets.size());
+        plugin.getLogger().info("[Crash] Mesa " + BlackjackTables.key(st.loc) + " explotó en x" + fmt(st.crashPoint)
+                + " | apostado " + totalBet + " pagado " + totalPaid + " jugadores " + st.bets.size());
     }
 
     private long payoutFor(Bet b, double mult) {
@@ -426,12 +468,19 @@ public class CrashModule extends GameModule {
     // Apostar / retirar
     // ------------------------------------------------------------------
 
-    private void placeBet(Player player, long amount, double auto) {
-        if (state != State.BETTING) {
+    private void placeBet(Player player, Station st, long amount, double auto) {
+        if (!stations.containsValue(st))
+            return;
+        Station mine = stationOf(player.getUniqueId());
+        if (mine != null && mine != st && mine.state != State.PAUSE) {
+            player.sendMessage(msg("other_station", "&cYa estás jugando en otra mesa de Crash."));
+            return;
+        }
+        if (st.state != State.BETTING) {
             player.sendMessage(msg("not_betting", "&cAhora no se puede apostar. Espera la próxima ronda."));
             return;
         }
-        if (bets.containsKey(player.getUniqueId())) {
+        if (st.bets.containsKey(player.getUniqueId())) {
             player.sendMessage(msg("already_in", "&cYa apostaste en esta ronda."));
             return;
         }
@@ -453,24 +502,26 @@ public class CrashModule extends GameModule {
             return;
         }
         double a = auto >= 1.01 ? Math.floor(auto * 100.0) / 100.0 : 0.0;
-        bets.put(player.getUniqueId(), new Bet(amount, a));
+        if (mine != null && mine != st)
+            mine.bets.remove(player.getUniqueId()); // su ronda anterior en otra mesa ya terminó
+        st.bets.put(player.getUniqueId(), new Bet(amount, a));
         String suffix = a > 0 ? msg("auto_suffix", " &7Retiro automático en &fx{auto}&7.", "auto", fmt(a)) : "";
         player.sendMessage(msg("joined", "&aApostaste &e{amount}&a en Crash.{auto}",
                 "amount", units(amount), "auto", suffix));
         player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.4f);
     }
 
-    private void cashOut(Player player) {
-        Bet b = bets.get(player.getUniqueId());
-        if (b == null || state != State.RUNNING || b.cashedAt > 0) {
+    private void cashOut(Player player, Station st) {
+        Bet b = st.bets.get(player.getUniqueId());
+        if (b == null || st.state != State.RUNNING || b.cashedAt > 0) {
             player.sendMessage(msg("not_in", "&cNo estás jugando esta ronda."));
             return;
         }
-        doCashOut(player.getUniqueId(), b, multiplier);
+        doCashOut(st, player.getUniqueId(), b, st.multiplier);
     }
 
-    private void doCashOut(UUID id, Bet b, double mult) {
-        if (b.cashedAt > 0 || state != State.RUNNING || mult > crashPoint)
+    private void doCashOut(Station st, UUID id, Bet b, double mult) {
+        if (b.cashedAt > 0 || st.state != State.RUNNING || mult > st.crashPoint)
             return;
         b.cashedAt = mult;
         long payout = payoutFor(b, mult);
@@ -484,7 +535,7 @@ public class CrashModule extends GameModule {
         }
         String others = msg("cashout_others", "&6&lCrash &8» &f{player} &7retiró en &ax{mult} &7y ganó &e{amount}",
                 "player", p == null ? "?" : p.getName(), "mult", fmt(mult), "amount", units(payout));
-        for (UUID other : bets.keySet()) {
+        for (UUID other : st.bets.keySet()) {
             Player o = Bukkit.getPlayer(other);
             if (o != null && !other.equals(id))
                 o.sendMessage(others);
@@ -502,9 +553,14 @@ public class CrashModule extends GameModule {
     // Pantalla: barra superior, action bar y menú
     // ------------------------------------------------------------------
 
-    private void updateBar() {
+    private void updateBar(Station st) {
+        BossBar bar = st.bar;
         if (bar == null)
             return;
+        State state = st.state;
+        int secondsLeft = st.secondsLeft;
+        double multiplier = st.multiplier, crashPoint = st.crashPoint;
+        Map<UUID, Bet> bets = st.bets;
         String title;
         double progress;
         switch (state) {
@@ -529,10 +585,11 @@ public class CrashModule extends GameModule {
 
         boolean everyone = config().getBoolean("show_bar_to_everyone", false);
         Set<UUID> wanted = new HashSet<>(bets.keySet());
-        // Solo los que apostaron en la ronda (o todos si show_bar_to_everyone).
-        if (everyone) {
-            for (Player p : Bukkit.getOnlinePlayers())
-                wanted.add(p.getUniqueId());
+        // Solo los que apostaron en esta mesa (o, con show_bar_to_everyone, los que están cerca).
+        if (everyone && st.loc.getWorld() != null) {
+            for (Player p : st.loc.getWorld().getPlayers())
+                if (p.getLocation().distanceSquared(st.loc) <= 16 * 16)
+                    wanted.add(p.getUniqueId());
         }
         for (Player p : new ArrayList<>(bar.getPlayers())) {
             if (!wanted.contains(p.getUniqueId()))
@@ -545,8 +602,11 @@ public class CrashModule extends GameModule {
         }
     }
 
-    private void sendActionBars() {
-        for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
+    private void sendActionBars(Station st) {
+        State state = st.state;
+        int secondsLeft = st.secondsLeft;
+        double multiplier = st.multiplier;
+        for (Map.Entry<UUID, Bet> e : st.bets.entrySet()) {
             Player p = Bukkit.getPlayer(e.getKey());
             if (p == null)
                 continue;
@@ -580,11 +640,12 @@ public class CrashModule extends GameModule {
 
         @EventHandler
         public void onInteract(PlayerInteractEvent e) {
-            if (e.getAction() != Action.RIGHT_CLICK_BLOCK || stationAt(e.getClickedBlock()) == null)
+            Station st = e.getAction() != Action.RIGHT_CLICK_BLOCK ? null : stationAt(e.getClickedBlock());
+            if (st == null)
                 return;
             e.setCancelled(true);
             if (e.getHand() == EquipmentSlot.HAND)
-                stationClick(e.getPlayer(), e.getPlayer().isSneaking());
+                stationClick(e.getPlayer(), st, e.getPlayer().isSneaking());
         }
 
         @EventHandler
@@ -598,16 +659,17 @@ public class CrashModule extends GameModule {
         @EventHandler
         public void onQuit(PlayerQuitEvent e) {
             UUID id = e.getPlayer().getUniqueId();
-            Bet b = bets.get(id);
+            Station st = stationOf(id);
+            Bet b = st == null ? null : st.bets.get(id);
             if (b == null)
                 return;
-            if (state == State.BETTING) {
+            if (st.state == State.BETTING) {
                 // Aún no despegó: devolver.
-                bets.remove(id);
+                st.bets.remove(id);
                 TokenWallet.give(id, b.amount);
-            } else if (state == State.RUNNING && b.cashedAt == 0) {
+            } else if (st.state == State.RUNNING && b.cashedAt == 0) {
                 // Desconectarse = retirar en el multiplicador actual.
-                doCashOut(id, b, multiplier);
+                doCashOut(st, id, b, st.multiplier);
             }
         }
     }

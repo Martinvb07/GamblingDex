@@ -268,6 +268,7 @@ public final class HelpMenu {
             l.add("&8• &e/gdx blackjack seat <add|remove|list|clear> <name> &7- Asientos (parado encima)");
             l.add("&8• &e/gdx blackjack remove <name>&7|&elist &7- Gestionar mesas");
             l.add("&8• &e/gdx blackjack face <name> &7- El dealer mira hacia donde estás");
+            l.add("&8• &e/gdx blackjack rename <table> <name...> &7- Nombre de la mesa (con colores)");
             l.add("&8• &7Título de la mesa: &fmodules/blackjack.yml &7→ &ftable_names");
         }
         return l;
@@ -282,6 +283,7 @@ public final class HelpMenu {
             l.add("&8• &e/gdx poker create <name> [small] [big] &7- Crear mesa (mirando el centro)");
             l.add("&8• &e/gdx poker seat <add|remove|list|clear> <name> &7- Asientos (en orden horario)");
             l.add("&8• &e/gdx poker stakes <name> <small> <big> &7- Cambiar ciegas");
+            l.add("&8• &e/gdx poker rename <table> <name...> &7- Nombre de la mesa (con colores)");
             l.add("&8• &e/gdx poker tournament <table> <fee> [chips] [minutes] &7- Abrir torneo");
             l.add("&8• &e/gdx poker tournament <start|cancel> <table>");
             l.add("&8• &e/gdx poker remove <name>&7|&elist&7|&erake");

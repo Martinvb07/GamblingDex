@@ -66,6 +66,21 @@ public class BlackjackBetMenu {
             int denom = entry.getValue();
             int count = countTokens(player, mat);
 
+            if (denom < table.getMinChip()) {
+                // La mesa no acepta fichas tan pequeñas
+                ItemStack no = new ItemStack(Material.GRAY_DYE);
+                ItemMeta nm = no.getItemMeta();
+                if (nm != null) {
+                    nm.setDisplayName("§8" + denom + " ⛃");
+                    nm.setLore(List.of("§cEsta mesa no acepta esta ficha.",
+                            "§7Ficha mínima: §e" + prettyUnits(table.getMinChip())));
+                    no.setItemMeta(nm);
+                }
+                inv.setItem(tokenSlots[idx], no);
+                idx++;
+                continue;
+            }
+
             ItemStack icon = tokenManager.createToken(mat, 1);
             icon.setAmount(Math.min(64, Math.max(1, count)));
 
@@ -110,8 +125,7 @@ public class BlackjackBetMenu {
             lore.add("§7Mesa: §e" + prettyUnits(table.getMinBet()) + " §7- §e"
                     + (table.getMaxBet() > 0 ? prettyUnits(table.getMaxBet()) : "∞"));
             if (sideBets)
-                lore.add("§7Laterales: §e" + prettyUnits(table.getSideMinBet()) + " §7- §e"
-                        + (table.getSideMaxBet() > 0 ? prettyUnits(table.getSideMaxBet()) : "∞"));
+                lore.add("§7Laterales: §fmín. §e" + prettyUnits(table.getSideMinBet()) + " §7(sin tope)");
             lore.add("§7Haz clic en una ficha para apostar.");
             lore.add("§7Cierra el menú cuando termines.");
             infoMeta.setLore(lore);

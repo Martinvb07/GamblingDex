@@ -131,6 +131,12 @@ public class BlackjackMenuListener implements Listener {
             if (denom == null) {
                 return;
             }
+            if (denom < table.getMinChip()) {
+                player.sendMessage(plugin.getMessages().format("blackjack.chip_too_small",
+                        "&cEsta mesa solo acepta fichas de &e{min}&c o más.",
+                        java.util.Map.of("min", String.valueOf(table.getMinChip()))));
+                return;
+            }
 
             int wanted = event.isShiftClick() ? countTokens(player, mat) : 1;
             if (wanted <= 0) {

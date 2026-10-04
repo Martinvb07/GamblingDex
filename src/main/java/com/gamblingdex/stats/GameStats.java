@@ -218,6 +218,10 @@ public class GameStats {
         }
         dirty = true;
 
+        var lock = plugin.getBonusLock();
+        if (lock != null)
+            lock.onWager(player, wager, payout);
+
         var ach = plugin.getAchievements();
         if (ach != null)
             ach.onPlay(player, game, wager, payout, all.rounds);

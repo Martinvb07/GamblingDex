@@ -1,32 +1,53 @@
 # ==========================
-# GamblingDex - Bono diario
+# GamblingDex - Bonos
 # ==========================
 # Admin: mira un bloque y usa: /gdx station set daily   (quitar: /gdx station remove)
-# Jugadores: click derecho a la estación -> fichas gratis una vez al día.
-# El día cambia a medianoche según stats.timezone (config.yml).
+# Jugadores: click derecho a la estación -> menú con el bono diario, semanal y mensual.
+# Cada bono se puede reclamar otra vez cuando pasa su tiempo desde la última vez
+# (24 h, 7 días, 30 días), sin importar la hora del día.
 
 enabled: true
 
-amount: 500                 # fichas base
+menu_title: "&8&l✦ &a&lBONOS &8&l✦"
+
+# Recompensas del menú (puedes agregar o quitar). Siempre dan FICHAS.
+rewards:
+  daily:
+    name: "&a&lBono diario"
+    icon: SUNFLOWER
+    amount: 500
+    cooldown_hours: 24
+    streak: true            # suma un % extra por cada día seguido
+  weekly:
+    name: "&b&lBono semanal"
+    icon: DIAMOND
+    amount: 5000
+    cooldown_hours: 168
+  monthly:
+    name: "&d&lBono mensual"
+    icon: NETHER_STAR
+    amount: 25000
+    cooldown_hours: 720
+
+# Racha del bono diario (si se reclama antes de que pasen 48 h desde el anterior)
 streak_bonus_percent: 10    # +10% por cada día seguido...
 max_streak: 7               # ...hasta 7 días (día 7 = +60%)
 
-# Rangos: si el jugador tiene el permiso, recibe esta base (se usa el mayor)
-tiers:
-  vip:
-    permission: gamblingdex.daily.vip
-    amount: 1000
-  mvp:
-    permission: gamblingdex.daily.mvp
-    amount: 2000
+# Las fichas de bono NO se pueden vender por dinero hasta apostar
+# "multiplier" veces lo reclamado (ej. bono de 500 -> apostar 1.500).
+# Sí se pueden usar para jugar. Lo perdido apostando reduce las fichas bloqueadas.
+wagering:
+  enabled: true
+  multiplier: 3
 
-station_holo: "&a&lBONO DIARIO\n&7Click para reclamar"
+station_holo: "&a&lBONOS\n&7Click para reclamar"
 station_holo_height: 1.2
 
 messages:
-  claimed: "&a&l✦ BONO DIARIO &8» &7Recibiste &e{amount} &7fichas. &8(racha: &f{streak} &8día(s))"
-  already: "&cYa reclamaste tu bono hoy. Vuelve en &f{time}&c."
-  use_station: "&7El bono diario se reclama en su estación del casino (&fclick derecho&7)."
-  exists: "&cEse bloque ya es una estación de bono diario."
-  station_created: "&aEstación de bono diario creada."
-  station_removed: "&aEstación de bono diario eliminada."
+  claimed: "&a&l✦ BONO &8» &7Recibiste &e{amount} &7fichas ({reward}&7)."
+  wagering: "&8Estas fichas se pueden vender cuando hayas apostado x{mult} lo reclamado."
+  already: "&cYa reclamaste {reward}&c. Vuelve en &f{time}&c."
+  use_station: "&7Los bonos se reclaman en su estación del casino (&fclick derecho&7)."
+  exists: "&cEse bloque ya es una estación de bonos."
+  station_created: "&aEstación de bonos creada."
+  station_removed: "&aEstación de bonos eliminada."

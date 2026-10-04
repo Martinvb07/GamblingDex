@@ -46,11 +46,11 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), con **jackpot** acumulado que cae en un número al azar. Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
-| 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
+| 📈 **Crash** | Cada mesa tiene su propia ronda, con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 | 💣 **Mines** | **Estación con menú**: tablero de 5×5 en un cofre, eliges apuesta y minas, cada casilla segura sube el multiplicador y te retiras cuando quieras (juegan varios a la vez). También se puede construir como **pared física** de 5×5. |
 | 🎯 **Plinko** | **Estación con menú**: la bola baja animada entre los clavos y cae en una casilla con multiplicador (shift = 5 bolas). También como **pared física** con clavos; las orillas pagan hasta x10. |
-| 🎁 **Bono diario** | Estación donde cada jugador reclama fichas gratis una vez al día, con bonus por racha y montos por rango. |
+| 🎁 **Bonos** | Estación con menú: bono **diario** (24 h, con racha), **semanal** y **mensual**, en fichas. Las fichas de bono no se pueden vender por dinero hasta apostar x3 lo reclamado (configurable). |
 
 ### Juegos por menú / comando
 
@@ -145,14 +145,15 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
 | `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
 | `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |
-| `/gdx station set daily` | Estación de bono diario |
+| `/gdx station set daily` | Estación de bonos (diario, semanal, mensual) |
 | `/gdx station set baccarat [name]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
 | `/gdx baccarat seat <add\|remove\|list\|clear> <table>` | Asientos de baccarat (parado encima) |
 | `/gdx station set race <distance> <lanes> [name]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radius] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <name>` | Mesas de blackjack |
 | `/gdx blackjack seat <add\|remove\|list\|clear> <name>` | Asientos de blackjack |
-| `/gdx blackjack create <name> [min] [max]` · `limits <name> <min> [max]` | Apuesta mínima y máxima de cada mesa (ej. `create Blackjack2 25000 100000`); las laterales 21+3 y pares van a 1/5: 5.000 - 20.000 |
+| `/gdx blackjack create <name> [min] [max]` · `limits <name> <min> [max]` | Apuesta mínima y máxima de cada mesa (ej. `create Blackjack2 25000 100000`); las laterales 21+3 y pares tienen mínimo 1/5 (5.000) y no tienen tope, y solo se aceptan fichas de 5.000 o más |
+| `/gdx blackjack rename <table> <name...>` · `poker rename` · `baccarat rename` | Renombrar la mesa desde el juego, con colores y símbolos (ej. `&6&l♠ BLACKJACK &8\| &eVIP`); `-` vuelve al nombre interno |
 | `/gdx blackjack face <name>` | El dealer mira hacia donde estás (al crear la mesa ya mira hacia ti) |
 | `/gdx poker create <name> [small] [big]` | Crear mesa de póker |
 | `/gdx poker <remove\|list\|stakes\|rake> ...` | Gestionar mesas de póker |
@@ -180,7 +181,6 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `gamblingdex.top` | Ver el ranking | Todos |
 | `gamblingdex.stats.others` | Ver estadísticas de otros | OP |
 | `gamblingdex.admin` | Comandos de administración | OP |
-| `gamblingdex.daily.vip` · `gamblingdex.daily.mvp` | Bono diario mayor (`modules/daily.yml` → `tiers`) | Nadie |
 
 Ejemplo con LuckPerms:
 

@@ -215,7 +215,7 @@ public class BlackjackTable {
         return maxBet > 0 ? maxBet : Math.max(0, plugin.getConfig().getLong("blackjack.max_bet", 0));
     }
 
-    /** Las laterales (21+3 y pares) van a 1/side_bet_divisor de los límites de la mesa (por defecto 1/5). */
+    /** Las laterales (21+3 y pares) tienen mínimo = mínimo de la mesa / side_bet_divisor (5) y no tienen tope. */
     private long sideDivisor() {
         return Math.max(1, plugin.getConfig().getLong("blackjack.side_bet_divisor", 5));
     }
@@ -224,9 +224,12 @@ public class BlackjackTable {
         return getMinBet() > 1 ? Math.max(1, getMinBet() / sideDivisor()) : 1;
     }
 
-    /** 0 = sin tope. */
-    public long getSideMaxBet() {
-        return getMaxBet() > 0 ? Math.max(1, getMaxBet() / sideDivisor()) : 0;
+    /**
+     * Ficha más pequeña que acepta la mesa: la apuesta lateral mínima (mínimo / 5).
+     * Ej. mesa de 25.000 → solo fichas de 5.000 o más.
+     */
+    public long getMinChip() {
+        return getSideMinBet();
     }
 
     private boolean hasLimits() {
@@ -1032,7 +1035,7 @@ public class BlackjackTable {
 
         Map<UUID, Long> target = betMap(spot);
         long newBet = target.getOrDefault(player.getUniqueId(), 0L) + amountUnits;
-        long max = spot == BetSpot.MAIN ? getMaxBet() : getSideMaxBet();
+        long max = spot == BetSpot.MAIN ? getMaxBet() : 0; // las laterales no tienen tope
         if (max > 0 && newBet > max) {
             player.sendMessage(plugin.getMessages().format(
                     "blackjack.bet_over_max",
