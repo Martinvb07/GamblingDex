@@ -1,0 +1,69 @@
+joined: "&aTe uniste al Blackjack."
+left: "&7Saliste del Blackjack."
+not_joined: "&7No estás en esta partida."
+already_joined: "&eYa estás en esta partida."
+table_full: "&cLímite de jugadores alcanzado. (&f{max}&c)"
+cannot_join_in_game: "&cNo puedes unirte: la partida ya empezó."
+must_stand_on_seat: "&cPárate en un asiento para jugar."
+no_seats_configured: "&cEste dealer no tiene asientos configurados."
+
+dealer_name: "&cDealer"
+table_name: "&6&lBLACKJACK"
+
+wait_next_round: "&eLa ronda está en curso. &7Espera a que termine para entrar."
+
+hint_bet: "&7Cuando abran las apuestas, el menú se abre automáticamente."
+betting_started: "&eApuestas abiertas por &f{seconds}&e segundos."
+bet_placed: "&aApuesta &7({spot})&a: &e+{amount}&a (total: &e{total}&a)"
+bet_cleared: "&7Retiraste tus apuestas: &e{amount}"
+bets_closed: "&cApuestas cerradas."
+not_enough_bets: "&cNo hubo suficientes apuestas. (mínimo {min})"
+shuffle: "&7El dealer baraja el zapato..."
+
+round_started: "&aRonda iniciada. ¡Suerte!"
+your_turn: "&eTu turno: el menú se abre automáticamente. (&f{seconds}&7s)"
+not_your_turn: "&cNo es tu turno."
+turn_timeout: "&7Tiempo. Se aplicó Stand."
+not_playing: "&cLa partida no está en curso."
+not_in_round: "&cNo estás en esta ronda."
+
+hit: "&eHit. &7Valor: &f{value}"
+stand: "&7Stand."
+double: "&eDoblas. Apuesta total: &f{total}"
+double_not_allowed: "&cNo puedes doblar ahora."
+double_not_enough_tokens: "&cNo tienes fichas suficientes para doblar. &7(Necesitas &f{needed}&7)"
+bust: "&cTe pasaste. (&f{value}&c)"
+blackjack: "&6&lBLACKJACK!"
+
+dealer_blackjack: "&c&lEl dealer tiene BLACKJACK."
+dealer_reveal: "&7El dealer voltea su carta: &f{cards} &8(&f{value}&8)"
+dealer_hit: "&7El dealer pide: &f{card} &8→ &f{value}"
+dealer_final: "&cDealer&8: &f{cards} &8(&f{value}&8)"
+
+side_bet:
+  win: "&8[&d{bet}&8] &a&l{hand}! &7Paga &f{mult}:1 &8→ &a+{amount}"
+  lose: "&8[&d{bet}&8] &7Sin premio. &c-{amount}"
+
+table_missing: "&cEse dealer ya no existe."
+
+bet_menu:
+  no_tokens: "&cNo tienes fichas de ese tipo."
+
+result:
+  win: "&aGanaste &f{amount}&a en fichas."
+  push: "&eEmpate. &7Recuperas &f{amount}&7 en fichas."
+  lose: "&cPerdiste tu apuesta. &8(&fTú {you} &8vs &fDealer {dealer}&8)"
+
+cannot_break: "&cNo puedes romper un dealer de Blackjack."
+removed: "&aBlackjack eliminado."
+
+holo:
+  title: "&6&lBLACKJACK"
+  waiting: "&7Esperando jugadores... &8(&f{players}&7/&f{max}&8)"
+  betting: "&eApuestas: &f{seconds}&7s &8(&f{players}&7)"
+  playing: "&aEn juego &8| &7Turno: &f{turn} &8(&f{seconds}&7s&8)"
+  player: "&e{turn}{player}&8: &f{cards} &8(&f{value}&8)"
+  dealer: "&cDealer&8: &f{cards} &8(&f{value}&8)"
+  dealer_waiting: "&cDealer&8: &7-"
+  dealer_turn: "&cTurno del dealer..."
+  results: "&6Resultados &8| &7Siguiente ronda en &f{seconds}&7s"

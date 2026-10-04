@@ -1,0 +1,22 @@
+now_bet_with_tokens: "&7Ahora apuesta con tokens (click derecho al centro o al número)."
+cannot_break: "&cNo puedes romper una ruleta de GamblingDex."
+removed: "&aRuleta eliminada."
+
+bet_menu:
+  table_missing: "&cEsa ruleta ya no existe."
+  selection: "&eApuesta seleccionada: &f{selection}"
+
+number_selected: "&eNúmero seleccionado: &f{number}"
+need_tokens: "&cNecesitas apostar tokens."
+bets_closed: "&cApuestas cerradas. &7Espera a que se abran."
+select_number_first: |-
+  &cSelecciona un número primero (click a un número).
+  &7Tip: click izquierdo al centro para cambiar tipo.
+max_bets: "&cLlegaste al máximo de apuestas por ronda: &f{max}"
+bet_added: "&aApuesta agregada: &e{amount}&a en &f{bet}&7 ({current}/{max})"
+bet_updated: "&aApuesta actualizada: &e+{amount}&a en &f{bet}&7 (total: &f{total}&7)"
+win: "&aGanaste &e{amount}&a en la ruleta."
+lose: "&cPerdiste tus apuestas en la ruleta."
+winners_header: "&6&lRuleta ganadores &8(&f{number}&8)"
+winners_none: "&7Nadie ganó esta ronda."
+winners_entry: "&e{name} &8» &a+{amount}"

@@ -1,0 +1,35 @@
+depend: [Vault]
+name: GamblingDex
+main: com.gamblingdex.GamblingDexPlugin
+version: 1.0.0
+api-version: 1.20
+author: marti
+website: https://example.com
+description: Plugin de juegos de azar para tu servidor.
+
+commands:
+  gamblingdex:
+    description: Comando principal de GamblingDex.
+    usage: "/gamblingdex help"
+    aliases: [gambledex, gdx]
+
+permissions:
+  gamblingdex.use:
+    description: Permite usar los comandos básicos de GamblingDex.
+    default: true
+
+  gamblingdex.stats.self:
+    description: Permite ver tus estadísticas (/gdx stats).
+    default: true
+
+  gamblingdex.stats.others:
+    description: Permite ver estadísticas de otros jugadores (/gdx stats <jugador>).
+    default: op
+
+  gamblingdex.top:
+    description: Permite ver el ranking (/gdx top).
+    default: true
+
+  gamblingdex.admin:
+    description: Permite usar comandos administrativos de GamblingDex.
+    default: op

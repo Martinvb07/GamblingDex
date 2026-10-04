@@ -1,0 +1,5 @@
+roulette:
+  header: "&6&lRULETA"
+  line1: "&7Esta ruleta se juega en una mesa física."
+  admin_hint: "&8- &f/gdx roulette build [radio]&7 para construir una."
+  line2: "&8- &7Luego haz &fclick&7 al centro/números con tokens para apostar."

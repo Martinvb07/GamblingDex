@@ -1,0 +1,5 @@
+bet:
+  token_selected: "&aApostaste con una ficha {token}"
+
+buy_token:
+  bought: "&aHas comprado una ficha {token}"

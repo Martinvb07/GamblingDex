@@ -1,0 +1,821 @@
+package com.gamblingdex.games.rouletteworld;
+
+import com.gamblingdex.GamblingDexPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.text.NumberFormat;
+import java.util.Locale;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
+public class WorldRouletteTable {
+
+    private static String applyPlaceholders(String template, Map<String, String> values) {
+        String out = template == null ? "" : template;
+        if (values == null || values.isEmpty())
+            return out;
+        for (Map.Entry<String, String> e : values.entrySet()) {
+            if (e.getKey() == null)
+                continue;
+            out = out.replace("{" + e.getKey() + "}", e.getValue() == null ? "" : e.getValue());
+        }
+        return out;
+    }
+
+    private String msg(String path, String def) {
+        if (path != null && path.startsWith("messages.") && plugin.getMessages() != null) {
+            return plugin.getMessages().getString(path.substring("messages.".length()), def);
+        }
+        return plugin.color(plugin.getConfig().getString(path, def));
+    }
+
+    private String msg(String path, String def, Map<String, String> placeholders) {
+        if (path != null && path.startsWith("messages.") && plugin.getMessages() != null) {
+            return plugin.getMessages().format(path.substring("messages.".length()), def, placeholders);
+        }
+        String raw = plugin.getConfig().getString(path, def);
+        return plugin.color(applyPlaceholders(raw, placeholders));
+    }
+
+    private static void sendMultiline(Player player, String message) {
+        if (player == null || message == null)
+            return;
+        String[] lines = message.split("\n", -1);
+        for (String line : lines) {
+            if (line == null)
+                continue;
+            player.sendMessage(line.isEmpty() ? " " : line);
+        }
+    }
+
+    public static final class OriginalBlock {
+        private final Material type;
+        private final String blockData;
+
+        public OriginalBlock(Material type, String blockData) {
+            this.type = type;
+            this.blockData = blockData;
+        }
+
+        public Material getType() {
+            return type;
+        }
+
+        public String getBlockData() {
+            return blockData;
+        }
+    }
+
+    public enum State {
+        WAITING,
+        COUNTDOWN,
+        SPINNING
+    }
+
+    private final GamblingDexPlugin plugin;
+    private final String tableKey;
+    private final Location center;
+    private final int radius;
+
+    private final Map<String, Integer> segmentKeyToNumber;
+    private final Map<Integer, Location> numberToBlockLocation;
+    // locationKey -> original block info (center + segments)
+    private final Map<String, OriginalBlock> originals;
+
+    private final List<UUID> numberDisplayIds;
+    private final List<UUID> holoDisplayIds;
+
+    private final Map<UUID, WorldRouletteSelection> selections = new HashMap<>();
+    // player -> (betKey -> bet)
+    private final Map<UUID, Map<String, WorldRouletteBet>> bets = new HashMap<>();
+
+    private State state = State.WAITING;
+    private int countdownSeconds = 0;
+    private BukkitTask countdownTask;
+    private BukkitTask spinTask;
+    private BukkitTask cycleTask;
+    private String lastHighlightKey;
+
+    public WorldRouletteTable(
+            GamblingDexPlugin plugin,
+            String tableKey,
+            Location center,
+            int radius,
+            Map<String, Integer> segmentKeyToNumber,
+            Map<Integer, Location> numberToBlockLocation,
+            Map<String, OriginalBlock> originals,
+            List<UUID> numberDisplayIds,
+            List<UUID> holoDisplayIds) {
+        this.plugin = plugin;
+        this.tableKey = tableKey;
+        this.center = center;
+        this.radius = radius;
+        this.segmentKeyToNumber = segmentKeyToNumber;
+        this.numberToBlockLocation = numberToBlockLocation;
+        this.originals = (originals == null ? new HashMap<>() : originals);
+        this.numberDisplayIds = numberDisplayIds;
+        this.holoDisplayIds = holoDisplayIds;
+    }
+
+    public Map<String, OriginalBlock> getOriginals() {
+        return originals;
+    }
+
+    public String getTableKey() {
+        return tableKey;
+    }
+
+    public Location getCenter() {
+        return center;
+    }
+
+    public int getRadius() {
+        return radius;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public Integer getNumberForBlock(Block block) {
+        if (block == null)
+            return null;
+        return segmentKeyToNumber.get(WorldRouletteTables.key(block.getLocation()));
+    }
+
+    public boolean isCenter(Block block) {
+        if (block == null)
+            return false;
+        return WorldRouletteTables.key(block.getLocation()).equals(tableKey);
+    }
+
+    public boolean isPartOfTable(Block block) {
+        if (block == null)
+            return false;
+        String key = WorldRouletteTables.key(block.getLocation());
+        return key.equals(tableKey) || segmentKeyToNumber.containsKey(key);
+    }
+
+    public WorldRouletteSelection getSelection(UUID playerId) {
+        return selections.computeIfAbsent(playerId, id -> new WorldRouletteSelection(WorldRouletteBetType.RED, null));
+    }
+
+    public void setSelectionType(Player player, WorldRouletteBetType type) {
+        if (player == null || type == null)
+            return;
+        WorldRouletteSelection sel = getSelection(player.getUniqueId());
+        sel.setType(type);
+        if (type != WorldRouletteBetType.NUMBER) {
+            sel.setNumber(null);
+        }
+    }
+
+    public String describeSelection(UUID playerId) {
+        WorldRouletteSelection sel = getSelection(playerId);
+        if (sel.getType() == WorldRouletteBetType.NUMBER) {
+            if (sel.getNumber() == null)
+                return "NÚMERO (sin seleccionar)";
+            return "NÚMERO " + WorldRouletteTables.formatNumber(sel.getNumber());
+        }
+        return switch (sel.getType()) {
+            case RED -> "ROJO";
+            case BLACK -> "NEGRO";
+            case EVEN -> "PAR";
+            case ODD -> "IMPAR";
+            case NUMBER -> "NÚMERO";
+        };
+    }
+
+    public void selectNumber(Player player, int number) {
+        WorldRouletteSelection sel = getSelection(player.getUniqueId());
+        sel.setType(WorldRouletteBetType.NUMBER);
+        sel.setNumber(number);
+        player.sendMessage(msg(
+                "messages.roulette_world.number_selected",
+                "&eNúmero seleccionado: &f{number}",
+                Map.of("number", WorldRouletteTables.formatNumber(number))));
+    }
+
+    public boolean hasBet(UUID playerId) {
+        Map<String, WorldRouletteBet> m = bets.get(playerId);
+        return m != null && !m.isEmpty();
+    }
+
+    public int getBetCount(UUID playerId) {
+        Map<String, WorldRouletteBet> m = bets.get(playerId);
+        return (m == null) ? 0 : m.size();
+    }
+
+    public boolean placeBet(Player player, long amountUnits) {
+        if (amountUnits <= 0) {
+            player.sendMessage(msg("messages.roulette_world.need_tokens", "&cNecesitas apostar tokens."));
+            return false;
+        }
+
+        // Bets are only allowed during the betting window.
+        if (state != State.COUNTDOWN) {
+            player.sendMessage(msg(
+                    "messages.roulette_world.bets_closed",
+                    "&cApuestas cerradas. &7Espera a que se abran."));
+            return false;
+        }
+
+        // (state == COUNTDOWN here)
+
+        int maxBets = Math.max(1, plugin.getConfig().getInt("roulette_world.max_bets_per_player", 10));
+        int currentCount = getBetCount(player.getUniqueId());
+
+        WorldRouletteSelection sel = getSelection(player.getUniqueId());
+        if (sel.getType() == WorldRouletteBetType.NUMBER && sel.getNumber() == null) {
+            sendMultiline(player, msg(
+                    "messages.roulette_world.select_number_first",
+                    "&cSelecciona un número primero (click a un número).\n&7Tip: click izquierdo al centro para cambiar tipo."));
+            return false;
+        }
+
+        WorldRouletteBetType type = sel.getType();
+        Integer number = sel.getNumber();
+        String betKey = betKey(type, number);
+
+        Map<String, WorldRouletteBet> map = bets.computeIfAbsent(player.getUniqueId(), id -> new HashMap<>());
+        WorldRouletteBet existing = map.get(betKey);
+        boolean isNewKey = existing == null;
+        if (isNewKey && currentCount >= maxBets) {
+            player.sendMessage(msg(
+                    "messages.roulette_world.max_bets",
+                    "&cLlegaste al máximo de apuestas por ronda: &f{max}",
+                    Map.of("max", String.valueOf(maxBets))));
+            return false;
+        }
+
+        long newAmount = amountUnits;
+        if (existing != null) {
+            newAmount = existing.getAmount() + amountUnits;
+        }
+
+        WorldRouletteBet bet = new WorldRouletteBet(player.getUniqueId(), type, number, newAmount);
+        map.put(betKey, bet);
+
+        try {
+            plugin.getRouletteStatsManager().recordWager(player.getUniqueId(), amountUnits);
+        } catch (Throwable ignored) {
+        }
+
+        String pretty = prettyUnits(amountUnits);
+        if (existing == null) {
+            player.sendMessage(msg(
+                    "messages.roulette_world.bet_added",
+                    "&aApuesta agregada: &e{amount}&a en &f{bet}&7 ({current}/{max})",
+                    Map.of(
+                            "amount", pretty,
+                            "bet", describeBet(bet),
+                            "current", String.valueOf(currentCount + 1),
+                            "max", String.valueOf(maxBets))));
+        } else {
+            player.sendMessage(msg(
+                    "messages.roulette_world.bet_updated",
+                    "&aApuesta actualizada: &e+{amount}&a en &f{bet}&7 (total: &f{total}&7)",
+                    Map.of(
+                            "amount", pretty,
+                            "bet", describeBet(bet),
+                            "total", prettyUnits(newAmount))));
+        }
+
+        return true;
+    }
+
+    public void ensureAutoCycleStarted() {
+        boolean enabled = plugin.getConfig().getBoolean("roulette_world.auto_cycle.enabled", true);
+        if (!enabled)
+            return;
+
+        if (cycleTask != null)
+            return;
+
+        int intervalSeconds = Math.max(5, plugin.getConfig().getInt("roulette_world.auto_cycle.interval_seconds", 45));
+
+        cycleTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.WAITING)
+                return;
+            // Don't open if nobody is around in this world.
+            World w = center.getWorld();
+            if (w == null)
+                return;
+            if (w.getPlayers().isEmpty())
+                return;
+
+            startCountdown();
+        }, 20L, intervalSeconds * 20L);
+    }
+
+    public void stopAllTasks() {
+        if (countdownTask != null) {
+            countdownTask.cancel();
+            countdownTask = null;
+        }
+        if (spinTask != null) {
+            spinTask.cancel();
+            spinTask = null;
+        }
+        if (cycleTask != null) {
+            cycleTask.cancel();
+            cycleTask = null;
+        }
+    }
+
+    /**
+     * Cancela la ronda en curso (reload / apagado / mesa eliminada) devolviendo
+     * las fichas apostadas, para que no se pierdan.
+     */
+    public void abortRound() {
+        stopAllTasks();
+        for (Map.Entry<UUID, Map<String, WorldRouletteBet>> e : bets.entrySet()) {
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (e.getValue() == null)
+                continue;
+            long total = 0L;
+            for (WorldRouletteBet b : e.getValue().values()) {
+                total += b.getAmount();
+            }
+            if (p == null) {
+                plugin.getPendingPayouts().add(e.getKey(), total);
+                continue;
+            }
+            if (total > 0) {
+                plugin.getTokenPayout().pay(p, total);
+                p.sendMessage(msg(
+                        "messages.roulette_world.round_aborted",
+                        "&eLa ronda de ruleta se canceló. Se te devolvieron &f{amount}&e en fichas.",
+                        Map.of("amount", prettyUnits(total))));
+            }
+        }
+        bets.clear();
+        restoreGlowstoneSegmentsExcept(null);
+        lastHighlightKey = null;
+        state = State.WAITING;
+    }
+
+    public void refreshHologramFromConfig() {
+        World w = center.getWorld();
+        if (w == null)
+            return;
+
+        double holoHeight = plugin.getConfig().getDouble("roulette_world.holo_height", 2.3);
+        Location holoBase = center.clone().add(0.5, holoHeight, 0.5);
+
+        List<String> lines = plugin.getConfig().getStringList("roulette_world.holo_lines");
+        if (lines == null || lines.isEmpty()) {
+            lines = List.of("§6§lRULETA", "§7Click derecho con tokens para apostar", "§eEsperando jugadores...");
+        }
+
+        for (int i = 0; i < holoDisplayIds.size(); i++) {
+            Entity e = w.getEntity(holoDisplayIds.get(i));
+            if (!(e instanceof TextDisplay td))
+                continue;
+
+            Location l = holoBase.clone().add(0, -0.25 * i, 0);
+            td.teleport(l);
+
+            String text = (i < lines.size()) ? plugin.color(lines.get(i)) : "";
+            td.setText(text);
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setSeeThrough(true);
+            td.setDefaultBackground(false);
+            td.setShadowed(true);
+        }
+    }
+
+    private static String betKey(WorldRouletteBetType type, Integer number) {
+        if (type == null)
+            return "?";
+        if (type == WorldRouletteBetType.NUMBER) {
+            return "NUMBER:" + (number == null ? "?" : number);
+        }
+        return type.name();
+    }
+
+    private static String prettyUnits(long units) {
+        try {
+            return NumberFormat.getInstance(new Locale("es", "ES")).format(units);
+        } catch (Exception ignored) {
+            return String.valueOf(units);
+        }
+    }
+
+    private static String describeBet(WorldRouletteBet bet) {
+        return switch (bet.getType()) {
+            case RED -> "ROJO";
+            case BLACK -> "NEGRO";
+            case EVEN -> "PAR";
+            case ODD -> "IMPAR";
+            case NUMBER ->
+                "NÚMERO " + (bet.getNumber() == null ? "?" : WorldRouletteTables.formatNumber(bet.getNumber()));
+        };
+    }
+
+    private void startCountdown() {
+        state = State.COUNTDOWN;
+        countdownSeconds = plugin.getConfig().getInt("roulette_world.bet_window_seconds", 25);
+
+        updateHologramLine(2, "§aAPUESTAS ABIERTAS §7(" + countdownSeconds + "s)");
+
+        if (countdownTask != null)
+            countdownTask.cancel();
+        countdownTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.COUNTDOWN)
+                return;
+
+            countdownSeconds--;
+            if (countdownSeconds <= 0) {
+                if (countdownTask != null)
+                    countdownTask.cancel();
+                countdownTask = null;
+                closeBetsAndMaybeSpin();
+                return;
+            }
+
+            updateHologramLine(2, "§aAPUESTAS ABIERTAS §7(" + countdownSeconds + "s)");
+        }, 20L, 20L);
+    }
+
+    private void closeBetsAndMaybeSpin() {
+        // Remove bets from offline players (avoids phantom participants).
+        // Sus fichas se devuelven cuando vuelvan a entrar.
+        bets.entrySet().removeIf(e -> {
+            if (e.getValue() == null || e.getValue().isEmpty())
+                return true;
+            if (Bukkit.getPlayer(e.getKey()) != null)
+                return false;
+            long total = 0L;
+            for (WorldRouletteBet b : e.getValue().values()) {
+                total += b.getAmount();
+            }
+            plugin.getPendingPayouts().add(e.getKey(), total);
+            return true;
+        });
+        selections.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
+
+        updateHologramLine(2, "§cAPUESTAS CERRADAS");
+
+        // If nobody bet, do not spin.
+        if (bets.isEmpty()) {
+            state = State.WAITING;
+            updateHologramLine(2, "§cAPUESTAS CERRADAS");
+            return;
+        }
+
+        startSpin();
+    }
+
+    private void startSpin() {
+        state = State.SPINNING;
+        updateHologramLine(2, "§6Girando...");
+        restoreLastHighlight();
+
+        // Basic animation: hop through wheel order for N ticks, then stop on winner.
+        List<Integer> sequence = new ArrayList<>();
+        for (int n : WorldRouletteTables.WHEEL_ORDER) {
+            if (numberToBlockLocation.containsKey(n)) {
+                sequence.add(n);
+            }
+        }
+        if (sequence.isEmpty()) {
+            sequence.addAll(numberToBlockLocation.keySet());
+        }
+
+        int winningNumber = sequence.get(ThreadLocalRandom.current().nextInt(sequence.size()));
+
+        int ticks = plugin.getConfig().getInt("roulette_world.spin_ticks", 120);
+        int stepEvery = Math.max(1, plugin.getConfig().getInt("roulette_world.step_ticks", 2));
+
+        if (spinTask != null)
+            spinTask.cancel();
+        spinTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int t = 0;
+            int idx = 0;
+
+            @Override
+            public void run() {
+                t++;
+                if (t % stepEvery == 0) {
+                    int current = sequence.get(idx % sequence.size());
+                    highlightNumber(current);
+                    idx++;
+                }
+
+                if (t >= ticks) {
+                    // force highlight winner
+                    highlightNumber(winningNumber);
+                    if (spinTask != null)
+                        spinTask.cancel();
+                    spinTask = null;
+                    finishRound(winningNumber);
+                }
+            }
+        }, 1L, 1L);
+    }
+
+    private void highlightNumber(int number) {
+        Location loc = numberToBlockLocation.get(number);
+        if (loc == null)
+            return;
+        World w = loc.getWorld();
+        if (w == null)
+            return;
+
+        String key = WorldRouletteTables.key(loc);
+        restoreGlowstoneSegmentsExcept(key);
+        if (lastHighlightKey != null && !lastHighlightKey.equals(key)) {
+            restoreBlock(lastHighlightKey);
+        }
+
+        if (!originals.containsKey(key)) {
+            Block b = w.getBlockAt(loc);
+            originals.put(key, new OriginalBlock(b.getType(), b.getBlockData().getAsString()));
+        }
+
+        w.getBlockAt(loc).setType(Material.GLOWSTONE, false);
+        lastHighlightKey = key;
+        w.playSound(loc, org.bukkit.Sound.UI_BUTTON_CLICK, 0.6f, 1.4f);
+    }
+
+    private void restoreGlowstoneSegmentsExcept(String keepKey) {
+        if (segmentKeyToNumber == null || segmentKeyToNumber.isEmpty())
+            return;
+        for (String key : segmentKeyToNumber.keySet()) {
+            if (key == null || key.equals(keepKey))
+                continue;
+            Location loc = parseKey(key);
+            if (loc == null || loc.getWorld() == null)
+                continue;
+            if (loc.getWorld().getBlockAt(loc).getType() == Material.GLOWSTONE) {
+                restoreBlock(key);
+            }
+        }
+    }
+
+    private void restoreLastHighlight() {
+        if (lastHighlightKey == null)
+            return;
+        restoreBlock(lastHighlightKey);
+        lastHighlightKey = null;
+    }
+
+    private void restoreBlock(String key) {
+        if (key == null || originals == null)
+            return;
+        Integer number = segmentKeyToNumber.get(key);
+        if (number != null) {
+            Location loc = parseKey(key);
+            if (loc == null || loc.getWorld() == null)
+                return;
+            Material mat = WorldRouletteTables.isZero(number)
+                    ? Material.LIME_CONCRETE
+                    : (WorldRouletteTables.isRed(number) ? Material.RED_CONCRETE : Material.BLACK_CONCRETE);
+            loc.getWorld().getBlockAt(loc).setType(mat, false);
+            return;
+        }
+        OriginalBlock ob = originals.get(key);
+        if (ob == null || ob.getType() == null)
+            return;
+        Location loc = parseKey(key);
+        if (loc == null || loc.getWorld() == null)
+            return;
+        Block b = loc.getWorld().getBlockAt(loc);
+        try {
+            b.setType(ob.getType(), false);
+        } catch (Throwable t) {
+            b.setType(ob.getType());
+        }
+        String dataStr = ob.getBlockData();
+        if (dataStr != null && !dataStr.isBlank()) {
+            try {
+                BlockData bd = Bukkit.createBlockData(dataStr);
+                b.setBlockData(bd, false);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void finishRound(int winningNumber) {
+        updateHologramLine(2, "§aGanó el número: §f" + WorldRouletteTables.formatNumber(winningNumber));
+
+        boolean isRed = WorldRouletteTables.isRed(winningNumber);
+
+        Map<String, Long> winners = new LinkedHashMap<>();
+        List<UUID> participants = new ArrayList<>(bets.keySet());
+
+        for (Map.Entry<UUID, Map<String, WorldRouletteBet>> entry : bets.entrySet()) {
+            UUID pid = entry.getKey();
+            Player p = Bukkit.getPlayer(pid);
+
+            try {
+                plugin.getRouletteStatsManager().recordRound(pid);
+            } catch (Throwable ignored) {
+            }
+
+            long totalPayout = 0L;
+            for (WorldRouletteBet bet : entry.getValue().values()) {
+                totalPayout += calculatePayout(bet, winningNumber, isRed);
+            }
+
+            if (p == null) {
+                // Se desconectó durante el giro: se le paga cuando vuelva.
+                if (totalPayout > 0) {
+                    plugin.getPendingPayouts().add(pid, totalPayout);
+                    try {
+                        plugin.getRouletteStatsManager().recordPayout(pid, totalPayout);
+                    } catch (Throwable ignored) {
+                    }
+                }
+                continue;
+            }
+
+            if (totalPayout > 0) {
+                plugin.getTokenPayout().pay(p, totalPayout);
+                p.sendMessage(msg(
+                        "messages.roulette_world.win",
+                        "&aGanaste &e{amount}&a en la ruleta.",
+                        Map.of("amount", prettyUnits(totalPayout))));
+                winners.put(p.getName(), totalPayout);
+                try {
+                    plugin.getRouletteStatsManager().recordPayout(pid, totalPayout);
+                } catch (Throwable ignored) {
+                }
+            } else {
+                p.sendMessage(msg(
+                        "messages.roulette_world.lose",
+                        "&cPerdiste tus apuestas en la ruleta."));
+            }
+        }
+
+        boolean broadcast = plugin.getConfig().getBoolean("roulette_world.broadcast_winners", false);
+        String winningNumberText = WorldRouletteTables.formatNumber(winningNumber);
+        String winnersHeader = msg(
+                "messages.roulette_world.winners_header",
+                "&6&lRuleta ganadores &8(&f{number}&8)",
+                Map.of("number", winningNumberText));
+        if (broadcast) {
+            Bukkit.broadcastMessage(winnersHeader);
+            if (winners.isEmpty()) {
+                Bukkit.broadcastMessage(msg(
+                        "messages.roulette_world.winners_none",
+                        "&7Nadie ganó esta ronda."));
+            } else {
+                for (Map.Entry<String, Long> w : winners.entrySet()) {
+                    Bukkit.broadcastMessage(msg(
+                            "messages.roulette_world.winners_entry",
+                            "&e{name} &8» &a+{amount}",
+                            Map.of("name", w.getKey(), "amount", prettyUnits(w.getValue()))));
+                }
+            }
+        } else {
+            // only send to participants
+            for (UUID pid : participants) {
+                Player p = Bukkit.getPlayer(pid);
+                if (p == null)
+                    continue;
+                p.sendMessage(winnersHeader);
+                if (winners.isEmpty()) {
+                    p.sendMessage(msg(
+                            "messages.roulette_world.winners_none",
+                            "&7Nadie ganó esta ronda."));
+                } else {
+                    for (Map.Entry<String, Long> w : winners.entrySet()) {
+                        p.sendMessage(msg(
+                                "messages.roulette_world.winners_entry",
+                                "&e{name} &8» &a+{amount}",
+                                Map.of("name", w.getKey(), "amount", prettyUnits(w.getValue()))));
+                    }
+                }
+            }
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, this::restoreLastHighlight, 160L);
+
+        bets.clear();
+        selections.clear();
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            state = State.WAITING;
+            updateHologramLine(2, "§cAPUESTAS CERRADAS");
+        }, 60L);
+    }
+
+    private static long calculatePayout(WorldRouletteBet bet, int winningNumber, boolean isRed) {
+        // Return total paid (includes returning stake) to match previous behavior.
+        if (bet.getAmount() <= 0)
+            return 0;
+
+        boolean isZero = WorldRouletteTables.isZero(winningNumber);
+
+        return switch (bet.getType()) {
+            case RED -> (!isZero && isRed) ? bet.getAmount() * 2L : 0L;
+            case BLACK -> (!isZero && !isRed) ? bet.getAmount() * 2L : 0L;
+            case EVEN -> (!isZero && winningNumber % 2 == 0) ? bet.getAmount() * 2L : 0L;
+            case ODD -> (!isZero && winningNumber % 2 == 1) ? bet.getAmount() * 2L : 0L;
+            case NUMBER -> (bet.getNumber() != null && bet.getNumber() == winningNumber) ? bet.getAmount() * 36L : 0L;
+        };
+    }
+
+    public void removeDisplays() {
+        World w = center.getWorld();
+        if (w == null)
+            return;
+        for (UUID id : numberDisplayIds) {
+            Entity e = w.getEntity(id);
+            if (e != null)
+                e.remove();
+        }
+        for (UUID id : holoDisplayIds) {
+            Entity e = w.getEntity(id);
+            if (e != null)
+                e.remove();
+        }
+    }
+
+    public void removeBlocks() {
+        restoreOriginalBlocks();
+    }
+
+    public void restoreOriginalBlocks() {
+        if (originals == null || originals.isEmpty()) {
+            // fallback: clear to air (older tables built before originals existed)
+            World w = center.getWorld();
+            if (w != null)
+                w.getBlockAt(center).setType(Material.AIR);
+            for (String segKey : segmentKeyToNumber.keySet()) {
+                Location loc = parseKey(segKey);
+                if (loc == null || loc.getWorld() == null)
+                    continue;
+                loc.getWorld().getBlockAt(loc).setType(Material.AIR);
+            }
+            return;
+        }
+
+        for (Map.Entry<String, OriginalBlock> e : originals.entrySet()) {
+            Location loc = parseKey(e.getKey());
+            if (loc == null || loc.getWorld() == null)
+                continue;
+
+            OriginalBlock ob = e.getValue();
+            if (ob == null || ob.getType() == null)
+                continue;
+
+            Block b = loc.getWorld().getBlockAt(loc);
+            try {
+                b.setType(ob.getType(), false);
+            } catch (Throwable t) {
+                b.setType(ob.getType());
+            }
+
+            String dataStr = ob.getBlockData();
+            if (dataStr != null && !dataStr.isBlank()) {
+                try {
+                    BlockData bd = Bukkit.createBlockData(dataStr);
+                    b.setBlockData(bd, false);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private static Location parseKey(String key) {
+        try {
+            String[] parts = key.split(";");
+            if (parts.length != 4)
+                return null;
+            World w = Bukkit.getWorld(parts[0]);
+            if (w == null)
+                return null;
+            int x = Integer.parseInt(parts[1]);
+            int y = Integer.parseInt(parts[2]);
+            int z = Integer.parseInt(parts[3]);
+            return new Location(w, x, y, z);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void updateHologramLine(int index, String text) {
+        if (index < 0 || index >= holoDisplayIds.size())
+            return;
+        World w = center.getWorld();
+        if (w == null)
+            return;
+        Entity e = w.getEntity(holoDisplayIds.get(index));
+        if (e instanceof TextDisplay td) {
+            td.setText(text);
+        }
+    }
+}

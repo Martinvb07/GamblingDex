@@ -1,0 +1,15 @@
+sell_all:
+  no_tokens: "&cNo tienes tokens para vender."
+  deposit_failed: "&cNo se pudo darte dinero (¿Vault/Economía?). No se vendieron tus tokens."
+  success: "&aVendiste TODO por &e{money}&a de dinero del server."
+
+buy:
+  token_value_unknown: "&cNo se pudo determinar el valor de esa ficha."
+  not_enough_money: "&cNo tienes dinero suficiente o no hay economía disponible."
+  success: "&a¡Has comprado &e{amount}&a ficha(s) por &e{money}&a!"
+
+sell:
+  token_value_unknown: "&cNo se pudo determinar el valor de esa ficha."
+  deposit_failed: "&cNo se pudo darte dinero (¿Vault/Economía?). No se vendieron tus fichas."
+  not_enough_tokens: "&cNo tienes suficientes fichas para vender."
+  success: "&aVendiste &e{amount}&a fichas por &e{money}&a de dinero del server."

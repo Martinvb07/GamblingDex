@@ -1,0 +1,5 @@
+need_bet: "&cDebes ingresar fichas para apostar."
+spin_in_progress: "&cYa estás girando..."
+cooldown: "&cEspera {ms}ms para girar de nuevo."
+win: "&a¡Premio! &7Ganaste fichas equivalentes a &e{amount} &7{currency}"
+lose: "&cNada esta vez..."

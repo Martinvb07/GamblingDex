@@ -1,0 +1,90 @@
+reload:
+  success: "&aGamblingDex recargado."
+  yaml_error: "&cNo se recargó: hay errores en los archivos. Corrígelos y vuelve a intentar:"
+
+no_permission: "&cNo tienes permiso para hacer eso."
+
+station:
+  usage: "&cUso: /gdx station <set|remove|list|debug> ..."
+  example: "&7Ej: &f/gdx station set slots&7 (mirando el bloque)"
+  invalid_action: "&cAcción inválida. Usa: set, remove, list, debug"
+  set:
+    usage: "&cUso: /gdx station set <slots|exchange>"
+    roulette_tip: "&7(Para ruleta física usa: &f/gdx roulette build [radio] [yOffset]&7)"
+    roulette_is_physical: "&cLa ruleta ahora es una mesa física. Usa: &f/gdx roulette build [radio] [yOffset]"
+    invalid_type: "&cTipo inválido. Usa: slots, exchange"
+    look_block: "&cMira un bloque a menos de 6 bloques."
+    wrong_block: "&cEse bloque debe ser: &f{material}"
+    success: "&aMesa colocada: &f{type} &7(Click derecho en el bloque)"
+    holo_created: "&7Se creó un holograma arriba."
+  remove:
+    look_station: "&cMira la mesa a menos de 6 bloques."
+    success: "&aMesa removida."
+    not_registered: "&cEse bloque no está registrado como mesa."
+  cleanup_orphans: "&aSe eliminaron &e{amount}&a hologramas huérfanos de estaciones."
+  list:
+    header: "&7Mesas registradas:"
+    roulette: "&8- &cRoulette&7: &f{count}"
+    slots: "&8- &dSlots&7: &f{count}"
+    exchange: "&8- &eExchange&7: &f{count}"
+  debug:
+    header: "&7Station debug:"
+    block: "&8- &7Block: &f{material} &7@ &f{x},{y},{z} &7(world=&f{world}&7)"
+    resolved_type: "&8- &7Resolved type: &f{type}"
+    stored: "&8- &7Stored: &f{stored}"
+    not_found: "&cNo se encontró la estación para esa ubicación."
+    key: "&7Clave buscada: &f{key}"
+    keys_in_file: "&7Keys en stations.yml: &f{keys}"
+    coords_tip: "&8- &7Tip: El nombre del mundo y coords deben coincidir EXACTAMENTE con la clave en stations.yml."
+    tip: "&8- &7Tip: si Resolved type es <null>, el click nunca va a abrir GUI."
+
+roulette:
+  usage: "&cUso: /gdx roulette <build|remove|list> ..."
+  example: "&7Ej: &f/gdx roulette build 6 -1&7 (mirando el centro)"
+  invalid_action: "&cAcción inválida. Usa: build, remove, list"
+  build:
+    look_center: "&cMira un bloque (será el centro) a menos de 6 bloques."
+    failed: "&cNo se pudo construir la ruleta aquí."
+    success: "&aRuleta construida. &7Click izquierdo al centro: cambia apuesta."
+    how_to_1: "&7Click derecho con tokens: apuesta. Click a números para elegir."
+  remove:
+    look_center: "&cMira el centro de la ruleta a menos de 6 bloques."
+    success: "&aRuleta eliminada: &7hologramas y bloques removidos."
+    none: "&cNo hay una ruleta registrada en ese bloque."
+  list: "&7Ruletas registradas: &f{count}"
+
+item:
+  usage: "&cUso: /gdx item <roulette|slots> [cantidad]"
+  invalid_type: "&cTipo inválido. Usa: roulette, slots"
+  is_station: "&cEse tipo es una estación (LOOM), no un ítem. Usa: /gdx station set exchange"
+  given: "&aTe di &e{amount}&a item(s): &f{type}"
+  hint_open: "&7Click derecho para abrir su GUI."
+
+token:
+  given: "&aTe di &e{amount}&a token(s) para Shopkeepers."
+  denoms_help: "&7Denoms: &f{help}"
+
+blackjack:
+  usage: "&cUso: /gdx blackjack <create|remove|list|seat> ..."
+  example: "&7Ej: &f/gdx blackjack create Mesa1&7 (mirando el bloque centro)"
+  create_usage: "&cUso: /gdx blackjack create <nombre>"
+  remove_usage: "&cUso: /gdx blackjack remove <nombre>"
+  look_block: "&cMira el bloque centro donde quieres crear el dealer (<= 6 bloques)."
+  not_available: "&cBlackjack no está disponible."
+  create_failed: "&cNo se pudo crear el dealer."
+  created: "&aDealer de Blackjack creado. &7(Jugadores: párense en asientos; menús automáticos)"
+  removed: "&aDealer de Blackjack removido."
+  not_found: "&cNo existe un Blackjack con ese nombre."
+  list: "&7Dealers Blackjack: &f{count}"
+  list_names_header: "&7Nombres:"
+  list_names_line: "&8- &f{name}"
+  invalid_action: "&cAcción inválida. Usa: create, remove, list, seat"
+  seat_usage: "&cUso: /gdx blackjack seat <add|remove|list|clear> <nombre>"
+  seat_example: "&7Ej: &f/gdx blackjack seat add Mesa1&7 (parado en el asiento)"
+  seat_added: "&aAsiento agregado: &f{x},{y},{z}"
+  seat_removed: "&aAsiento removido: &f{x},{y},{z}"
+  seat_not_found: "&cEse asiento no está registrado."
+  seat_cleared: "&aAsientos limpiados."
+  seat_list_header: "&7Asientos: &f{count}"
+  seat_list_line: "&8- &f{seat}"
+  seat_invalid_action: "&cAcción inválida. Usa: add, remove, list, clear"

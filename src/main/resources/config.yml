@@ -1,0 +1,355 @@
+# ======================
+# GamblingDex - Config principal
+# ======================
+#
+# Recarga en caliente: /gdx reload
+# Colores: usa & (ej: &a, &e, &6)
+#
+# Importante:
+# - Los MENSAJES no se editan aquí (ver sección "MENSAJES" abajo)
+# - Este archivo contiene solo opciones de juego/GUI/economía
+#
+
+# ======================
+# PERMISOS (INFO)
+# ======================
+# Permisos principales:
+#   - gamblingdex.use
+#       Permite usar el plugin (abrir GUIs, /gdx balance, /gdx stats, /gdx top, etc.)
+#   - gamblingdex.stats.self
+#       Permite ver tus estadísticas: /gdx stats
+#   - gamblingdex.stats.others
+#       Permite ver estadísticas de otros: /gdx stats <jugador>
+#   - gamblingdex.top
+#       Permite ver el ranking: /gdx top
+#   - gamblingdex.admin
+#       Admin del plugin (reload, crear tokens/items, registrar mesas, crear/borrar ruletas, etc.)
+#
+# Defaults (plugin.yml):
+#   - gamblingdex.top: público (cualquiera)
+#   - gamblingdex.stats.self: público (cualquiera)
+#   - gamblingdex.stats.others: solo OP/admin por defecto
+#
+# Tips LuckPerms (ejemplos):
+#   - Dar acceso a todos:
+#       /lp group default permission set gamblingdex.use true
+#       /lp group default permission set gamblingdex.stats.self true
+#       /lp group default permission set gamblingdex.top true
+#   - Permitir ver stats de otros (solo staff, por ejemplo):
+#       /lp group admin permission set gamblingdex.stats.others true
+#       /lp group mod permission set gamblingdex.stats.others true
+#   - Quitar permiso (si lo diste por error):
+#       /lp group mod permission unset gamblingdex.stats.others
+#   - Dar/quitar a un jugador puntual:
+#       /lp user <nombre> permission set gamblingdex.stats.others true
+#       /lp user <nombre> permission unset gamblingdex.stats.others
+#   - Dar admin a tu staff:
+#       /lp group admin permission set gamblingdex.admin true
+#   - Dar admin a un jugador puntual:
+#       /lp user <nombre> permission set gamblingdex.admin true
+#
+# Nota: algunos ítems/funciones pueden pedir un permiso extra configurable.
+# Ej: exchange.rates_item_permission controla quién ve el ítem "Tasas".
+
+# ======================
+# MENSAJES
+# ======================
+# Todos los mensajes están organizados por archivos en:
+#   plugins/GamblingDex/messages/*.yml
+#
+# Edita esos archivos y luego usa:
+#   /gdx reload
+#
+# Archivos principales:
+#   - messages/gdx.yml (help/stats/top/balance, etc.)
+#   - messages/admin.yml
+#   - messages/roulette_world.yml
+#   - messages/exchange.yml
+#   - messages/slots.yml
+#   - messages/stations.yml
+#   - messages/items.yml
+#   - messages/menus.yml
+#   - messages/join.yml
+
+# ======================
+# MONEDA / TOKENS
+# ======================
+
+currency:
+  # Símbolo/moneda mostrada en textos del plugin
+  name: "⛃"
+  token:
+    redeem:
+      # Canjear tokens con click derecho al aire (desactivado por defecto)
+      enabled: false
+    glow: true
+    # Si activas el template, usa placeholders: {value}/{valor} y {currency}
+    use_template_format: true
+    display-name: "&7« &e&lFicha &6{valor} &e{currency} &7»"
+    lore:
+      - "&8────────────────────────"
+      - "&7Valor: &6{valor} {currency}"
+      - "&7Usa estas fichas en &e/warp Casino"
+      - "&8────────────────────────"
+    # custom-model-data: 0
+
+# ======================
+# EXCHANGE (Vault)
+# ======================
+
+exchange:
+  use_vault: true # true = usa Vault/Essentials para dinero
+  debug: false # true = logs detallados de compra/venta (provider + before/after)
+  money_per_unit: 1.0 # Cuánto vale 1 ficha (unidad) en dinero
+  buy:
+    # Sin uso: comprar fichas SIEMPRE requiere Vault (sin Vault no se puede verificar el saldo).
+    command: "eco take {player} {money}"
+  sell:
+    command: "eco give {player} {money}" # Fallback si use_vault=false
+
+# ======================
+# STATIONS (HOLOGRAMAS)
+# ======================
+
+stations:
+  holo_height: 1.8 # Altura del holograma (TextDisplay)
+  holograms:
+    slots: "&d&lSLOTS"
+    exchange: "&e&lCAMBIO"
+
+# ======================
+# RULETA FÍSICA (WORLD)
+# ======================
+
+roulette_world:
+  radius: 6
+  segment_y_offset: -1
+  auto_cycle:
+    enabled: true
+    interval_seconds: 45
+  bet_window_seconds: 25
+  spin_ticks: 120
+  step_ticks: 2
+  max_bets_per_player: 10
+  broadcast_winners: false
+  holo_height: 2.3
+  holo_lines:
+    - "&6&lRULETA"
+    - "&7Haz click con tokens para apostar"
+    - "&eEsperando jugadores..."
+
+# ======================
+# BLACKJACK FÍSICO (WORLD)
+# ======================
+
+blackjack:
+  min_players: 2
+  max_players: 7
+  # Asientos físicos: los jugadores deben pararse en estas losas/bloques alrededor de la mesa.
+  seating:
+    enabled: true
+    # "manual" = tú defines los asientos con /gdx blackjack seat ...
+    # "auto"   = asientos en círculo usando radius_blocks + materials
+    mode: manual
+    # Distancia (en bloques) desde el centro hacia cada asiento.
+    radius_blocks: 2
+    # Materiales válidos para los asientos (usa nombres de Bukkit Material)
+    materials:
+      - QUARTZ_SLAB
+      - QUARTZ_BLOCK
+  # Tiempo para apostar antes de repartir
+  bet_window_seconds: 20
+  # Tiempo por turno (hit/stand)
+  turn_timeout_seconds: 20
+  # Delay (en segundos) antes de abrir el menú de acciones (al iniciar el turno y tras pedir).
+  # Esto te da tiempo para ver las cartas.
+  action_menu_delay_seconds: 5
+  # Marcador visual de turno (se dibuja una “flecha” con partículas sobre el jugador actual)
+  turn_marker:
+    enabled: true
+    particle: END_ROD
+    count: 1
+  # Regla del dealer: pide carta hasta llegar a 17.
+  # false = se planta en TODO 17 (regla clásica "S17", mejor para el jugador)
+  # true  = también pide con 17 suave (A+6)
+  dealer_hits_soft_17: false
+  # Pago de blackjack natural: "3:2" o "6:5"
+  blackjack_payout: "3:2"
+  # Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
+  decks: 6
+  reshuffle_at_percent: 25
+  # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
+  dealer_draw_interval_ticks: 40
+  # Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda
+  result_display_seconds: 7
+  # Apuestas laterales (se pagan apenas se reparten las cartas). Pagos "X a 1".
+  # Requieren tener apuesta principal; si no, se devuelven.
+  side_bets:
+    enabled: true
+    perfect_pairs:
+      perfect_pair: 25   # mismo número y mismo palo
+      colored_pair: 12   # mismo número y mismo color
+      mixed_pair: 6      # mismo número, distinto color
+    21_plus_3:
+      suited_trips: 100     # trío del mismo palo
+      straight_flush: 40    # escalera de color
+      three_of_a_kind: 30   # trío
+      straight: 10          # escalera
+      flush: 5              # color (mismo palo)
+  # Altura del holograma (TextDisplay) por encima del dealer (se dibuja un poco más arriba
+  # para no encimarse con el nombre del aldeano)
+  holo_height: 2.3
+
+# ======================
+# PÓKER (TEXAS HOLD'EM NO-LIMIT)
+# ======================
+# Montaje (admin):
+#   1) Mira el bloque centro de la mesa:  /gdx poker create Mesa1 5 10   (ciegas 5/10)
+#   2) Párate en cada asiento (en orden horario): /gdx poker seat add Mesa1
+# Los jugadores se paran en un asiento, compran fichas (tokens -> fichas de mesa)
+# y al bajarse del asiento se les devuelven como tokens.
+# Las cartas de cada jugador solo las ve él (en pantalla, sobre la barra de ítems).
+
+poker:
+  min_players: 2
+  max_seats: 9
+  # Ciegas por defecto si no se indican en /gdx poker create
+  default_small_blind: 5
+  default_big_blind: 10
+  # Apuesta obligatoria de todos antes de repartir (0 = sin ante)
+  ante: 0
+  # Compra de fichas, en ciegas grandes (BB). Ej: 20-100 BB con ciegas 5/10 = 200-1000
+  buyin:
+    min_bb: 20
+    max_bb: 100
+  # Comisión de la casa sobre cada bote
+  rake:
+    enabled: true
+    percent: 5.0
+    # Máximo por mano, en ciegas grandes (0 = sin tope)
+    cap_bb: 3
+    # Sin comisión si la mano termina antes del flop
+    no_flop_no_drop: true
+  # Tiempos (segundos)
+  start_delay_seconds: 8        # espera antes de cada mano
+  turn_timeout_seconds: 30      # tiempo por turno (al agotarse: pasa si puede, si no se retira)
+  action_menu_delay_seconds: 1  # demora antes de abrir el menú de tu turno
+  menu_reopen_seconds: 3        # si cierras el menú en tu turno, se reabre tras esto
+  runout_delay_seconds: 2       # pausa entre calles cuando todos van all-in
+  showdown_seconds: 8           # resultados visibles antes de la siguiente mano
+  uncontested_seconds: 3        # pausa cuando todos se retiran
+  leave_grace_seconds: 4        # tiempo fuera del asiento antes de levantarte
+  # Turnos seguidos sin actuar antes de sacarte de la mesa
+  max_missed_turns: 2
+  # Radio (bloques) en el que los espectadores ven los mensajes de la mesa
+  spectator_radius: 10
+  # Hologramas
+  holo_height: 2.2
+  seat_holo_height: 2.6
+  turn_marker:
+    enabled: true
+    particle: END_ROD
+  # Registrar cada mano en la consola
+  log_hands: true
+
+# ======================
+# ÍTEMS (GUI)
+# ======================
+
+games:
+  items:
+    roulette:
+      glow: true
+      name: "&c&lRuleta"
+      lore:
+        - "&8────────────────────────"
+        - "&7Click derecho para abrir"
+        - "&7la &cRuleta&7."
+        - "&8────────────────────────"
+    slots:
+      glow: true
+      name: "&d&lTragamonedas"
+      lore:
+        - "&8────────────────────────"
+        - "&7Click derecho para abrir"
+        - "&7los &dTragamonedas&7."
+        - "&8────────────────────────"
+
+  slots:
+    payout:
+      triple_multiplier: 5
+      double_multiplier: 2
+    # Anti-spam: cooldown entre giros (0 para desactivar)
+    spin_cooldown_ms: 0
+    # Probabilidades por símbolo (peso relativo). Si lo dejas vacío/no definido, es uniforme.
+    # Materiales sugeridos: DIAMOND, EMERALD, GOLD_INGOT, IRON_INGOT, AMETHYST_SHARD, NETHER_STAR
+    symbol_weights:
+      DIAMOND: 10
+      EMERALD: 10
+      GOLD_INGOT: 10
+      IRON_INGOT: 10
+      AMETHYST_SHARD: 10
+      NETHER_STAR: 10
+    log_big_wins:
+      # Si es >0, loggea premios >= threshold_units
+      threshold_units: 0
+
+# ======================
+# GUI
+# ======================
+
+gui:
+  exchange:
+    title: "&e&lCAMBIO"
+    # Tamaño del inventario (múltiplos de 9). Default: 27
+    size: 27
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+
+    buttons:
+      buy:
+        slot: 10
+        material: EMERALD
+        name: "&aComprar fichas"
+        lore:
+          - "&7Click para comprar"
+          - "&7con dinero del server"
+      sell_hand:
+        slot: 12
+        material: GOLD_INGOT
+        name: "&eVender ficha (mano)"
+        lore:
+          - "&7Vende 1 token en la mano"
+          - "&7Shift: vende el stack"
+      sell_all:
+        slot: 14
+        material: CHEST
+        name: "&6Vender todo (inventario)"
+        lore:
+          - "&7Convierte todos tus tokens"
+          - "&7en dinero del server"
+
+    info_head:
+      enabled: true
+      slot: 16
+      name: "&e&lTu info"
+      # Placeholders: {money_line}, {wager}, {won}, {lost}, {currency}
+      lore:
+        - "{money_line}"
+        - "&8(Slots + Ruleta)"
+        - "&7Total apostado: &e{wager} &7{currency}"
+        - "&7Total ganado: &a{won} &7{currency}"
+        - "&7Total perdido: &c{lost} &7{currency}"
+      # Placeholders: {money}
+      money_line: "&7Dinero: &a{money}"
+      money_na: "&7Dinero: &cN/A"
+
+  slots:
+    title: "&dTragamonedas"
+    spin_button_name: "&a&lGirar"
+    spin_button_lore_bet: "&7Apuesta: &e{bet}"
+    spin_button_lore_pay: "&7Paga: &a{triple}x&7 (triple), &a{double}x&7 (doble)"
+    paytable_name: "&eTabla de pagos"
+    paytable_line_triple: "&7Triple: &a{triple}x"
+    paytable_line_double: "&7Doble: &a{double}x"

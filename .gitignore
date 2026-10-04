@@ -1,0 +1,13 @@
+# Build de Maven
+target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Restos de compilaciones manuales
+javac.*.args
+
+# Sistema
+.DS_Store
+Thumbs.db
