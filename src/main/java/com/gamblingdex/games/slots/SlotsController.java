@@ -197,6 +197,7 @@ public class SlotsController {
                         plugin.getSlotsStatsManager().recordPayout(player.getUniqueId(), payout);
                     } catch (Throwable ignored) {
                     }
+                    GamblingDexPlugin.recordStats(player.getUniqueId(), "slots", betUnits, payout);
 
                     // Optional: log big wins
                     long big = Math.max(0L, plugin.getConfig().getLong("games.slots.log_big_wins.threshold_units", 0L));

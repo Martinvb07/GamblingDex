@@ -41,12 +41,15 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | Juego | Descripción |
 |---|---|
 | 🃏 **Blackjack** | Mesa con dealer y asientos reales (de 1 a 7 jugadores: se puede jugar solo). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
+| 🃏 **Baccarat** | Mesa con dealer y asientos como el blackjack. Apuestas a Jugador, Banca o Empate (y parejas), reglas reales de tercera carta. |
 | ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
-| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00). Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
+| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), con **jackpot** acumulado que cae en un número al azar. Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
+| 💣 **Mines** | Pared de 5×5 casillas en el mundo. Eliges cuántas minas y tu apuesta; cada casilla segura sube el multiplicador y te retiras cuando quieras (shift + click derecho). |
+| 🎯 **Plinko** | Pared con clavos y casillas con multiplicador. Cada apuesta suelta una bola que rebota hasta abajo; las orillas pagan hasta x10. Varias bolas a la vez. |
 
 ### Juegos por menú / comando
 
@@ -116,7 +119,7 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx help` | Muestra la ayuda |
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
-| `/gdx top [n]` | Ranking por total ganado |
+| `/gdx top [semana] [n]` | Ranking de ganancias (todos los juegos) |
 | `/gdx coinflip` · `crear <monto> [cara\|sello]` · `cancelar` | Coinflip |
 | `/gdx rasca` · `comprar <tipo> [cantidad]` | Rasca y Gana |
 | `/gdx bingo` · `comprar <n>` | Bingo |
@@ -132,6 +135,10 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
 | `/gdx station set rueda` | Construir la rueda física (mirando un faro) |
+| `/gdx station set mines` | Construir el tablero de Mines (mirando el bloque de la mesa) |
+| `/gdx station set plinko [filas]` | Construir el tablero de Plinko (mirando el bloque de la mesa) |
+| `/gdx station set baccarat [nombre]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
+| `/gdx baccarat asiento <agregar\|quitar\|lista\|limpiar> <mesa>` | Asientos de baccarat (parado encima) |
 | `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
@@ -180,6 +187,15 @@ Ejemplo con LuckPerms:
 </details>
 
 <details>
+<summary><b>🃏 Mesa de Baccarat</b></summary>
+
+1. Mira el bloque de la mesa: `/gdx station set baccarat Mesa1` (el dealer aparece detrás, mirando hacia ti).
+2. Párate en cada asiento y usa: `/gdx baccarat asiento agregar Mesa1`
+3. Los jugadores se sientan y el menú de apuestas se abre solo. El título se cambia en `modules/baccarat.yml` → `table_names`.
+
+</details>
+
+<details>
 <summary><b>♠️ Mesa de Póker</b></summary>
 
 1. Mira el bloque central de la mesa: `/gdx poker create Mesa1 5 10` (ciegas 5/10)
@@ -218,6 +234,20 @@ Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 c
 </details>
 
 <details>
+<summary><b>🎯 Plinko</b></summary>
+
+Mira el bloque que será la mesa y usa `/gdx station set plinko [6|8|10|12]` (filas; por defecto 8). Detrás se construye la pared con clavos y las casillas con su multiplicador. Necesita espacio: 8 filas = 19 × 19 bloques. Los jugadores sueltan bolas con click derecho a la mesa; shift + click derecho repite la apuesta.
+
+</details>
+
+<details>
+<summary><b>💣 Mines</b></summary>
+
+Mira el bloque que será la mesa y usa `/gdx station set mines`. Detrás se construye una pared de 5×5 casillas con marco. Los jugadores empiezan con click derecho a la mesa (eligen minas y apuesta), abren casillas con click derecho y se retiran con shift + click derecho.
+
+</details>
+
+<details>
 <summary><b>📈 Crash</b></summary>
 
 Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con el multiplicador en vivo.
@@ -252,6 +282,9 @@ plugins/GamblingDex/
     ├── poker.yml
     ├── ruleta.yml
     ├── slots.yml
+    ├── mines.yml
+    ├── plinko.yml
+    ├── baccarat.yml
     ├── crash.yml
     ├── carrera.yml
     ├── rueda.yml
@@ -270,6 +303,38 @@ Los colores usan `&` (ej. `&a`, `&6&l`) y también hexadecimales `&#RRGGBB` (ej.
 ```yaml
 table_names:
   MESA-VIP1: "&6&l✦ &#FFD700&lMESA VIP &6&l✦"
+```
+
+---
+
+## 🏷️ Placeholders (PlaceholderAPI)
+
+Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/), GamblingDex registra estos placeholders para hologramas (DecentHolograms), scoreboards, TAB, etc. Cuentan **todos los juegos** menos el póker.
+
+| Placeholder | Qué muestra |
+|---|---|
+| `%gamblingdex_balance%` | Fichas que tiene el jugador |
+| `%gamblingdex_profit%` | Ganancia neta (cobrado − apostado) |
+| `%gamblingdex_wagered%` | Total apostado |
+| `%gamblingdex_paid%` | Total cobrado |
+| `%gamblingdex_biggest%` | Mejor premio de una sola apuesta |
+| `%gamblingdex_rounds%` | Apuestas jugadas |
+| `%gamblingdex_rank%` | Puesto en el ranking de ganancias |
+| `%gamblingdex_weekly_profit%` | Igual que los de arriba, pero de esta semana (`weekly_...`) |
+| `%gamblingdex_top_profit_1_name%` | Nombre del 1° en ganancias |
+| `%gamblingdex_top_profit_1_value%` | Ganancia del 1° |
+| `%gamblingdex_topweek_profit_1_name%` | Igual, pero del ranking semanal |
+| `%gamblingdex_jackpot_ruleta%` | Pozo del jackpot de la ruleta |
+
+En los `top_...` puedes cambiar `profit` por `wagered`, `paid` o `biggest`, y el número por el puesto (1, 2, 3...). El ranking semanal se reinicia el lunes (`stats.timezone` en `config.yml`).
+
+**Ejemplo de holograma con DecentHolograms:**
+
+```
+/dh create topcasino &6&l★ TOP GANANCIAS DE LA SEMANA ★
+/dh line add topcasino &e1. &f%gamblingdex_topweek_profit_1_name% &7- &a%gamblingdex_topweek_profit_1_value%
+/dh line add topcasino &72. &f%gamblingdex_topweek_profit_2_name% &7- &a%gamblingdex_topweek_profit_2_value%
+/dh line add topcasino &63. &f%gamblingdex_topweek_profit_3_name% &7- &a%gamblingdex_topweek_profit_3_value%
 ```
 
 ---

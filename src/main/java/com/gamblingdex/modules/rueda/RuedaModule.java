@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.rueda;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
@@ -373,6 +374,7 @@ public class RuedaModule extends GameModule {
             }
             betTotal += staked;
             paidTotal += won;
+            GamblingDexPlugin.recordStats(id, "rueda", staked, won);
             Player p = Bukkit.getPlayer(id);
             if (won > 0) {
                 TokenWallet.give(id, won);

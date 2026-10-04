@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.crash;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
@@ -360,6 +361,7 @@ public class CrashModule extends GameModule {
         List<String> losers = new ArrayList<>();
         for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
             Bet b = e.getValue();
+            GamblingDexPlugin.recordStats(e.getKey(), "crash", b.amount, b.cashedAt > 0 ? payoutFor(b, b.cashedAt) : 0L);
             String name = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
             if (b.cashedAt > 0)
                 winners.add("&f" + name + " &7(x" + fmt(b.cashedAt) + ", &e+" + units(payoutFor(b, b.cashedAt) - b.amount) + "&7)");

@@ -9,7 +9,7 @@ help:
     - "&6&lSlots (estadísticas)"
     - "&8• &e/gdx stats &7- Tus stats de Slots"
     - "&8• &e/gdx stats <jugador> &7- Stats de otro jugador"
-    - "&8• &e/gdx top [n] &7- Ranking por total ganado (Slots+Ruleta)"
+    - "&8• &e/gdx top [semana] [n] &7- Ranking de ganancias (todos los juegos)"
     - ""
     - "&6&lMesas (bloques)"
     - "&8• &7Slots, Cambio, Crash, Carrera, Rueda: &fclick derecho&7 a la mesa"

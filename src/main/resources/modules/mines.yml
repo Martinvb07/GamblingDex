@@ -1,0 +1,47 @@
+# ======================
+# GamblingDex - Mines
+# ======================
+# Admin: mira el bloque que será la MESA y usa: /gdx station set mines
+#        Detrás de la mesa se construye una pared de 5x5 casillas con marco.
+#        Quitarlo: /gdx station remove (mirando la mesa o la pared); los bloques vuelven a como estaban.
+# Jugadores: click derecho a la mesa -> eligen cuántas minas y su apuesta.
+#            Click derecho a una casilla: abrirla (esmeralda = segura, TNT = mina).
+#            Shift + click derecho: retirarse y cobrar apuesta x multiplicador.
+#            Sobre la barra de experiencia ven su apuesta, el multiplicador y lo que cobran.
+# Juega una persona a la vez por tablero.
+#
+# Multiplicador = (1 - house_edge) x probabilidad inversa de no tocar una mina.
+# Ej. con 3 minas: 1ª casilla x1.10, 5 casillas x1.95, 10 casillas x4.90 (con 3% de casa).
+
+enabled: true
+
+min_bet: 10
+max_bet: 0                  # 0 = sin tope
+max_win: 0                  # premio máximo por partida (0 = sin tope)
+house_edge_percent: 3.0
+idle_timeout_seconds: 60    # si el jugador no hace nada, se cobra lo que lleva
+result_seconds: 4           # tiempo mostrando dónde estaban las minas
+
+# Bloques del tablero
+tile_material: SMOOTH_QUARTZ               # casilla sin abrir
+safe_material: EMERALD_BLOCK               # casilla segura abierta
+mine_material: TNT                         # mina
+hidden_safe_material: LIGHT_GRAY_CONCRETE  # seguras que no abriste (al terminar)
+frame_material: POLISHED_BLACKSTONE_BRICKS # marco
+holo_offset: 0.3
+
+messages:
+  use_station: "&7Mines se juega en el tablero: &fclick derecho&7 a la mesa para empezar."
+  started: "&aEmpezaste con &e{amount}&a y &f{mines}&a minas. &7Click derecho a una casilla para abrirla."
+  lost: "&c&l¡BOOM! &7Era una mina. Perdiste &e{amount}&7."
+  cashed_out: "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}"
+  refunded: "&7No abriste ninguna casilla: se te devolvieron &e{amount}&7."
+  timeout: "&7Te quedaste quieto mucho tiempo: se cobró lo que llevabas."
+  busy: "&cEl tablero está ocupado por &f{player}&c."
+  hint: "&7Click derecho a una casilla para abrirla, &fshift + click derecho&7 para retirarte."
+  not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
+  bad_amount: "&cLa apuesta debe estar entre &e{min}&c y &e{max}&c."
+  exists: "&cAhí ya hay un tablero de Mines."
+  station_created: "&aTablero de Mines construido. &7Los jugadores empiezan con click derecho a la mesa."
+  station_removed: "&aTablero de Mines eliminado y bloques restaurados."
+  station_blocked: "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja detrás de la mesa."
