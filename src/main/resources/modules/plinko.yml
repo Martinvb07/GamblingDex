@@ -1,7 +1,7 @@
 # ======================
 # GamblingDex - Plinko
 # ======================
-# Admin: mira el bloque que será la MESA y usa: /gdx station set plinko [filas]
+# Admin: mira el bloque que será la MESA y usa: /gdx station set plinko [rows]
 #        Filas: 6, 8 (por defecto), 10 o 12. Detrás de la mesa se construye la pared
 #        con clavos (varillas del End) sobre un fondo, y abajo las casillas con su multiplicador.
 #        Tamaño: (2 x filas + 3) de ancho y de alto. 8 filas = 19 x 19, 6 filas = 15 x 15.

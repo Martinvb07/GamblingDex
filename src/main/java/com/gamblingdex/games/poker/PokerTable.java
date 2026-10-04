@@ -154,7 +154,7 @@ public class PokerTable {
         return name;
     }
 
-    /** Nombre para mostrar: poker.table_names.<mesa> de modules/poker.yml, o el nombre normal. */
+    /** Nombre para mostrar: poker.table_names.<table> de modules/poker.yml, o el nombre normal. */
     public String getDisplayName() {
         String pretty = plugin.tableNameFromConfig("poker", name);
         return pretty != null ? pretty : name;

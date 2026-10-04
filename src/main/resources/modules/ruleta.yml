@@ -1,7 +1,7 @@
 # ======================
 # GamblingDex - Ruleta física (americana, con 0 y 00)
 # ======================
-# Admin: /gdx roulette build [radio] [yOffset] (mirando el bloque centro)
+# Admin: /gdx roulette build [radius] [yOffset] (mirando el bloque centro)
 #        /gdx roulette remove | /gdx roulette list
 # Jugadores: click derecho al centro -> menú: eliges la apuesta, el monto y listo.
 #            También: fichas en la mano + click derecho al centro (shift = todo el stack).

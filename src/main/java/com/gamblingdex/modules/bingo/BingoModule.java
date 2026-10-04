@@ -165,10 +165,10 @@ public class BingoModule extends GameModule {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lBingo",
                 "&8• &e/gdx bingo &7- Comprar y ver tus cartones",
-                "&8• &e/gdx bingo comprar <cantidad> &7- Comprar cartones (durante la venta)",
+                "&8• &e/gdx bingo buy <amount> &7- Comprar cartones (durante la venta)",
                 "&8• &7Partidas automáticas: &f" + String.join("&7, &f", config().getStringList("start_times"))));
         if (admin)
-            l.add("&8• &e/gdx bingo iniciar &7- Abrir la venta ahora");
+            l.add("&8• &e/gdx bingo start &7- Abrir la venta ahora");
         l.add("");
         return l;
     }
@@ -192,13 +192,13 @@ public class BingoModule extends GameModule {
             }
             case "iniciar", "start" -> {
                 if (!isAdmin(player))
-                    player.sendMessage(msg("usage", "&cUso: /gdx bingo [comprar <cantidad>]"));
+                    player.sendMessage(msg("usage", "&cUso: /gdx bingo [buy <amount>]"));
                 else if (state != State.IDLE)
                     player.sendMessage(msg("already_running", "&cYa hay un bingo en curso."));
                 else
                     openSale();
             }
-            default -> player.sendMessage(msg("usage", "&cUso: /gdx bingo [comprar <cantidad>]"));
+            default -> player.sendMessage(msg("usage", "&cUso: /gdx bingo [buy <amount>]"));
         }
         return true;
     }

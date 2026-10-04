@@ -79,7 +79,7 @@ public abstract class GameModule {
         return List.of();
     }
 
-    /** Uso que se muestra en la ayuda de /gdx station set (ej. "carrera <distancia> <carriles>"). */
+    /** Uso que se muestra en la ayuda de /gdx station set (ej. "race <distance> <lanes>"). */
     public String stationUsage() {
         return stationTypes().isEmpty() ? "" : stationTypes().get(0);
     }

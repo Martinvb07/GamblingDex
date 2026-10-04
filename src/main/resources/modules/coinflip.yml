@@ -2,8 +2,8 @@
 # GamblingDex - Coinflip (cara o sello 1 vs 1)
 # ======================
 # /gdx coinflip            -> sala con las apuestas abiertas
-# /gdx coinflip crear <monto> [cara|sello]
-# /gdx coinflip cancelar   -> retira tu apuesta abierta
+# /gdx coinflip create <amount> [heads|tails]
+# /gdx coinflip cancel   -> retira tu apuesta abierta
 #
 # El que crea pone sus fichas; otro jugador acepta poniendo lo mismo.
 # Gana uno (50/50). La casa se queda con fee_percent del bote.
@@ -27,7 +27,7 @@ messages:
   cancelled: "&7Retiraste tu apuesta. Se te devolvieron &e{amount}&7."
   expired: "&7Nadie aceptó tu coinflip. Se te devolvieron &e{amount}&7."
   no_open: "&cNo tienes ninguna apuesta abierta."
-  too_many: "&cYa tienes una apuesta abierta. Cancélala con &f/gdx coinflip cancelar&c."
+  too_many: "&cYa tienes una apuesta abierta. Cancélala con &f/gdx coinflip cancel&c."
   min_bet: "&cLa apuesta mínima es &e{min}&c."
   max_bet: "&cLa apuesta máxima es &e{max}&c."
   not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
@@ -37,4 +37,4 @@ messages:
   win: "&a&l¡Ganaste! &7Salió &f{side}&7. Cobras &e{amount}&7."
   lose: "&c&lPerdiste. &7Salió &f{side}&7. Ganó &f{winner}&7."
   result_broadcast: "&6&lCoinflip &8» &f{winner} &7le ganó &e{amount}&7 a &f{loser}&7."
-  usage: "&cUso: /gdx coinflip [crear <monto> [cara|sello] | cancelar]"
+  usage: "&cUso: /gdx coinflip [create <amount> [heads|tails] | cancel]"

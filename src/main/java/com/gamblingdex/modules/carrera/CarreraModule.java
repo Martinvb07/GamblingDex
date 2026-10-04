@@ -53,7 +53,7 @@ import java.util.*;
  * de L bloques. Caballos reales corren (teletransportados cada tick) con
  * velocidades aleatorias y arranques; todos tienen la misma probabilidad.
  *
- * Pista automática: /gdx station set carrera &lt;distancia&gt; &lt;carriles&gt; mirando un
+ * Pista automática: /gdx station set race &lt;distancia&gt; &lt;carriles&gt; mirando un
  * bloque. Ese bloque queda como mesa de apuestas y detrás se construye la pista
  * (vallas, puertas de salida y meta). Los bloques originales se guardan y se
  * restauran al quitarla con /gdx station remove.
@@ -92,7 +92,7 @@ public class CarreraModule extends GameModule {
         BossBar bar;
         /** Separación entre carriles; 0 = la de la config (pistas viejas). */
         double spacing;
-        /** Bloque de la mesa (solo pistas construidas con /gdx station set carrera). */
+        /** Bloque de la mesa (solo pistas construidas con /gdx station set race). */
         Location station;
         /** Bloques que cambió la construcción: clave → BlockData original. */
         final Map<String, String> built = new LinkedHashMap<>();
@@ -141,7 +141,7 @@ public class CarreraModule extends GameModule {
 
     @Override
     public List<String> aliases() {
-        return List.of("carreras", "horses", "hipodromo");
+        return List.of("race", "carreras", "horses", "hipodromo");
     }
 
     @Override
@@ -191,10 +191,10 @@ public class CarreraModule extends GameModule {
                 "&6&lCarrera de caballos",
                 "&8• &7Apostar: &fclick derecho&7 a la mesa de la pista"));
         if (admin) {
-            l.add("&8• &e/gdx station set carrera <distancia> <carriles> &7- Construir pista (mirando un bloque)");
+            l.add("&8• &e/gdx station set race <distance> <lanes> &7- Construir pista (mirando un bloque)");
             l.add("&8• &e/gdx station remove &7- Quitar la pista (mirando su mesa; restaura los bloques)");
-            l.add("&8• &e/gdx carrera crear <nombre> [carriles] [largo] &7- Pista manual, en la salida mirando a la meta");
-            l.add("&8• &e/gdx carrera borrar <nombre>&7|&elista&7|&einiciar <nombre>");
+            l.add("&8• &e/gdx race create <name> [lanes] [length] &7- Pista manual, en la salida mirando a la meta");
+            l.add("&8• &e/gdx race remove <name>&7|&elist&7|&estart <name>");
         }
         l.add("");
         return l;
@@ -242,7 +242,7 @@ public class CarreraModule extends GameModule {
         // Se apuesta solo en la mesa de la pista: no hay comandos de jugador.
         player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
         if (isAdmin(player))
-            player.sendMessage(msg("usage_admin", "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"));
+            player.sendMessage(msg("usage_admin", "&cUso: /gdx race <create|remove|list|start> [name] [lanes] [length]"));
         return true;
     }
 
@@ -255,7 +255,7 @@ public class CarreraModule extends GameModule {
 
     private void create(Player p, String[] args) {
         if (args.length < 2) {
-            p.sendMessage(msg("usage_admin", "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"));
+            p.sendMessage(msg("usage_admin", "&cUso: /gdx race <create|remove|list|start> [name] [lanes] [length]"));
             return;
         }
         String name = args[1].replaceAll("[^a-zA-Z0-9_\\-]", "");
@@ -307,17 +307,17 @@ public class CarreraModule extends GameModule {
     }
 
     // ------------------------------------------------------------------
-    // Pista automática (/gdx station set carrera <distancia> <carriles>)
+    // Pista automática (/gdx station set race <distance> <lanes>)
     // ------------------------------------------------------------------
 
     @Override
     public List<String> stationTypes() {
-        return List.of("carrera", "racehorse", "caballos", "hipodromo");
+        return List.of("race", "carrera", "racehorse", "caballos", "hipodromo");
     }
 
     @Override
     public String stationUsage() {
-        return "carrera <distancia> <carriles>";
+        return "race <distance> <lanes>";
     }
 
     @Override
@@ -360,7 +360,7 @@ public class CarreraModule extends GameModule {
             if (args.length >= 2)
                 lanes = Integer.parseInt(args[1]);
         } catch (NumberFormatException e) {
-            p.sendMessage(msg("station_usage", "&cUso: /gdx station set carrera <distancia> <carriles> [nombre]"));
+            p.sendMessage(msg("station_usage", "&cUso: /gdx station set race <distance> <lanes> [name]"));
             return;
         }
         length = Math.max(10, Math.min(200, length));

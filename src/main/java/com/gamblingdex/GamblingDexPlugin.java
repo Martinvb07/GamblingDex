@@ -620,7 +620,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     }
 
     /**
-     * Nombre bonito de una mesa desde {@code <juego>.table_names.<mesa>} en
+     * Nombre bonito de una mesa desde {@code <juego>.table_names.<table>} en
      * modules/&lt;juego&gt;.yml (sin importar mayúsculas), ya con colores. Null si no hay.
      */
     public String tableNameFromConfig(String game, String table) {

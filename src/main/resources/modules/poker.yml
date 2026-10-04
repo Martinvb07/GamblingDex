@@ -53,7 +53,7 @@ turn_marker:
   particle: END_ROD
 # Registrar cada mano en la consola
 log_hands: true
-# Torneos (sit & go): /gdx poker torneo <mesa> <inscripción> [fichas] [minutos]
+# Torneos (sit & go): /gdx poker tournament <table> <fee> [chips] [minutes]
 tournament:
   starting_stack_bb: 100    # fichas iniciales si no se indican (en ciegas grandes de la mesa)
   level_minutes: 5          # cada cuánto suben las ciegas
@@ -68,7 +68,7 @@ tournament:
 
 # Nombre que se muestra en cada mesa (holograma, barra y mensajes). Escríbelo aquí en
 # vez de por el chat: acepta colores &a &l..., hexadecimales &#FF8800, símbolos y espacios.
-# La clave es el nombre con el que creaste la mesa (/gdx poker create <nombre>).
+# La clave es el nombre con el que creaste la mesa (/gdx poker create <name>).
 # Después de editar: /gdx reload
 table_names:
   # Mesa1: "&#00FFAA&l♠ Mesa High Roller ♠"

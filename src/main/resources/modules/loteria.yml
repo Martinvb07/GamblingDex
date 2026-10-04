@@ -1,9 +1,9 @@
 # ======================
 # GamblingDex - Lotería del servidor
 # ======================
-# /gdx loteria                -> ver pozo, tus boletos y comprar
-# /gdx loteria comprar <n>    -> comprar n boletos
-# Admin: /gdx loteria sortear -> sortear ahora
+# /gdx lottery                -> ver pozo, tus boletos y comprar
+# /gdx lottery buy <n>    -> comprar n boletos
+# Admin: /gdx lottery draw -> sortear ahora
 #
 # Cada boleto es una chance. Más boletos = más probabilidad de ganar.
 
@@ -34,11 +34,11 @@ messages:
   bought: "&aCompraste &e{amount} &aboleto(s) por &e{price}&a. Tienes &f{total}&a."
   not_enough: "&cNo te alcanzan las fichas. Necesitas &e{price}&c y tienes &e{balance}&c."
   max_tickets: "&cSolo puedes tener &e{max}&c boletos por sorteo."
-  reminder: "&6&lLotería &8» &7Sorteo en &f{time}&7. Pozo: &e{pot}&7. Compra con &e/gdx loteria"
+  reminder: "&6&lLotería &8» &7Sorteo en &f{time}&7. Pozo: &e{pot}&7. Compra con &e/gdx lottery"
   drawing: "&6&lLotería &8» &e¡Comienza el sorteo! &7Pozo: &e{pot}"
   winner: "&6&lLotería &8» &f{place}° lugar: &a&l{player} &7(&f{tickets} &7boletos) gana &e{amount}"
   you_won: "&a&l¡GANASTE LA LOTERÍA! &7{place}° lugar → &e+{amount}"
   not_enough_players: "&6&lLotería &8» &7No hubo suficientes jugadores (mínimo {min})."
   refunded: "&7Se te devolvieron &e{amount}&7 de tus boletos de lotería."
   rollover: "&6&lLotería &8» &7El pozo de &e{pot}&7 pasa al próximo sorteo."
-  usage: "&cUso: /gdx loteria [comprar <cantidad>]"
+  usage: "&cUso: /gdx lottery [buy <amount>]"

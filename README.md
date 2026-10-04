@@ -119,11 +119,11 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx help` | Muestra la ayuda |
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
-| `/gdx top [semana] [n]` | Ranking de ganancias (todos los juegos) |
-| `/gdx coinflip` · `crear <monto> [cara\|sello]` · `cancelar` | Coinflip |
-| `/gdx rasca` · `comprar <tipo> [cantidad]` | Rasca y Gana |
+| `/gdx top [week] [n]` | Ranking de ganancias (todos los juegos) |
+| `/gdx coinflip` · `crear <amount> [cara\|sello]` · `cancelar` | Coinflip |
+| `/gdx scratch` · `comprar <tipo> [amount]` | Rasca y Gana |
 | `/gdx bingo` · `comprar <n>` | Bingo |
-| `/gdx loteria` · `comprar <n>` | Lotería |
+| `/gdx lottery` · `comprar <n>` | Lotería |
 
 En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
 
@@ -134,26 +134,26 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx reload` | Recarga configuración y mensajes |
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
-| `/gdx station set rueda` | Construir la rueda física (mirando un faro) |
+| `/gdx station set wheel` | Construir la rueda física (mirando un faro) |
 | `/gdx station set mines` | Construir el tablero de Mines (mirando el bloque de la mesa) |
-| `/gdx station set plinko [filas]` | Construir el tablero de Plinko (mirando el bloque de la mesa) |
-| `/gdx station set baccarat [nombre]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
-| `/gdx baccarat asiento <agregar\|quitar\|lista\|limpiar> <mesa>` | Asientos de baccarat (parado encima) |
-| `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
-| `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
-| `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
-| `/gdx blackjack seat <add\|remove\|list\|clear> <nombre>` | Asientos de blackjack |
-| `/gdx poker create <nombre> [chica] [grande]` | Crear mesa de póker |
+| `/gdx station set plinko [rows]` | Construir el tablero de Plinko (mirando el bloque de la mesa) |
+| `/gdx station set baccarat [name]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
+| `/gdx baccarat asiento <agregar\|quitar\|lista\|limpiar> <table>` | Asientos de baccarat (parado encima) |
+| `/gdx station set race <distance> <lanes> [name]` | Construir una pista de carreras completa |
+| `/gdx roulette <build\|remove\|list> [radius] [yOffset]` | Ruletas físicas |
+| `/gdx blackjack <create\|remove\|list> <name>` | Mesas de blackjack |
+| `/gdx blackjack seat <add\|remove\|list\|clear> <name>` | Asientos de blackjack |
+| `/gdx poker create <name> [small] [big]` | Crear mesa de póker |
 | `/gdx poker <remove\|list\|stakes\|rake> ...` | Gestionar mesas de póker |
-| `/gdx poker seat <add\|remove\|list\|clear> <nombre>` | Asientos de póker |
-| `/gdx poker torneo <mesa> <inscripción> [fichas] [minutos]` | Crear un torneo |
-| `/gdx poker torneo <empezar\|cancelar> <mesa>` | Empezar o cancelar un torneo |
-| `/gdx rueda <crear\|borrar\|lista> [nombre]` | Ruedas de la fortuna |
-| `/gdx carrera <crear\|borrar\|lista\|iniciar> ...` | Pistas de carrera manuales |
-| `/gdx bingo iniciar` | Abrir la venta de bingo ya |
-| `/gdx loteria sortear` | Sortear la lotería ya |
-| `/gdx item <roulette\|slots> [cantidad]` | Ítems que abren menús |
-| `/gdx token <color\|valor> <cantidad>` | Crear fichas (ej. para Shopkeepers) |
+| `/gdx poker seat <add\|remove\|list\|clear> <name>` | Asientos de póker |
+| `/gdx poker tournament <table> <fee> [chips] [minutes]` | Crear un torneo |
+| `/gdx poker tournament <empezar\|cancelar> <table>` | Empezar o cancelar un torneo |
+| `/gdx rueda <crear\|borrar\|lista> [name]` | Ruedas de la fortuna |
+| `/gdx race <crear\|borrar\|lista\|iniciar> ...` | Pistas de carrera manuales |
+| `/gdx bingo start` | Abrir la venta de bingo ya |
+| `/gdx lottery draw` | Sortear la lotería ya |
+| `/gdx item <roulette\|slots> [amount]` | Ítems que abren menús |
+| `/gdx token <color\|valor> <amount>` | Crear fichas (ej. para Shopkeepers) |
 
 ---
 
@@ -190,7 +190,7 @@ Ejemplo con LuckPerms:
 <summary><b>🃏 Mesa de Baccarat</b></summary>
 
 1. Mira el bloque de la mesa: `/gdx station set baccarat Mesa1` (el dealer aparece detrás, mirando hacia ti).
-2. Párate en cada asiento y usa: `/gdx baccarat asiento agregar Mesa1`
+2. Párate en cada asiento y usa: `/gdx baccarat seat add Mesa1`
 3. Los jugadores se sientan y el menú de apuestas se abre solo. El título se cambia en `modules/baccarat.yml` → `table_names`.
 
 </details>
@@ -201,14 +201,14 @@ Ejemplo con LuckPerms:
 1. Mira el bloque central de la mesa: `/gdx poker create Mesa1 5 10` (ciegas 5/10)
 2. Párate en cada asiento, en sentido horario: `/gdx poker seat add Mesa1`
 3. Los jugadores se sientan, compran fichas de mesa y al levantarse se les devuelven.
-4. Torneo: `/gdx poker torneo Mesa1 1000` y luego `/gdx poker torneo empezar Mesa1`
+4. Torneo: `/gdx poker tournament Mesa1 1000` y luego `/gdx poker tournament start Mesa1`
 
 </details>
 
 <details>
 <summary><b>🔴 Ruleta</b></summary>
 
-1. Mira el bloque donde irá el centro: `/gdx roulette build [radio] [yOffset]`
+1. Mira el bloque donde irá el centro: `/gdx roulette build [radius] [yOffset]`
 2. Las rondas arrancan solas cada `roulette_world.auto_cycle.interval_seconds`.
 
 </details>
@@ -216,7 +216,7 @@ Ejemplo con LuckPerms:
 <details>
 <summary><b>🎡 Rueda de la Fortuna</b></summary>
 
-Coloca un **faro**, míralo y usa `/gdx station set rueda`. Alrededor del faro se construye la pared de lámparas con los 7 colores encima; arriba sale un holograma con lo que paga cada color. Los jugadores apuestan con click derecho al faro. Para quitarla: `/gdx station remove` mirando el faro.
+Coloca un **faro**, míralo y usa `/gdx station set wheel`. Alrededor del faro se construye la pared de lámparas con los 7 colores encima; arriba sale un holograma con lo que paga cada color. Los jugadores apuestan con click derecho al faro. Para quitarla: `/gdx station remove` mirando el faro.
 
 </details>
 
@@ -226,7 +226,7 @@ Coloca un **faro**, míralo y usa `/gdx station set rueda`. Alrededor del faro s
 Párate en terreno plano, mira el bloque que será la **mesa de apuestas** y usa:
 
 ```
-/gdx station set carrera 30 6
+/gdx station set race 30 6
 ```
 
 Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 carriles de 30 bloques con vallas, puertas de salida y meta a cuadros. Los jugadores apuestan con click derecho a la mesa. Para quitarla, mira la mesa y usa `/gdx station remove`: los bloques vuelven a como estaban.

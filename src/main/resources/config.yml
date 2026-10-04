@@ -46,12 +46,12 @@
 #   - Quitar permiso (si lo diste por error):
 #       /lp group mod permission unset gamblingdex.stats.others
 #   - Dar/quitar a un jugador puntual:
-#       /lp user <nombre> permission set gamblingdex.stats.others true
-#       /lp user <nombre> permission unset gamblingdex.stats.others
+#       /lp user <name> permission set gamblingdex.stats.others true
+#       /lp user <name> permission unset gamblingdex.stats.others
 #   - Dar admin a tu staff:
 #       /lp group admin permission set gamblingdex.admin true
 #   - Dar admin a un jugador puntual:
-#       /lp user <nombre> permission set gamblingdex.admin true
+#       /lp user <name> permission set gamblingdex.admin true
 #
 # Nota: algunos ítems/funciones pueden pedir un permiso extra configurable.
 # Ej: exchange.rates_item_permission controla quién ve el ítem "Tasas".
@@ -80,7 +80,7 @@
 # ESTADÍSTICAS / RANKING
 # ======================
 # Se cuentan TODOS los juegos (menos el póker, que es entre jugadores).
-# /gdx top [semana]  y placeholders %gamblingdex_...% (PlaceholderAPI) para hologramas.
+# /gdx top [week]  y placeholders %gamblingdex_...% (PlaceholderAPI) para hologramas.
 # El ranking semanal se reinicia el lunes a las 00:00 en esta zona horaria.
 stats:
   timezone: "America/Bogota"

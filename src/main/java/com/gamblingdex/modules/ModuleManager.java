@@ -165,7 +165,7 @@ public class ModuleManager {
         return null;
     }
 
-    /** Usos de /gdx station set de los módulos activos (ej. "crash", "carrera <distancia> <carriles>"). */
+    /** Usos de /gdx station set de los módulos activos (ej. "crash", "race <distance> <lanes>"). */
     public List<String> stationUsages() {
         List<String> out = new ArrayList<>();
         for (GameModule m : modules.values()) {

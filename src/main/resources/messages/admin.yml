@@ -10,8 +10,8 @@ station:
   invalid_action: "&cAcción inválida. Usa: set, remove, list, debug"
   set:
     usage: "&cUso: /gdx station set <slots|exchange>"
-    roulette_tip: "&7(Para ruleta física usa: &f/gdx roulette build [radio] [yOffset]&7)"
-    roulette_is_physical: "&cLa ruleta ahora es una mesa física. Usa: &f/gdx roulette build [radio] [yOffset]"
+    roulette_tip: "&7(Para ruleta física usa: &f/gdx roulette build [radius] [yOffset]&7)"
+    roulette_is_physical: "&cLa ruleta ahora es una mesa física. Usa: &f/gdx roulette build [radius] [yOffset]"
     invalid_type: "&cTipo inválido. Usa: slots, exchange"
     look_block: "&cMira un bloque a menos de 6 bloques."
     wrong_block: "&cEse bloque debe ser: &f{material}"
@@ -54,7 +54,7 @@ roulette:
   list: "&7Ruletas registradas: &f{count}"
 
 item:
-  usage: "&cUso: /gdx item <roulette|slots> [cantidad]"
+  usage: "&cUso: /gdx item <roulette|slots> [amount]"
   invalid_type: "&cTipo inválido. Usa: roulette, slots"
   is_station: "&cEse tipo es una estación (LOOM), no un ítem. Usa: /gdx station set exchange"
   given: "&aTe di &e{amount}&a item(s): &f{type}"
@@ -67,8 +67,8 @@ token:
 blackjack:
   usage: "&cUso: /gdx blackjack <create|remove|list|seat> ..."
   example: "&7Ej: &f/gdx blackjack create Mesa1&7 (mirando el bloque centro)"
-  create_usage: "&cUso: /gdx blackjack create <nombre>"
-  remove_usage: "&cUso: /gdx blackjack remove <nombre>"
+  create_usage: "&cUso: /gdx blackjack create <name>"
+  remove_usage: "&cUso: /gdx blackjack remove <name>"
   look_block: "&cMira el bloque centro donde quieres crear el dealer (<= 6 bloques)."
   not_available: "&cBlackjack no está disponible."
   create_failed: "&cNo se pudo crear el dealer."
@@ -79,7 +79,7 @@ blackjack:
   list_names_header: "&7Nombres:"
   list_names_line: "&8- &f{name}"
   invalid_action: "&cAcción inválida. Usa: create, remove, list, seat"
-  seat_usage: "&cUso: /gdx blackjack seat <add|remove|list|clear> <nombre>"
+  seat_usage: "&cUso: /gdx blackjack seat <add|remove|list|clear> <name>"
   seat_example: "&7Ej: &f/gdx blackjack seat add Mesa1&7 (parado en el asiento)"
   seat_added: "&aAsiento agregado: &f{x},{y},{z}"
   seat_removed: "&aAsiento removido: &f{x},{y},{z}"
