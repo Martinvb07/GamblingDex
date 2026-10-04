@@ -690,7 +690,7 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (args.length < 2) {
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.usage",
-                        "&cUso: /gdx blackjack <create|remove|list|seat|displayname|face> ..."));
+                        "&cUso: /gdx blackjack <create|remove|list|seat|displayname|face|limits> ..."));
                     player.sendMessage(cfg(
                             "messages.admin.blackjack.example",
                             "&7Ej: &f/gdx blackjack create Mesa1&7 (mirando el bloque centro)"));
@@ -702,7 +702,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 3) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.create_usage",
-                                "&cUso: /gdx blackjack create <name>"));
+                                "&cUso: /gdx blackjack create <name> [min] [max]"));
                         return true;
                     }
 
@@ -729,6 +729,16 @@ public class GamblingDexCommand implements CommandExecutor {
                                 "messages.admin.blackjack.create_failed",
                                 "&cNo se pudo crear el dealer."));
                         return true;
+                    }
+                    // /gdx blackjack create <name> [min] [max]
+                    if (args.length >= 4) {
+                        long min = com.gamblingdex.modules.GameModule.parseAmount(args[3]);
+                        long max = args.length >= 5 ? com.gamblingdex.modules.GameModule.parseAmount(args[4]) : 0;
+                        if (min > 0 && (max <= 0 || max >= min)) {
+                            bm.setLimits(table, min, Math.max(0, max));
+                            player.sendMessage(GamblingDexPlugin.getInstance().color("&7Apuesta de la mesa: &e"
+                                    + formatLong(min) + " &7- &e" + (max > 0 ? formatLong(max) : "∞")));
+                        }
                     }
                     GamblingDexPlugin.getInstance().syncTableNames();
 
@@ -787,6 +797,24 @@ public class GamblingDexCommand implements CommandExecutor {
                             }
                         }
                     }
+                    return true;
+                }
+
+                if (action.equals("limits") || action.equals("limit") || action.equals("bets")
+                        || action.equals("limites")) {
+                    var bm = GamblingDexPlugin.getInstance().getBlackjackManager();
+                    var t = bm == null || args.length < 4 ? null : bm.getByName(args[2]);
+                    long min = args.length >= 4 ? com.gamblingdex.modules.GameModule.parseAmount(args[3]) : -1;
+                    long max = args.length >= 5 ? com.gamblingdex.modules.GameModule.parseAmount(args[4]) : 0;
+                    if (t == null || min < 0 || max < 0 || (max > 0 && max < min)) {
+                        player.sendMessage(cfg("messages.admin.blackjack.limits_usage",
+                                "&cUso: /gdx blackjack limits <table> <min> [max] &7(max 0 = sin tope; 10k, 1m...)"));
+                        return true;
+                    }
+                    bm.setLimits(t, min, max);
+                    player.sendMessage(GamblingDexPlugin.getInstance().color("&aMesa &f" + t.getDisplayName()
+                            + "&a: apuesta &e" + formatLong(t.getMinBet()) + " &a- &e"
+                            + (t.getMaxBet() > 0 ? formatLong(t.getMaxBet()) : "∞")));
                     return true;
                 }
 

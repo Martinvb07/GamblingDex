@@ -155,12 +155,17 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> blackjack(String[] args, String cur, int n) {
         if (n == 2)
-            return filter(List.of("create", "remove", "list", "seat", "displayname", "face"), cur);
+            return filter(List.of("create", "remove", "list", "seat", "displayname", "face", "limits"), cur);
         String action = args[1].toLowerCase(Locale.ROOT);
         List<String> tables = blackjackTables();
         switch (action) {
             case "create", "add", "set" -> {
-                return n == 3 ? hint(cur, "<name>") : List.of();
+                return n == 3 ? hint(cur, "<name>") : n == 4 ? hint(cur, "[min]", "100", "10k")
+                        : n == 5 ? hint(cur, "[max]", "10k", "1m") : List.of();
+            }
+            case "limits", "limit", "bets", "limites" -> {
+                return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<min>", "100", "10k")
+                        : n == 5 ? hint(cur, "[max]", "0", "10k", "1m") : List.of();
             }
             case "remove", "del", "delete", "face" -> {
                 return n == 3 ? filter(tables, cur) : List.of();

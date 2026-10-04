@@ -107,6 +107,8 @@ public class BlackjackBetMenu {
                 lore.add("");
                 lore.add("§7Apostando en: §f" + BlackjackTable.spotName(selected));
             }
+            lore.add("§7Mesa: §e" + prettyUnits(table.getMinBet()) + " §7- §e"
+                    + (table.getMaxBet() > 0 ? prettyUnits(table.getMaxBet()) : "∞"));
             lore.add("§7Haz clic en una ficha para apostar.");
             lore.add("§7Cierra el menú cuando termines.");
             infoMeta.setLore(lore);
