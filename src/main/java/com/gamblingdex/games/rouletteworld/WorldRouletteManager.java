@@ -28,7 +28,44 @@ public class WorldRouletteManager {
     public WorldRouletteManager(GamblingDexPlugin plugin) {
         this.plugin = plugin;
         this.tablesFile = new File(plugin.getDataFolder(), "roulette_tables.yml");
+        this.jackpotFile = new File(plugin.getDataFolder(), "roulette_jackpot.yml");
+        this.jackpot = YamlConfiguration.loadConfiguration(jackpotFile).getLong("pot", 0L);
         reload();
+    }
+
+    // ------------------------------------------------------------------
+    // Jackpot (uno solo para todas las ruletas)
+    // ------------------------------------------------------------------
+
+    private final File jackpotFile;
+    private long jackpot;
+
+    /** Pozo actual del jackpot de la ruleta. */
+    public long getJackpot() {
+        return jackpot;
+    }
+
+    public void addToJackpot(long amount) {
+        if (amount <= 0)
+            return;
+        jackpot += amount;
+        saveJackpot();
+    }
+
+    /** Se lo ganaron: vuelve al monto inicial (roulette_world.jackpot.seed). */
+    public void resetJackpot() {
+        jackpot = Math.max(0L, plugin.getConfig().getLong("roulette_world.jackpot.seed", 0L));
+        saveJackpot();
+    }
+
+    private void saveJackpot() {
+        YamlConfiguration y = new YamlConfiguration();
+        y.set("pot", jackpot);
+        try {
+            y.save(jackpotFile);
+        } catch (java.io.IOException e) {
+            plugin.getLogger().warning("No se pudo guardar roulette_jackpot.yml: " + e.getMessage());
+        }
     }
 
     /** Al apagar el plugin: devuelve las fichas de las rondas en curso. */

@@ -42,7 +42,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 |---|---|
 | 🃏 **Blackjack** | Mesa con dealer y asientos reales (de 1 a 7 jugadores: se puede jugar solo). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
 | ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
-| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00). Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
+| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), con **jackpot** acumulado que cae en un número al azar. Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
@@ -116,7 +116,7 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx help` | Muestra la ayuda |
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
-| `/gdx top [n]` | Ranking por total ganado |
+| `/gdx top [semana] [n]` | Ranking de ganancias (todos los juegos) |
 | `/gdx coinflip` · `crear <monto> [cara\|sello]` · `cancelar` | Coinflip |
 | `/gdx rasca` · `comprar <tipo> [cantidad]` | Rasca y Gana |
 | `/gdx bingo` · `comprar <n>` | Bingo |
@@ -270,6 +270,38 @@ Los colores usan `&` (ej. `&a`, `&6&l`) y también hexadecimales `&#RRGGBB` (ej.
 ```yaml
 table_names:
   MESA-VIP1: "&6&l✦ &#FFD700&lMESA VIP &6&l✦"
+```
+
+---
+
+## 🏷️ Placeholders (PlaceholderAPI)
+
+Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/), GamblingDex registra estos placeholders para hologramas (DecentHolograms), scoreboards, TAB, etc. Cuentan **todos los juegos** menos el póker.
+
+| Placeholder | Qué muestra |
+|---|---|
+| `%gamblingdex_balance%` | Fichas que tiene el jugador |
+| `%gamblingdex_profit%` | Ganancia neta (cobrado − apostado) |
+| `%gamblingdex_wagered%` | Total apostado |
+| `%gamblingdex_paid%` | Total cobrado |
+| `%gamblingdex_biggest%` | Mejor premio de una sola apuesta |
+| `%gamblingdex_rounds%` | Apuestas jugadas |
+| `%gamblingdex_rank%` | Puesto en el ranking de ganancias |
+| `%gamblingdex_weekly_profit%` | Igual que los de arriba, pero de esta semana (`weekly_...`) |
+| `%gamblingdex_top_profit_1_name%` | Nombre del 1° en ganancias |
+| `%gamblingdex_top_profit_1_value%` | Ganancia del 1° |
+| `%gamblingdex_topweek_profit_1_name%` | Igual, pero del ranking semanal |
+| `%gamblingdex_jackpot_ruleta%` | Pozo del jackpot de la ruleta |
+
+En los `top_...` puedes cambiar `profit` por `wagered`, `paid` o `biggest`, y el número por el puesto (1, 2, 3...). El ranking semanal se reinicia el lunes (`stats.timezone` en `config.yml`).
+
+**Ejemplo de holograma con DecentHolograms:**
+
+```
+/dh create topcasino &6&l★ TOP GANANCIAS DE LA SEMANA ★
+/dh line add topcasino &e1. &f%gamblingdex_topweek_profit_1_name% &7- &a%gamblingdex_topweek_profit_1_value%
+/dh line add topcasino &72. &f%gamblingdex_topweek_profit_2_name% &7- &a%gamblingdex_topweek_profit_2_value%
+/dh line add topcasino &63. &f%gamblingdex_topweek_profit_3_name% &7- &a%gamblingdex_topweek_profit_3_value%
 ```
 
 ---

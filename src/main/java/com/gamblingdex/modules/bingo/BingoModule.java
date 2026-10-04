@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.bingo;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.modules.GameModule;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -115,6 +116,7 @@ public class BingoModule extends GameModule {
     private final Map<UUID, List<Card>> cards = new LinkedHashMap<>();
     private final Map<UUID, String> names = new HashMap<>();
     private final Map<UUID, Long> paid = new HashMap<>();
+    private final Map<UUID, Long> won = new HashMap<>();
     private final List<Integer> drawn = new ArrayList<>();
     private final Deque<Integer> balls = new ArrayDeque<>();
     private long soldUnits;
@@ -401,6 +403,7 @@ public class BingoModule extends GameModule {
             UUID id = winners.get(i);
             long amount = share + (i < rem ? 1 : 0);
             TokenWallet.give(id, amount);
+            won.merge(id, amount, Long::sum);
             wn.add(names.getOrDefault(id, "?"));
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
@@ -421,6 +424,11 @@ public class BingoModule extends GameModule {
     }
 
     private void endGame() {
+        // Estadísticas de la partida (si se canceló, paid ya está vacío)
+        for (Map.Entry<UUID, Long> e : paid.entrySet())
+            GamblingDexPlugin.recordStats(e.getKey(), "bingo", e.getValue(), won.getOrDefault(e.getKey(), 0L));
+        paid.clear();
+        won.clear();
         state = State.IDLE;
         scheduleNextAuto();
         refreshMenus();

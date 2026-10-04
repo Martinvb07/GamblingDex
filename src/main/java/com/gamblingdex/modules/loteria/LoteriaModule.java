@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.loteria;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.modules.GameModule;
 import org.bukkit.Bukkit;
@@ -272,6 +273,13 @@ public class LoteriaModule extends GameModule {
             given += amounts[k];
         }
         amounts[0] += pot - given; // premios sin dueño y redondeo al 1°
+
+        Map<UUID, Long> prizes = new HashMap<>();
+        for (int k = 0; k < places; k++)
+            prizes.merge(winners.get(k), amounts[k], Long::sum);
+        for (Map.Entry<UUID, Integer> e : tickets.entrySet())
+            GamblingDexPlugin.recordStats(e.getKey(), "loteria", e.getValue() * price(),
+                    prizes.getOrDefault(e.getKey(), 0L));
 
         history.clear();
         for (int k = 0; k < places; k++) {

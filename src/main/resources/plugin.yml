@@ -1,4 +1,5 @@
 depend: [Vault]
+softdepend: [PlaceholderAPI]
 name: GamblingDex
 main: com.gamblingdex.GamblingDexPlugin
 version: 1.0.0

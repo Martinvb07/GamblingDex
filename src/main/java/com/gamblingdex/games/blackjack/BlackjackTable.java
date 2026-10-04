@@ -1987,6 +1987,11 @@ public class BlackjackTable {
             // Total de la ronda: mano(s) + apuestas laterales + blackjack natural.
             long net = totalPayout - totalBet + early;
             roundNet.put(id, net);
+            long wagered = 0L;
+            for (Hand h : list)
+                wagered += h.bet();
+            wagered += lastBetUnits(id, BetSpot.PERFECT_PAIRS) + lastBetUnits(id, BetSpot.TWENTY_ONE_PLUS_THREE);
+            GamblingDexPlugin.recordStats(id, "blackjack", wagered, wagered + net);
             if (early != 0) {
                 // Desglose: lo de la(s) mano(s) y lo de laterales/blackjack natural.
                 p.sendMessage(plugin.getMessages().format(

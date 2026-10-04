@@ -23,6 +23,19 @@ spin_slow_steps: 18          # cuántos números recorre mientras frena
 spin_slow_max_ticks: 12      # pausa del último paso (20 ticks = 1 s); más alto = frena más
 max_bets_per_player: 30      # cuántas apuestas DISTINTAS por ronda (el monto no tiene tope)
 broadcast_winners: false
+# Jackpot: un pozo que se llena con un % de lo que pierden los jugadores (es uno solo
+# para todas las ruletas). A veces, al abrir las apuestas, la ronda es de JACKPOT en un
+# número al azar (se ve en el holograma). Si sale ese número, los que le apostaron
+# PLENO se reparten el pozo según cuánto puso cada uno. Si nadie le apostó, sigue creciendo.
+# Placeholder para hologramas: %gamblingdex_jackpot_ruleta%
+jackpot:
+  enabled: true
+  contribution_percent: 5    # % de lo perdido que va al pozo
+  chance_percent: 15         # probabilidad de que una ronda sea de jackpot
+  min_pot: 1000              # solo hay rondas de jackpot si el pozo tiene al menos esto
+  seed: 0                    # con cuánto vuelve a empezar el pozo después de ganarse
+  announce_radius: 20        # avisar la ronda de jackpot a los que estén cerca (0 = no)
+  broadcast_win: true        # anunciar a todo el servidor cuando alguien se lo gana
 holo_height: 2.3
 holo_lines:
   - "&6&lRULETA"

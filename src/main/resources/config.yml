@@ -77,6 +77,15 @@
 #   - messages/join.yml
 
 # ======================
+# ESTADÍSTICAS / RANKING
+# ======================
+# Se cuentan TODOS los juegos (menos el póker, que es entre jugadores).
+# /gdx top [semana]  y placeholders %gamblingdex_...% (PlaceholderAPI) para hologramas.
+# El ranking semanal se reinicia el lunes a las 00:00 en esta zona horaria.
+stats:
+  timezone: "America/Bogota"
+
+# ======================
 # MONEDA / TOKENS
 # ======================
 

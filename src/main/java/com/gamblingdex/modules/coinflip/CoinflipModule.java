@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.coinflip;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
@@ -313,6 +314,8 @@ public class CoinflipModule extends GameModule {
         long fee = (long) Math.floor(pot * pct / 100.0);
         long prize = pot - fee;
         TokenWallet.give(winner, prize);
+        GamblingDexPlugin.recordStats(winner, "coinflip", g.flip.amount(), prize);
+        GamblingDexPlugin.recordStats(loser, "coinflip", g.flip.amount(), 0L);
 
         String side = sideName(g.resultHeads);
         Player wp = Bukkit.getPlayer(winner);

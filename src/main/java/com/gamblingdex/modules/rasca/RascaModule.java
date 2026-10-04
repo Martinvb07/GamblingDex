@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.rasca;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.modules.GameModule;
 import org.bukkit.Bukkit;
@@ -404,6 +405,7 @@ public class RascaModule extends GameModule {
 
         Player p = Bukkit.getPlayer(s.player);
         long prize = s.win == null ? 0L : s.price * s.mult;
+        GamblingDexPlugin.recordStats(s.player, "rasca", s.price, prize);
         if (prize > 0) {
             TokenWallet.give(s.player, prize);
             if (p != null) {

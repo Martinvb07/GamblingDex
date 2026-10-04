@@ -245,10 +245,17 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
+                // /gdx top [semana] [n] — ganancia neta en TODOS los juegos.
                 int limit = 10;
-                if (args.length >= 2) {
+                boolean week = false;
+                for (int ai = 1; ai < args.length; ai++) {
+                    String a = args[ai].toLowerCase(java.util.Locale.ROOT);
+                    if (a.equals("semana") || a.equals("semanal") || a.equals("week") || a.equals("weekly")) {
+                        week = true;
+                        continue;
+                    }
                     try {
-                        limit = Integer.parseInt(args[1]);
+                        limit = Integer.parseInt(a);
                     } catch (NumberFormatException ignored) {
                     }
                 }
@@ -256,29 +263,13 @@ public class GamblingDexCommand implements CommandExecutor {
                 String currencyName = GamblingDexPlugin.getInstance().color(
                         GamblingDexPlugin.getInstance().getConfig().getString("currency.name", "⛃"));
 
-                player.sendMessage(cfg("messages.gdx.top.header", "&6&lTop Ganancias &7(Slots+Ruleta)"));
+                player.sendMessage(week
+                        ? cfg("messages.gdx.top.header_week", "&6&lTop Ganancias &7(esta semana, todos los juegos)")
+                        : cfg("messages.gdx.top.header_all", "&6&lTop Ganancias &7(todos los juegos)"));
 
-                Map<UUID, Long> totalWonByPlayer = new HashMap<>();
-                var slotsSnap = GamblingDexPlugin.getInstance().getSlotsStatsManager().snapshot();
-                var rouletteSnap = GamblingDexPlugin.getInstance().getRouletteStatsManager().snapshot();
-
-                Set<UUID> all = new HashSet<>();
-                all.addAll(slotsSnap.keySet());
-                all.addAll(rouletteSnap.keySet());
-
-                for (UUID id : all) {
-                    long won = 0L;
-                    var s = slotsSnap.get(id);
-                    if (s != null)
-                        won += s.getTotalPayoutUnits();
-                    var r = rouletteSnap.get(id);
-                    if (r != null)
-                        won += r.getTotalPayoutUnits();
-                    totalWonByPlayer.put(id, won);
-                }
-
-                List<Map.Entry<UUID, Long>> list = new ArrayList<>(totalWonByPlayer.entrySet());
-                list.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+                var stats = GamblingDexPlugin.getInstance().getGameStats();
+                List<Map.Entry<UUID, Long>> list = stats == null ? List.of()
+                        : stats.top(com.gamblingdex.stats.GameStats.Metric.PROFIT, week);
 
                 int pos = 1;
                 int safeLimit = Math.max(1, Math.min(50, limit));

@@ -61,6 +61,8 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private PlayerIndex playerIndex;
 
+    private com.gamblingdex.stats.GameStats gameStats;
+
     private Messages messages;
 
     /**
@@ -208,6 +210,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.rouletteStatsManager = new RouletteStatsManager(this);
 
         this.playerIndex = new PlayerIndex(this);
+        this.gameStats = new com.gamblingdex.stats.GameStats(this);
 
         this.worldRouletteManager = new WorldRouletteManager(this);
 
@@ -228,10 +231,21 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.moduleManager.enableAll();
 
         syncTableNames();
+
+        // PlaceholderAPI (opcional): %gamblingdex_...% para hologramas, scoreboards, etc.
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            try {
+                new com.gamblingdex.stats.GdxPlaceholders(this).register();
+                getLogger().info("PlaceholderAPI detectado: placeholders %gamblingdex_...% activos.");
+            } catch (Throwable t) {
+                getLogger().warning("No se pudieron registrar los placeholders: " + t);
+            }
+        }
     }
 
     @Override
     public void onDisable() {
+        // (las estadísticas se guardan al final, después de devolver las fichas)
         // Devolver fichas de rondas en curso (si no, se pierden al apagar/reiniciar).
         try {
             if (blackjackManager != null)
@@ -266,6 +280,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (playerIndex != null)
                 playerIndex.save();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (gameStats != null)
+                gameStats.shutdown();
         } catch (Throwable ignored) {
         }
         getLogger().info("GamblingDex deshabilitado.");
@@ -374,6 +393,18 @@ public class GamblingDexPlugin extends JavaPlugin {
             tokenSellMenu = new com.gamblingdex.gui.TokenSellMenu(tokenManager);
         }
         return tokenSellMenu;
+    }
+
+    /** Estadísticas de todos los juegos (puede ser null antes de habilitar). */
+    public com.gamblingdex.stats.GameStats getGameStats() {
+        return gameStats;
+    }
+
+    /** Atajo para que cada juego registre una apuesta resuelta. */
+    public static void recordStats(java.util.UUID player, String game, long wager, long payout) {
+        GamblingDexPlugin p = getInstance();
+        if (p != null && p.gameStats != null)
+            p.gameStats.record(player, game, wager, payout);
     }
 
     public PlayerIndex getPlayerIndex() {

@@ -101,6 +101,8 @@ public class WorldRouletteTable {
     private final Map<UUID, Map<String, WorldRouletteBet>> bets = new HashMap<>();
     // apuestas de la ronda anterior de cada jugador (para "Repetir apuesta")
     private final Map<UUID, List<WorldRouletteBet>> lastBets = new HashMap<>();
+    // número del jackpot en esta ronda (null = ronda normal)
+    private Integer jackpotNumber;
 
     private State state = State.WAITING;
     private int countdownSeconds = 0;
@@ -509,6 +511,7 @@ public class WorldRouletteTable {
     private void startCountdown() {
         state = State.COUNTDOWN;
         countdownSeconds = plugin.getConfig().getInt("roulette_world.bet_window_seconds", 40);
+        rollJackpot();
 
         updateHologramLine(2, "§aAPUESTAS ABIERTAS §7(" + countdownSeconds + "s)");
 
@@ -724,9 +727,12 @@ public class WorldRouletteTable {
             }
 
             long totalPayout = 0L;
+            long staked = 0L;
             for (WorldRouletteBet bet : entry.getValue().values()) {
                 totalPayout += calculatePayout(bet, winningNumber, isRed);
+                staked += bet.getAmount();
             }
+            GamblingDexPlugin.recordStats(pid, "ruleta", staked, totalPayout);
 
             if (p == null) {
                 // Se desconectó durante el giro: se le paga cuando vuelva.
@@ -800,6 +806,8 @@ public class WorldRouletteTable {
             }
         }
 
+        settleJackpot(winningNumber, participants);
+
         Bukkit.getScheduler().runTaskLater(plugin, this::restoreLastHighlight, 160L);
 
         for (Map.Entry<UUID, Map<String, WorldRouletteBet>> e : bets.entrySet())
@@ -811,6 +819,133 @@ public class WorldRouletteTable {
             state = State.WAITING;
             updateHologramLine(2, "§cAPUESTAS CERRADAS");
         }, 60L);
+    }
+
+    // ------------------------------------------------------------------
+    // Jackpot
+    // ------------------------------------------------------------------
+
+    /** Al abrir las apuestas: a veces la ronda es de jackpot en un número al azar. */
+    private void rollJackpot() {
+        jackpotNumber = null;
+        var cfg = plugin.getConfig();
+        WorldRouletteManager mgr = plugin.getWorldRouletteManager();
+        if (mgr == null || !cfg.getBoolean("roulette_world.jackpot.enabled", true))
+            return;
+        if (mgr.getJackpot() < Math.max(1L, cfg.getLong("roulette_world.jackpot.min_pot", 1000L)))
+            return;
+        double chance = Math.max(0.0, Math.min(100.0, cfg.getDouble("roulette_world.jackpot.chance_percent", 15.0)));
+        if (ThreadLocalRandom.current().nextDouble(100.0) >= chance)
+            return;
+        List<Integer> nums = new ArrayList<>(numberToBlockLocation.keySet());
+        if (nums.isEmpty())
+            return;
+        jackpotNumber = nums.get(ThreadLocalRandom.current().nextInt(nums.size()));
+        updateHologramLine(1, plugin.color(msg("messages.roulette_world.jackpot_holo",
+                "&6&l★ JACKPOT en el {number}: &e&l{pot} &6&l★",
+                Map.of("number", WorldRouletteTables.formatNumber(jackpotNumber), "pot", prettyUnits(mgr.getJackpot())))));
+        double r = cfg.getDouble("roulette_world.jackpot.announce_radius", 20.0);
+        World w = center.getWorld();
+        if (w != null && r > 0) {
+            String text = msg("messages.roulette_world.jackpot_round",
+                    "&6&l★ JACKPOT ★ &7Si sale el &f&l{number}&7, los que le apostaron &fpleno&7 se reparten &e&l{pot}&7!",
+                    Map.of("number", WorldRouletteTables.formatNumber(jackpotNumber), "pot", prettyUnits(mgr.getJackpot())));
+            for (Player p : w.getNearbyPlayers(center, r))
+                p.sendMessage(text);
+        }
+    }
+
+    /** Al terminar la ronda: lo perdido alimenta el pozo y, si salió el número del jackpot, se paga. */
+    private void settleJackpot(int winningNumber, List<UUID> participants) {
+        WorldRouletteManager mgr = plugin.getWorldRouletteManager();
+        Integer jn = jackpotNumber;
+        jackpotNumber = null;
+        if (mgr == null || !plugin.getConfig().getBoolean("roulette_world.jackpot.enabled", true))
+            return;
+
+        // Quiénes le apostaron pleno al número del jackpot (antes de sumar lo perdido)
+        Map<UUID, Long> onNumber = new LinkedHashMap<>();
+        long onNumberTotal = 0;
+        if (jn != null && jn == winningNumber) {
+            for (Map.Entry<UUID, Map<String, WorldRouletteBet>> e : bets.entrySet()) {
+                for (WorldRouletteBet b : e.getValue().values()) {
+                    if (b.getType() == WorldRouletteBetType.NUMBER && b.getNumber() != null && b.getNumber() == jn) {
+                        onNumber.merge(e.getKey(), b.getAmount(), Long::sum);
+                        onNumberTotal += b.getAmount();
+                    }
+                }
+            }
+        }
+
+        // Lo que perdió cada jugador va en parte al pozo
+        double pct = Math.max(0.0, Math.min(100.0,
+                plugin.getConfig().getDouble("roulette_world.jackpot.contribution_percent", 5.0))) / 100.0;
+        boolean isRed = WorldRouletteTables.isRed(winningNumber);
+        long add = 0;
+        for (Map<String, WorldRouletteBet> m : bets.values()) {
+            long staked = 0, paid = 0;
+            for (WorldRouletteBet b : m.values()) {
+                staked += b.getAmount();
+                paid += calculatePayout(b, winningNumber, isRed);
+            }
+            if (staked > paid)
+                add += (long) Math.floor((staked - paid) * pct);
+        }
+
+        if (jn != null && jn == winningNumber && onNumberTotal > 0) {
+            long pot = mgr.getJackpot();
+            long given = 0;
+            List<String> names = new ArrayList<>();
+            int i = 0;
+            for (Map.Entry<UUID, Long> e : onNumber.entrySet()) {
+                i++;
+                long share = i == onNumber.size() ? pot - given
+                        : (long) Math.floor(pot * (e.getValue() / (double) onNumberTotal));
+                given += share;
+                Player p = Bukkit.getPlayer(e.getKey());
+                if (p != null) {
+                    plugin.getTokenPayout().pay(p, share);
+                    p.sendTitle(plugin.color("&6&l★ JACKPOT ★"), plugin.color("&e+" + prettyUnits(share)), 10, 80, 20);
+                    p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+                } else {
+                    plugin.getPendingPayouts().add(e.getKey(), share);
+                }
+                com.gamblingdex.GamblingDexPlugin.recordStats(e.getKey(), "ruleta", 0L, share);
+                String n = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
+                names.add(n + " (+" + prettyUnits(share) + ")");
+            }
+            String text = msg("messages.roulette_world.jackpot_won",
+                    "&6&l★ JACKPOT ★ &7¡Salió el &f{number}&7! &e{players} &7se llevan &e&l{pot}",
+                    Map.of("number", WorldRouletteTables.formatNumber(jn), "players", String.join(", ", names),
+                            "pot", prettyUnits(pot)));
+            if (plugin.getConfig().getBoolean("roulette_world.jackpot.broadcast_win", true)) {
+                Bukkit.broadcastMessage(text);
+            } else {
+                for (UUID id : participants) {
+                    Player p = Bukkit.getPlayer(id);
+                    if (p != null)
+                        p.sendMessage(text);
+                }
+            }
+            plugin.getLogger().info("[Ruleta] Jackpot de " + pot + " en el " + WorldRouletteTables.formatNumber(jn)
+                    + " para " + names);
+            mgr.resetJackpot();
+        } else if (jn != null) {
+            String text = msg("messages.roulette_world.jackpot_missed",
+                    "&6★ &7El jackpot era el &f{number}&7. Sigue acumulando: &e{pot}",
+                    Map.of("number", WorldRouletteTables.formatNumber(jn), "pot", prettyUnits(mgr.getJackpot() + add)));
+            for (UUID id : participants) {
+                Player p = Bukkit.getPlayer(id);
+                if (p != null)
+                    p.sendMessage(text);
+            }
+        }
+        mgr.addToJackpot(add);
+
+        // El renglón del holograma vuelve a su texto normal
+        List<String> lines = plugin.getConfig().getStringList("roulette_world.holo_lines");
+        if (lines.size() > 1)
+            updateHologramLine(1, plugin.color(lines.get(1)));
     }
 
     private static long calculatePayout(WorldRouletteBet bet, int winningNumber, boolean isRed) {

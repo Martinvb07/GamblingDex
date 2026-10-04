@@ -1,5 +1,6 @@
 package com.gamblingdex.modules.carrera;
 
+import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
@@ -785,6 +786,8 @@ public class CarreraModule extends GameModule {
                     staked += v;
                 long onWinner = e.getValue().getOrDefault(winner, 0L);
                 Player p = Bukkit.getPlayer(e.getKey());
+                GamblingDexPlugin.recordStats(e.getKey(), "carrera", staked,
+                        onWinner > 0 ? (long) Math.floor(onWinner * (double) pot / winnerPool) : 0L);
                 if (onWinner > 0) {
                     long won = (long) Math.floor(onWinner * (double) pot / winnerPool);
                     TokenWallet.give(e.getKey(), won);
@@ -815,6 +818,8 @@ public class CarreraModule extends GameModule {
                 staked += v;
             long onWinner = e.getValue().getOrDefault(winner, 0L);
             Player p = Bukkit.getPlayer(e.getKey());
+            GamblingDexPlugin.recordStats(e.getKey(), "carrera", staked,
+                    onWinner > 0 ? (long) Math.floor(onWinner * mult) : 0L);
             if (onWinner > 0) {
                 long won = (long) Math.floor(onWinner * mult);
                 TokenWallet.give(e.getKey(), won);
