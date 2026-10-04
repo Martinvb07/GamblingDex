@@ -60,6 +60,11 @@ public class BlackjackTable {
     private final Map<UUID, Long> plus3Bets = new HashMap<>();
     // Apuestas con las que arrancó la última ronda de cada jugador: {principal, pares, 21+3}
     private final Map<UUID, long[]> lastBets = new HashMap<>();
+    // Ganancia/pérdida que se paga al repartir (apuestas laterales y blackjack natural),
+    // para sumarla al total de la ronda.
+    private final Map<UUID, Long> earlyNet = new HashMap<>();
+    // Resultado total de la ronda por jugador (mano + laterales), para mostrarlo en pantalla.
+    private final Map<UUID, Long> roundNet = new HashMap<>();
     private final Map<UUID, BetSpot> selectedSpot = new HashMap<>();
     // Manos de cada jugador en la ronda (más de una si dividió).
     private final Map<UUID, List<Hand>> hands = new HashMap<>();
@@ -1480,6 +1485,8 @@ public class BlackjackTable {
                     "&7El dealer baraja el zapato..."));
         }
         this.dealerHand = new Hand();
+        earlyNet.clear();
+        roundNet.clear();
 
         for (UUID id : participants) {
             lastBets.put(id, new long[] { bets.getOrDefault(id, 0L), pairsBets.getOrDefault(id, 0L),
@@ -1554,6 +1561,7 @@ public class BlackjackTable {
     private void payNaturalNow(UUID id, Hand h) {
         long payout = blackjackTotalPayout(h.bet());
         long profit = Math.max(0L, payout - h.bet());
+        earlyNet.merge(id, profit, Long::sum);
         h.setDone(true);
         h.setSettled(true);
         h.setResult("&6&lBJ &a+" + prettyUnits(profit));
@@ -1603,6 +1611,7 @@ public class BlackjackTable {
             Long pairBet = pairsBets.remove(id);
             if (pairBet != null && pairBet > 0) {
                 SideBets.Result r = SideBets.perfectPairs(c1, c2, cfg);
+                earlyNet.merge(id, r == null ? -pairBet : r.totalPayout(pairBet) - pairBet, Long::sum);
                 if (p != null) {
                     sendSideBetResult(p, "Pares Perfectos", pairBet, r);
                 } else if (r != null) {
@@ -1613,6 +1622,7 @@ public class BlackjackTable {
             Long plus3Bet = plus3Bets.remove(id);
             if (plus3Bet != null && plus3Bet > 0) {
                 SideBets.Result r = SideBets.twentyOnePlusThree(c1, c2, dealerUp, cfg);
+                earlyNet.merge(id, r == null ? -plus3Bet : r.totalPayout(plus3Bet) - plus3Bet, Long::sum);
                 if (p != null) {
                     sendSideBetResult(p, "21+3", plus3Bet, r);
                 } else if (r != null) {
@@ -1960,19 +1970,29 @@ public class BlackjackTable {
                 }
             }
 
-            if (totalBet <= 0)
+            long early = earlyNet.getOrDefault(id, 0L);
+            if (totalBet <= 0 && early == 0)
                 continue;
 
             if (p == null) {
                 // Desconectado: se le paga cuando vuelva a entrar.
-                plugin.getPendingPayouts().add(id, totalPayout);
+                if (totalPayout > 0)
+                    plugin.getPendingPayouts().add(id, totalPayout);
                 continue;
             }
             if (totalPayout > 0) {
                 plugin.getTokenPayout().pay(p, totalPayout);
             }
 
-            long net = totalPayout - totalBet;
+            // Total de la ronda: mano(s) + apuestas laterales + blackjack natural.
+            long net = totalPayout - totalBet + early;
+            roundNet.put(id, net);
+            if (early != 0) {
+                p.sendMessage(plugin.getMessages().format(
+                        "blackjack.result.round_total",
+                        "&7Total de la ronda &8(mano + laterales)&7: {amount}",
+                        Map.of("amount", net >= 0 ? "§a+" + prettyUnits(net) : "§c-" + prettyUnits(-net))));
+            }
             if (net > 0) {
                 p.sendTitle(plugin.color(anyBlackjack ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
                         plugin.color("&a+" + prettyUnits(net) + " &7fichas"), 5, 60, 15);
@@ -2004,6 +2024,8 @@ public class BlackjackTable {
         bets.clear();
         pairsBets.clear();
         plus3Bets.clear();
+        earlyNet.clear();
+        roundNet.clear();
         hands.clear();
         activeHand.clear();
         stopRoundDisplayTask();
@@ -2488,6 +2510,10 @@ public class BlackjackTable {
                     sb.append(formatCards(dealerHand)).append(" §8(§f").append(dealerHand.valueLabel())
                             .append("§8)");
                 }
+            }
+            Long total = resultsShown ? roundNet.get(id) : null;
+            if (total != null) {
+                sb.append(" §8| §7Total: ").append(total >= 0 ? "§a+" + prettyUnits(total) : "§c-" + prettyUnits(-total));
             }
             p.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
                     .deserialize(plugin.color(sb.toString())));
