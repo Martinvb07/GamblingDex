@@ -2,14 +2,14 @@ package com.gamblingdex.listeners;
 
 import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.games.slots.SlotsController;
-import org.bukkit.Material;
+import com.gamblingdex.games.slots.SlotsHolder;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.inventory.InventoryDragEvent;
 
 public class SlotsMenuListener implements Listener {
 
@@ -23,66 +23,25 @@ public class SlotsMenuListener implements Listener {
     public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player))
             return;
-        Inventory inv = event.getInventory();
         SlotsController controller = plugin.getSlotsController();
-        if (!controller.isSlotsInventory(inv, player))
+        if (!controller.isSlotsInventory(event.getInventory(), player))
             return;
-
         event.setCancelled(true);
-
-        ItemStack clicked = event.getCurrentItem();
-        int slot = event.getRawSlot();
-
-        if (controller.isBetSlot(slot)) {
-            boolean clickedIsToken = clicked != null && clicked.getType() != Material.AIR
-                    && plugin.getTokenManager().isToken(clicked);
-            if (clickedIsToken) {
-                int removed = controller.removeBetTokens(player, clicked.getType());
-                if (removed > 0) {
-                    int left = removed;
-                    while (left > 0) {
-                        int give = Math.min(64, left);
-                        ItemStack stack = plugin.getTokenManager().createToken(clicked.getType(), give);
-                        var leftover = player.getInventory().addItem(stack);
-                        if (!leftover.isEmpty()) {
-                            leftover.values()
-                                    .forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-                        }
-                        left -= give;
-                    }
-                    controller.refresh(player, inv);
-                }
-                return;
-            }
-        }
-
-        if (slot >= inv.getSize()) {
-            if (clicked != null && clicked.getType() != Material.AIR && plugin.getTokenManager().isToken(clicked)) {
-                int toAdd = event.isRightClick() ? 1 : clicked.getAmount();
-                int added = controller.addBetTokens(player, clicked.getType(), toAdd);
-                if (added > 0) {
-                    int remaining = clicked.getAmount() - added;
-                    if (remaining <= 0) {
-                        event.setCurrentItem(null);
-                    } else {
-                        clicked.setAmount(remaining);
-                        event.setCurrentItem(clicked);
-                    }
-                    controller.refresh(player, inv);
-                }
-            }
+        if (event.getClickedInventory() != event.getInventory())
             return;
-        }
+        boolean shift = event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT;
+        controller.handleClick(player, event.getInventory(), event.getRawSlot(), shift);
+    }
 
-        if (clicked == null)
-            return;
-        controller.handleClick(player, inv, clicked);
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        if (event.getInventory().getHolder() instanceof SlotsHolder)
+            event.setCancelled(true);
     }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        if (event.getPlayer() instanceof Player player) {
+        if (event.getPlayer() instanceof Player player && event.getInventory().getHolder() instanceof SlotsHolder)
             plugin.getSlotsController().handleClose(player);
-        }
     }
 }

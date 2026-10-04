@@ -137,47 +137,5 @@ stations:
 
 gui:
   exchange:
-    title: "&e&lCAMBIO"
-    # Tamaño del inventario (múltiplos de 9). Default: 27
-    size: 27
-    filler:
-      material: GRAY_STAINED_GLASS_PANE
-      name: " "
-
-    buttons:
-      buy:
-        slot: 10
-        material: EMERALD
-        name: "&aComprar fichas"
-        lore:
-          - "&7Click para comprar"
-          - "&7con dinero del server"
-      sell_hand:
-        slot: 12
-        material: GOLD_INGOT
-        name: "&eVender ficha (mano)"
-        lore:
-          - "&7Vende 1 token en la mano"
-          - "&7Shift: vende el stack"
-      sell_all:
-        slot: 14
-        material: CHEST
-        name: "&6Vender todo (inventario)"
-        lore:
-          - "&7Convierte todos tus tokens"
-          - "&7en dinero del server"
-
-    info_head:
-      enabled: true
-      slot: 16
-      name: "&e&lTu info"
-      # Placeholders: {money_line}, {wager}, {won}, {lost}, {currency}
-      lore:
-        - "{money_line}"
-        - "&8(Slots + Ruleta)"
-        - "&7Total apostado: &e{wager} &7{currency}"
-        - "&7Total ganado: &a{won} &7{currency}"
-        - "&7Total perdido: &c{lost} &7{currency}"
-      # Placeholders: {money}
-      money_line: "&7Dinero: &a{money}"
-      money_na: "&7Dinero: &cN/A"
+    # Menú de cambio: pestañas Comprar/Vender, fichas, cantidad y confirmar (todo en uno).
+    title: "&8&l✦ &e&lCAMBIO &8&l✦"

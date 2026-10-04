@@ -289,6 +289,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         } catch (Throwable ignored) {
         }
         try {
+            if (slotsController != null)
+                slotsController.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
             if (moduleManager != null)
                 moduleManager.disableAll();
         } catch (Throwable ignored) {

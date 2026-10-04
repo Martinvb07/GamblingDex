@@ -15,6 +15,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -36,9 +37,11 @@ public class Achievements implements Listener {
 
     private static final class MenuHolder implements InventoryHolder {
         final int page;
+        final int filter; // 0 = todos, 1 = desbloqueados, 2 = bloqueados
 
-        MenuHolder(int page) {
+        MenuHolder(int page, int filter) {
             this.page = page;
+            this.filter = filter;
         }
 
         @Override
@@ -46,6 +49,10 @@ public class Achievements implements Listener {
             return null;
         }
     }
+
+    /** Casillas del centro (filas 1 a 4, columnas 1 a 7): 28 logros por página. */
+    private static final int[] GRID = { 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32,
+            33, 34, 37, 38, 39, 40, 41, 42, 43 };
 
     private final GamblingDexPlugin plugin;
     private final File configFile;
@@ -198,34 +205,97 @@ public class Achievements implements Listener {
     // ------------------------------------------------------------------
 
     public void open(Player p, int page) {
-        int pages = Math.max(1, (defs.size() + 44) / 45);
-        page = Math.max(0, Math.min(pages - 1, page));
-        Inventory inv = Bukkit.createInventory(new MenuHolder(page), 54,
-                plugin.color(text("menu_title", "&8&l✦ &6&lLOGROS &8&l✦")));
+        open(p, page, 0);
+    }
+
+    public void open(Player p, int page, int filter) {
         UUID id = p.getUniqueId();
-        for (int i = 0; i < 45 && page * 45 + i < defs.size(); i++) {
-            Def d = defs.get(page * 45 + i);
+        List<Def> list = new ArrayList<>();
+        for (Def d : defs) {
+            boolean got = has(id, d.id);
+            if (filter == 0 || (filter == 1) == got)
+                list.add(d);
+        }
+        int pages = Math.max(1, (list.size() + GRID.length - 1) / GRID.length);
+        page = Math.max(0, Math.min(pages - 1, page));
+        Inventory inv = Bukkit.createInventory(new MenuHolder(page, filter), 54,
+                plugin.color(text("menu_title", "&8&l✦ &6&lLOGROS &8&l✦")));
+
+        // Marco
+        int n = count(id);
+        int pct = defs.isEmpty() ? 0 : n * 100 / defs.size();
+        Material frame = pct >= 100 ? Material.LIME_STAINED_GLASS_PANE : Material.ORANGE_STAINED_GLASS_PANE;
+        for (int i = 0; i < 54; i++)
+            if (i < 9 || i >= 45 || i % 9 == 0 || i % 9 == 8)
+                inv.setItem(i, Icons.of(i < 9 && i % 2 == 1 ? Material.YELLOW_STAINED_GLASS_PANE : frame, " ", null));
+
+        // Cabecera: tu progreso
+        long earned = 0;
+        for (Def d : defs)
+            if (has(id, d.id))
+                earned += d.reward;
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        if (head.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta sm) {
+            sm.setOwningPlayer(p);
+            sm.setDisplayName(plugin.color("&6&lTus logros: &e" + n + "&7/&e" + defs.size()));
+            sm.setLore(List.of(plugin.color(bar(n, defs.size()) + " &f" + pct + "%"), "",
+                    plugin.color("&7Recompensas ganadas: &e" + fmt(earned) + " fichas")));
+            head.setItemMeta(sm);
+        }
+        inv.setItem(4, head);
+
+        // Logros
+        var stats = plugin.getGameStats() == null ? null : plugin.getGameStats().get(id, false);
+        for (int i = 0; i < GRID.length && page * GRID.length + i < list.size(); i++) {
+            Def d = list.get(page * GRID.length + i);
             boolean got = has(id, d.id);
             List<String> lore = new ArrayList<>();
             lore.add("&7" + d.description);
+            // Progreso de los logros con contador
+            long cur = -1;
+            if (d.type.equals("rounds") && stats != null)
+                cur = stats.rounds();
+            else if (d.type.equals("games"))
+                cur = gamesPlayed.getOrDefault(id, Set.of()).size();
+            if (!got && cur >= 0 && d.amount > 0) {
+                lore.add("");
+                lore.add(bar(Math.min(cur, d.amount), d.amount) + " &f" + fmt(Math.min(cur, d.amount)) + "&7/&f" + fmt(d.amount));
+            }
             lore.add("");
             if (d.reward > 0)
                 lore.add("&7Recompensa: &e" + fmt(d.reward) + " fichas");
-            lore.add(got ? "&a✔ Desbloqueado" : "&c✘ Bloqueado");
-            inv.setItem(i, Icons.of(got ? d.icon : Material.GRAY_DYE, 1, got ? d.name : "&8" + org.bukkit.ChatColor.stripColor(plugin.color(d.name)),
-                    lore, got));
+            lore.add(got ? "&a&l✔ DESBLOQUEADO" : "&c&l✘ BLOQUEADO");
+            inv.setItem(GRID[i], Icons.of(got ? d.icon : Material.GRAY_DYE, 1,
+                    got ? d.name : "&7" + org.bukkit.ChatColor.stripColor(plugin.color(d.name)), lore, got));
         }
-        int n = count(id);
-        inv.setItem(49, Icons.of(Material.NETHER_STAR, 1, "&6&lTus logros: &e" + n + "&7/&e" + defs.size(),
-                List.of("&7Completado: &f" + (defs.isEmpty() ? 0 : n * 100 / defs.size()) + "%"), true));
+
+        // Abajo
         if (page > 0)
-            inv.setItem(45, Icons.of(Material.ARROW, "&ePágina anterior", null));
+            inv.setItem(45, Icons.of(Material.ARROW, "&ePágina anterior", List.of("&7Página " + page + "/" + pages)));
         if (page < pages - 1)
-            inv.setItem(53, Icons.of(Material.ARROW, "&eSiguiente página", null));
-        for (int i = 45; i < 54; i++)
-            if (inv.getItem(i) == null)
-                inv.setItem(i, Icons.of(Material.BLACK_STAINED_GLASS_PANE, " ", null));
+            inv.setItem(53, Icons.of(Material.ARROW, "&eSiguiente página", List.of("&7Página " + (page + 2) + "/" + pages)));
+        String[] names = { "Todos", "Desbloqueados", "Bloqueados" };
+        List<String> fl = new ArrayList<>();
+        for (int k = 0; k < 3; k++)
+            fl.add((k == filter ? "&a▶ " : "&7  ") + names[k]);
+        fl.add("");
+        fl.add("&eClick para cambiar");
+        inv.setItem(47, Icons.of(Material.HOPPER, "&fMostrar: &e" + names[filter], fl));
+        inv.setItem(49, Icons.of(Material.BARRIER, "&cCerrar", null));
+        inv.setItem(51, Icons.of(Material.BOOK, "&fCómo funcionan", List.of(
+                "&7Juega en el casino y desbloquea",
+                "&7logros automáticamente.",
+                "&7Cada logro da su recompensa",
+                "&7al momento de conseguirlo.")));
+        if (list.isEmpty())
+            inv.setItem(22, Icons.of(Material.STRUCTURE_VOID, filter == 1 ? "&7Aún no tienes logros" : "&a¡Los tienes todos!", null));
         p.openInventory(inv);
+    }
+
+    /** Barra de progreso de 10 bloques. */
+    private static String bar(long cur, long max) {
+        int full = max <= 0 ? 0 : (int) Math.min(10, cur * 10 / max);
+        return "&a" + "▰".repeat(full) + "&8" + "▱".repeat(10 - full);
     }
 
     @EventHandler
@@ -233,12 +303,22 @@ public class Achievements implements Listener {
         if (!(e.getInventory().getHolder() instanceof MenuHolder h))
             return;
         e.setCancelled(true);
-        if (!(e.getWhoClicked() instanceof Player p))
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getInventory())
             return;
-        if (e.getRawSlot() == 45 && h.page > 0)
-            open(p, h.page - 1);
-        else if (e.getRawSlot() == 53)
-            open(p, h.page + 1);
+        switch (e.getRawSlot()) {
+            case 45 -> {
+                if (h.page > 0)
+                    open(p, h.page - 1, h.filter);
+            }
+            case 53 -> open(p, h.page + 1, h.filter);
+            case 47 -> {
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+                open(p, 0, (h.filter + 1) % 3);
+            }
+            case 49 -> p.closeInventory();
+            default -> {
+            }
+        }
     }
 
     @EventHandler

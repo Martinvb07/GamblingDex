@@ -1,24 +1,64 @@
 package com.gamblingdex.gui;
 
 import com.gamblingdex.GamblingDexPlugin;
+import com.gamblingdex.economy.TokenManager;
+import com.gamblingdex.economy.TokenWallet;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.Sound;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import java.text.NumberFormat;
-import java.util.Locale;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
+/**
+ * Mesa de cambio en un solo menú: pestañas COMPRAR / VENDER, las fichas en el
+ * centro, la cantidad abajo y un botón de confirmar que muestra el total. El
+ * menú queda abierto después de cada operación para seguir cambiando.
+ *
+ * <pre>
+ *  0..8  luces, 4 = tu info
+ * 11 COMPRAR · 15 VENDER
+ * 19..25, 28..34  fichas
+ * 37 -64 · 38 -10 · 39 -1 · 40 cantidad · 41 +1 · 42 +10 · 43 +64
+ * 45 cerrar · 47 todo · 49 CONFIRMAR · 51 vender todas · 53 tasas
+ * </pre>
+ */
 public class ExchangeMenu {
 
-    public static final String DEFAULT_TITLE = "§e§lCAMBIO";
+    public static final String DEFAULT_TITLE = "&8&l✦ &e&lCAMBIO &8&l✦";
+    private static final int[] TOKEN_SLOTS = { 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34 };
+    private static final int S_HEAD = 4, S_BUY = 11, S_SELL = 15, S_AMOUNT = 40;
+    private static final int S_CLOSE = 45, S_ALL = 47, S_CONFIRM = 49, S_SELL_ALL = 51, S_RATES = 53;
+    private static final int MAX_AMOUNT = 64 * 36;
+
+    /** Menú abierto de un jugador. */
+    public static final class Session implements InventoryHolder {
+        final UUID player;
+        Inventory inv;
+        boolean selling;
+        Material token;
+        int amount = 1;
+        long lastAction;
+
+        Session(UUID player) {
+            this.player = player;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inv;
+        }
+    }
 
     private final GamblingDexPlugin plugin;
 
@@ -27,227 +67,352 @@ public class ExchangeMenu {
     }
 
     public void open(Player player) {
-        FileConfiguration cfg = plugin.getConfig();
-        String title = plugin.color(cfg.getString("gui.exchange.title", DEFAULT_TITLE));
-        int size = normalizeSize(cfg.getInt("gui.exchange.size", 27));
-        Inventory inv = Bukkit.createInventory(new ExchangeMenuHolder(), size, title);
-
-        for (int i = 0; i < inv.getSize(); i++) {
-            inv.setItem(i, filler(cfg));
-        }
-
-        setIfValid(inv,
-                cfg.getInt("gui.exchange.buttons.buy.slot", 10),
-                button(cfg,
-                        materialFrom(cfg.getString("gui.exchange.buttons.buy.material"), Material.EMERALD),
-                        cfg.getString("gui.exchange.buttons.buy.name", "&aComprar fichas"),
-                        cfg.getStringList("gui.exchange.buttons.buy.lore"),
-                        player,
-                        null));
-
-        setIfValid(inv,
-                cfg.getInt("gui.exchange.buttons.sell_hand.slot", 12),
-                button(cfg,
-                        materialFrom(cfg.getString("gui.exchange.buttons.sell_hand.material"), Material.GOLD_INGOT),
-                        cfg.getString("gui.exchange.buttons.sell_hand.name", "&eVender ficha (mano)"),
-                        cfg.getStringList("gui.exchange.buttons.sell_hand.lore"),
-                        player,
-                        null));
-
-        setIfValid(inv,
-                cfg.getInt("gui.exchange.buttons.sell_all.slot", 14),
-                button(cfg,
-                        materialFrom(cfg.getString("gui.exchange.buttons.sell_all.material"), Material.CHEST),
-                        cfg.getString("gui.exchange.buttons.sell_all.name", "&6Vender todo (inventario)"),
-                        cfg.getStringList("gui.exchange.buttons.sell_all.lore"),
-                        player,
-                        null));
-
-        boolean headEnabled = cfg.getBoolean("gui.exchange.info_head.enabled", true);
-        if (headEnabled) {
-            setIfValid(inv,
-                    cfg.getInt("gui.exchange.info_head.slot", 22),
-                    playerInfoHead(player, cfg));
-        }
-
-        boolean showRates = cfg.getBoolean("exchange.show_rates_item", false);
-        String perm = cfg.getString("exchange.rates_item_permission", "gamblingdex.admin");
-        boolean hasPerm = perm == null || perm.isBlank() || player.hasPermission(perm);
-        if (showRates && hasPerm) {
-            double moneyPerUnit = cfg.getDouble("exchange.money_per_unit", 1.0);
-            setIfValid(inv,
-                    cfg.getInt("gui.exchange.buttons.rates.slot", 16),
-                    button(cfg,
-                            materialFrom(cfg.getString("gui.exchange.buttons.rates.material"), Material.PAPER),
-                            cfg.getString("gui.exchange.buttons.rates.name", "&bTasas"),
-                            cfg.getStringList("gui.exchange.buttons.rates.lore"),
-                            player,
-                            new Placeholder("{money_per_unit}", formatMoney(moneyPerUnit))));
-        }
-
-        player.openInventory(inv);
+        open(player, false);
     }
 
-    private ItemStack playerInfoHead(Player player, FileConfiguration cfg) {
-        String currencyName = plugin.color(plugin.getConfig().getString("currency.name", "⛃"));
+    public void open(Player player, boolean selling) {
+        Session s = new Session(player.getUniqueId());
+        s.selling = selling;
+        List<Material> denoms = new ArrayList<>(TokenManager.getDenoms().keySet());
+        if (!denoms.isEmpty())
+            s.token = denoms.get(0);
+        String raw = plugin.getConfig().getString("gui.exchange.title", DEFAULT_TITLE);
+        if (raw == null || raw.equals("§e§lCAMBIO") || raw.equals("&e&lCAMBIO")) // título de la versión anterior
+            raw = DEFAULT_TITLE;
+        s.inv = Bukkit.createInventory(s, 54, plugin.color(raw));
+        render(player, s);
+        player.openInventory(s.inv);
+        player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+    }
 
-        var slots = plugin.getSlotsStatsManager().get(player.getUniqueId());
-        var roulette = plugin.getRouletteStatsManager().get(player.getUniqueId());
+    // ------------------------------------------------------------------
 
-        long totalWager = slots.getTotalWagerUnits() + roulette.getTotalWagerUnits();
-        long totalWon = slots.getTotalPayoutUnits() + roulette.getTotalPayoutUnits();
-        long totalLost = Math.max(0L, totalWager - totalWon);
+    private double rate() {
+        return plugin.getConfig().getDouble("exchange.money_per_unit", 1.0);
+    }
 
-        String moneyLine;
+    private int denom(Material m) {
+        Integer v = m == null ? null : TokenManager.getDenoms().get(m);
+        return v == null ? 0 : v;
+    }
+
+    private int owned(Player p, Material mat) {
+        int total = 0;
+        for (ItemStack it : p.getInventory().getContents())
+            if (it != null && it.getType() == mat && plugin.getTokenManager().isToken(it))
+                total += it.getAmount();
+        return total;
+    }
+
+    private double money(Player p) {
         try {
-            String moneyLineTemplate = cfg.getString("gui.exchange.info_head.money_line", "&7Dinero: &a{money}");
-            String moneyNa = cfg.getString("gui.exchange.info_head.money_na", "&7Dinero: &cN/A");
-            if (plugin.getVaultEconomy() != null && plugin.getVaultEconomy().isAvailable()) {
-                double money = plugin.getVaultEconomy().getBalance(player);
-                moneyLine = plugin.color(moneyLineTemplate.replace("{money}", formatMoney(money)));
-            } else {
-                moneyLine = plugin.color(moneyNa);
-            }
-        } catch (Throwable t) {
-            moneyLine = plugin.color(cfg.getString("gui.exchange.info_head.money_na", "&7Dinero: &cN/A"));
+            if (plugin.getVaultEconomy() != null && plugin.getVaultEconomy().isAvailable())
+                return plugin.getVaultEconomy().getBalance(p);
+        } catch (Throwable ignored) {
+        }
+        return -1;
+    }
+
+    private int clampAmount(Player p, Session s, int v) {
+        int hi = s.selling ? owned(p, s.token) : MAX_AMOUNT;
+        return Math.max(hi <= 0 ? 0 : 1, Math.min(Math.max(hi, 0), v));
+    }
+
+    private void render(Player p, Session s) {
+        Inventory inv = s.inv;
+        inv.clear();
+        if (s.selling)
+            s.amount = clampAmount(p, s, s.amount);
+
+        Material light = s.selling ? Material.ORANGE_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
+        for (int i = 0; i < 9; i++)
+            inv.setItem(i, Icons.of(i % 2 == 0 ? light : Material.YELLOW_STAINED_GLASS_PANE, " ", null));
+        inv.setItem(S_HEAD, head(p));
+
+        // Pestañas
+        inv.setItem(S_BUY, Icons.of(Material.EMERALD, 1, (s.selling ? "&7" : "&a&l▶ ") + "COMPRAR FICHAS",
+                List.of("&7Cambia dinero del servidor", "&7por fichas del casino.", "", s.selling ? "&eClick para cambiar" : "&a✔ Seleccionado"),
+                !s.selling));
+        inv.setItem(S_SELL, Icons.of(Material.GOLD_INGOT, 1, (s.selling ? "&6&l▶ " : "&7") + "VENDER FICHAS",
+                List.of("&7Cambia tus fichas por", "&7dinero del servidor.", "", s.selling ? "&a✔ Seleccionado" : "&eClick para cambiar"),
+                s.selling));
+
+        // Fichas
+        int i = 0;
+        for (Map.Entry<Material, Integer> e : TokenManager.getDenoms().entrySet()) {
+            if (i >= TOKEN_SLOTS.length)
+                break;
+            Material mat = e.getKey();
+            int have = owned(p, mat);
+            boolean sel = mat == s.token;
+            List<String> lore = new ArrayList<>();
+            lore.add("&7Valor: &e" + fmt(e.getValue()) + " &7fichas");
+            lore.add((s.selling ? "&7Te pagan: &a$" : "&7Precio: &a$") + money(e.getValue() * rate()) + " &7c/u");
+            lore.add("&7Tienes: &f" + fmt(have));
+            lore.add("");
+            if (s.selling && have <= 0)
+                lore.add("&8No tienes de esta ficha");
+            else
+                lore.add(sel ? "&a✔ Seleccionada" : "&eClick para elegir");
+            inv.setItem(TOKEN_SLOTS[i], token(mat, sel ? Math.max(1, Math.min(64, s.amount)) : 1, lore, sel));
+            i++;
         }
 
+        // Cantidad
+        int[][] steps = { { 37, -64 }, { 38, -10 }, { 39, -1 }, { 41, 1 }, { 42, 10 }, { 43, 64 } };
+        for (int[] st : steps) {
+            boolean plus = st[1] > 0;
+            inv.setItem(st[0], Icons.of(plus ? Material.LIME_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE,
+                    Math.abs(st[1]), (plus ? "&a+" : "&c") + st[1], List.of("&7Cantidad de fichas"), false));
+        }
+        long units = (long) denom(s.token) * s.amount;
+        double total = units * rate();
+        inv.setItem(S_AMOUNT, Icons.of(Material.SUNFLOWER, 1, "&6&lCantidad: &e" + fmt(s.amount),
+                List.of("&7Ficha: &f" + fmt(denom(s.token)), "&7Fichas totales: &e" + fmt(units),
+                        "&7Total: &a$" + money(total)), true));
+
+        // Acciones
+        inv.setItem(S_CLOSE, Icons.of(Material.BARRIER, "&cCerrar", null));
+        inv.setItem(S_ALL, Icons.of(Material.HOPPER, s.selling ? "&6Todas las de esta ficha" : "&aLo máximo que puedo pagar",
+                List.of(s.selling ? "&7Pone todas las que tienes" : "&7Según tu dinero")));
+        if (s.selling) {
+            boolean ok = s.amount > 0;
+            inv.setItem(S_CONFIRM, Icons.of(ok ? Material.GOLD_BLOCK : Material.GRAY_CONCRETE, 1,
+                    ok ? "&6&lVENDER &e" + fmt(s.amount) + " &6&lpor &a$" + money(total) : "&7No tienes de esta ficha",
+                    List.of("&7Recibes el dinero al instante"), ok));
+            long all = 0;
+            for (ItemStack it : p.getInventory().getContents()) {
+                Integer v = plugin.getTokenManager().getTokenValue(it);
+                if (v != null)
+                    all += (long) v * it.getAmount();
+            }
+            inv.setItem(S_SELL_ALL, Icons.of(Material.CHEST, 1, "&e&lVender TODAS mis fichas",
+                    List.of("&7Valor: &e" + fmt(all) + " &7fichas", "&7Recibes: &a$" + money(all * rate())), all > 0));
+        } else {
+            double have = money(p);
+            boolean ok = have < 0 || have >= total;
+            inv.setItem(S_CONFIRM, Icons.of(ok ? Material.EMERALD_BLOCK : Material.RED_CONCRETE, 1,
+                    "&a&lCOMPRAR &e" + fmt(s.amount) + " &a&lpor &a$" + money(total),
+                    List.of(ok ? "&7Click para comprar" : "&cNo te alcanza el dinero"), ok));
+        }
+        boolean showRates = plugin.getConfig().getBoolean("exchange.show_rates_item", false);
+        String perm = plugin.getConfig().getString("exchange.rates_item_permission", "gamblingdex.admin");
+        if (showRates && (perm == null || perm.isBlank() || p.hasPermission(perm)))
+            inv.setItem(S_RATES, Icons.of(Material.PAPER, "&bTasa", List.of("&71 ficha = &a$" + money(rate()))));
+        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+    }
+
+    private ItemStack token(Material mat, int amount, List<String> lore, boolean glow) {
+        ItemStack it = plugin.getTokenManager().createToken(mat, amount);
+        ItemMeta meta = it.getItemMeta();
+        if (meta != null) {
+            List<String> l = new ArrayList<>();
+            for (String s : lore)
+                l.add(plugin.color(s));
+            meta.setLore(l);
+            if (glow) {
+                Enchantment ench = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("unbreaking"));
+                if (ench != null)
+                    meta.addEnchant(ench, 1, true);
+            }
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
+            it.setItemMeta(meta);
+        }
+        return it;
+    }
+
+    private ItemStack head(Player p) {
         ItemStack it = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta base = it.getItemMeta();
-        if (base instanceof SkullMeta sm) {
-            sm.setOwningPlayer(player);
-            sm.setDisplayName(plugin.color(cfg.getString("gui.exchange.info_head.name", "&e&lTu info")));
-
-            List<String> loreTpl = cfg.getStringList("gui.exchange.info_head.lore");
-            if (loreTpl == null || loreTpl.isEmpty()) {
-                loreTpl = List.of(
-                        "{money_line}",
-                        "&8(Slots + Ruleta)",
-                        "&7Total apostado: &e{wager} &7{currency}",
-                        "&7Total ganado: &a{won} &7{currency}",
-                        "&7Total perdido: &c{lost} &7{currency}");
-            }
-
+        if (it.getItemMeta() instanceof SkullMeta sm) {
+            sm.setOwningPlayer(p);
+            sm.setDisplayName(plugin.color("&e&l" + p.getName()));
+            double m = money(p);
             List<String> lore = new ArrayList<>();
-            for (String line : loreTpl) {
-                if (line == null)
-                    continue;
-                String out = line
-                        .replace("{money_line}", moneyLine)
-                        .replace("{wager}", formatLong(totalWager))
-                        .replace("{won}", formatLong(totalWon))
-                        .replace("{lost}", formatLong(totalLost))
-                        .replace("{currency}", currencyName);
-                lore.add(plugin.color(out));
-            }
+            lore.add(plugin.color("&7Dinero: " + (m < 0 ? "&cN/A" : "&a$" + money(m))));
+            lore.add(plugin.color("&7Fichas: &e" + fmt(TokenWallet.balance(p))));
+            lore.add(plugin.color("&71 ficha = &a$" + money(rate())));
             sm.setLore(lore);
-            sm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             it.setItemMeta(sm);
         }
         return it;
     }
 
-    private static String formatLong(long n) {
-        try {
-            return NumberFormat.getInstance(new Locale("es", "ES")).format(n);
-        } catch (Exception ignored) {
-            return String.valueOf(n);
-        }
-    }
+    // ------------------------------------------------------------------
+    // Clicks (los manda ExchangeMenuListener)
+    // ------------------------------------------------------------------
 
-    private static String formatMoney(double n) {
-        try {
-            NumberFormat nf = NumberFormat.getInstance(new Locale("es", "ES"));
-            nf.setMaximumFractionDigits(2);
-            nf.setMinimumFractionDigits(0);
-            return nf.format(n);
-        } catch (Exception ignored) {
-            return String.valueOf(n);
-        }
-    }
-
-    private ItemStack filler(FileConfiguration cfg) {
-        Material mat = materialFrom(cfg.getString("gui.exchange.filler.material"), Material.GRAY_STAINED_GLASS_PANE);
-        ItemStack it = new ItemStack(mat);
-        ItemMeta im = it.getItemMeta();
-        if (im != null) {
-            im.setDisplayName(plugin.color(cfg.getString("gui.exchange.filler.name", " ")));
-            it.setItemMeta(im);
-        }
-        return it;
-    }
-
-    private ItemStack button(FileConfiguration cfg, Material mat, String name, List<String> lore, Player player,
-            Placeholder placeholder) {
-        ItemStack it = new ItemStack(mat);
-        ItemMeta im = it.getItemMeta();
-        if (im != null) {
-            im.setDisplayName(plugin.color(name));
-
-            List<String> outLore;
-            if (lore == null || lore.isEmpty()) {
-                outLore = List.of();
-            } else {
-                outLore = new ArrayList<>();
-                for (String line : lore) {
-                    if (line == null)
-                        continue;
-                    String out = line;
-                    if (placeholder != null) {
-                        out = out.replace(placeholder.key, placeholder.value);
-                    }
-                    out = out.replace("{player}", player == null ? "" : player.getName());
-                    outLore.add(plugin.color(out));
+    public void handleClick(Player p, Session s, int slot, boolean shift) {
+        switch (slot) {
+            case S_BUY, S_SELL -> {
+                boolean sell = slot == S_SELL;
+                if (s.selling != sell) {
+                    s.selling = sell;
+                    s.amount = 1;
+                    click(p);
+                    render(p, s);
                 }
             }
-            im.setLore(outLore);
-            im.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            it.setItemMeta(im);
+            case 37, 38, 39, 41, 42, 43 -> {
+                int d = switch (slot) {
+                    case 37 -> -64;
+                    case 38 -> -10;
+                    case 39 -> -1;
+                    case 41 -> 1;
+                    case 42 -> 10;
+                    default -> 64;
+                };
+                s.amount = clampAmount(p, s, s.amount + d);
+                click(p);
+                render(p, s);
+            }
+            case S_ALL -> {
+                if (s.selling) {
+                    s.amount = clampAmount(p, s, MAX_AMOUNT);
+                } else {
+                    double m = money(p);
+                    double each = denom(s.token) * rate();
+                    s.amount = m < 0 || each <= 0 ? s.amount : (int) Math.max(1, Math.min(MAX_AMOUNT, Math.floor(m / each)));
+                }
+                click(p);
+                render(p, s);
+            }
+            case S_CONFIRM -> {
+                if (debounce(s))
+                    return;
+                if (s.selling)
+                    sell(p, s);
+                else
+                    buy(p, s);
+                render(p, s);
+            }
+            case S_SELL_ALL -> {
+                if (!s.selling || debounce(s))
+                    return;
+                sellAll(p);
+                render(p, s);
+            }
+            case S_CLOSE -> p.closeInventory();
+            default -> {
+                for (int i = 0; i < TOKEN_SLOTS.length; i++) {
+                    if (TOKEN_SLOTS[i] != slot)
+                        continue;
+                    List<Material> denoms = new ArrayList<>(TokenManager.getDenoms().keySet());
+                    if (i < denoms.size() && denoms.get(i) != s.token) {
+                        s.token = denoms.get(i);
+                        s.amount = 1;
+                        click(p);
+                        render(p, s);
+                    }
+                    return;
+                }
+            }
         }
-        return it;
     }
 
-    private static void setIfValid(Inventory inv, int slot, ItemStack item) {
-        if (inv == null || item == null)
+    private boolean debounce(Session s) {
+        long now = System.currentTimeMillis();
+        if (now - s.lastAction < 300L)
+            return true;
+        s.lastAction = now;
+        return false;
+    }
+
+    private void click(Player p) {
+        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+    }
+
+    private void buy(Player p, Session s) {
+        int d = denom(s.token);
+        if (d <= 0 || s.amount <= 0)
             return;
-        if (slot < 0 || slot >= inv.getSize())
+        double cost = (double) s.amount * d * rate();
+        if (!plugin.exchangeTakeMoney(p, cost)) {
+            p.sendMessage(plugin.getMessages().getString("messages.exchange.buy.not_enough_money",
+                    "&cNo tienes dinero suficiente o no hay economía disponible."));
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
             return;
-        inv.setItem(slot, item);
+        }
+        int left = s.amount;
+        while (left > 0) {
+            int n = Math.min(64, left);
+            for (ItemStack lf : p.getInventory().addItem(plugin.getTokenManager().createToken(s.token, n)).values())
+                p.getWorld().dropItemNaturally(p.getLocation(), lf);
+            left -= n;
+        }
+        p.sendMessage(plugin.getMessages().format("messages.exchange.buy.success",
+                "&a¡Has comprado &e{amount}&a ficha(s) por &e{money}&a!",
+                Map.of("amount", fmt(s.amount), "money", money(cost))));
+        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
     }
 
-    private static int normalizeSize(int raw) {
-        int size = raw;
-        if (size < 9)
-            size = 9;
-        if (size > 54)
-            size = 54;
-        int mod = size % 9;
-        if (mod != 0) {
-            size = size + (9 - mod);
-            if (size > 54)
-                size = 54;
+    private void sell(Player p, Session s) {
+        int d = denom(s.token);
+        int want = clampAmount(p, s, s.amount);
+        if (d <= 0 || want <= 0) {
+            p.sendMessage(plugin.getMessages().getString("messages.exchange.sell.not_enough_tokens",
+                    "&cNo tienes suficientes fichas para vender."));
+            return;
         }
-        return size;
+        int sold = 0;
+        for (ItemStack it : p.getInventory().getContents()) {
+            if (it == null || it.getType() != s.token || !plugin.getTokenManager().isToken(it))
+                continue;
+            int take = Math.min(it.getAmount(), want - sold);
+            it.setAmount(it.getAmount() - take);
+            if (it.getAmount() <= 0)
+                it.setType(Material.AIR);
+            sold += take;
+            if (sold >= want)
+                break;
+        }
+        double money = (double) sold * d * rate();
+        if (!plugin.exchangeGiveMoney(p, money)) {
+            int left = sold;
+            while (left > 0) {
+                int n = Math.min(64, left);
+                for (ItemStack lf : p.getInventory().addItem(plugin.getTokenManager().createToken(s.token, n)).values())
+                    p.getWorld().dropItemNaturally(p.getLocation(), lf);
+                left -= n;
+            }
+            p.sendMessage(plugin.getMessages().getString("messages.exchange.sell.deposit_failed",
+                    "&cNo se pudo darte dinero (¿Vault/Economía?). No se vendieron tus fichas."));
+            return;
+        }
+        p.sendMessage(plugin.getMessages().format("messages.exchange.sell.success",
+                "&aVendiste &e{amount}&a fichas por &e{money}&a de dinero del server.",
+                Map.of("amount", fmt(sold), "money", money(money))));
+        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.0f);
     }
 
-    private static Material materialFrom(String name, Material fallback) {
-        if (name == null || name.isBlank())
-            return fallback;
-        try {
-            Material m = Material.valueOf(name.trim().toUpperCase(Locale.ROOT));
-            return m == null ? fallback : m;
-        } catch (Exception ignored) {
-            return fallback;
+    private void sellAll(Player p) {
+        long units = plugin.exchangeTakeAllTokens(p);
+        if (units <= 0) {
+            p.sendMessage(plugin.getMessages().getString("messages.exchange.sell_all.no_tokens",
+                    "&cNo tienes tokens para vender."));
+            return;
         }
+        double money = units * rate();
+        if (!plugin.exchangeGiveMoney(p, money)) {
+            plugin.exchangeGiveTokens(p, units);
+            p.sendMessage(plugin.getMessages().getString("messages.exchange.sell_all.deposit_failed",
+                    "&cNo se pudo darte dinero (¿Vault/Economía?). No se vendieron tus tokens."));
+            return;
+        }
+        p.sendMessage(plugin.getMessages().format("messages.exchange.sell_all.success",
+                "&aVendiste TODO por &e{money}&a de dinero del server.", Map.of("money", money(money))));
+        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.4f);
     }
 
-    private static final class Placeholder {
-        private final String key;
-        private final String value;
+    // ------------------------------------------------------------------
 
-        private Placeholder(String key, String value) {
-            this.key = key;
-            this.value = value;
-        }
+    private static String fmt(long n) {
+        return NumberFormat.getInstance(Locale.forLanguageTag("es-ES")).format(n);
+    }
+
+    private static String money(double n) {
+        NumberFormat nf = NumberFormat.getInstance(Locale.forLanguageTag("es-ES"));
+        nf.setMaximumFractionDigits(2);
+        nf.setMinimumFractionDigits(0);
+        return nf.format(n);
     }
 }
