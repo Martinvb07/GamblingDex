@@ -1,21 +1,34 @@
 package com.gamblingdex.modules.crash;
 
 import com.gamblingdex.economy.TokenWallet;
+import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -32,6 +45,9 @@ import java.util.*;
  * Punto de explosión: crash = (1 - edge) / (1 - U), con U uniforme [0,1).
  * Así P(llegar a m) = (1 - edge) / m y cualquier estrategia de retiro devuelve
  * (1 - edge) de lo apostado a la larga.
+ *
+ * Se juega en mesas: /gdx station set crash (mirando un bloque) y click
+ * derecho al bloque. El holograma de la mesa muestra la ronda en vivo.
  */
 public class CrashModule extends GameModule {
 
@@ -54,6 +70,16 @@ public class CrashModule extends GameModule {
         }
     }
 
+    /** Mesa de Crash: un bloque con holograma. */
+    private static final class Station {
+        final Location loc;
+        UUID holo;
+
+        Station(Location loc) {
+            this.loc = loc;
+        }
+    }
+
     private static final class MenuHolder implements InventoryHolder {
         @Override
         public Inventory getInventory() {
@@ -71,6 +97,7 @@ public class CrashModule extends GameModule {
     private int secondsLeft;
     private int tickCounter;
     private BossBar bar;
+    private final Map<String, Station> stations = new LinkedHashMap<>();
 
     @Override
     public String id() {
@@ -84,6 +111,12 @@ public class CrashModule extends GameModule {
 
     @Override
     public void enable() {
+        stations.clear();
+        for (String k : loadData().getStringList("stations")) {
+            Location l = BlackjackTables.parseKey(k);
+            if (l != null)
+                stations.put(k, new Station(l));
+        }
         bar = Bukkit.createBossBar("", BarColor.GREEN, BarStyle.SOLID);
         listen(new Events());
         startBetting();
@@ -109,25 +142,44 @@ public class CrashModule extends GameModule {
             bar.removeAll();
             bar = null;
         }
+        for (Station st : stations.values())
+            removeHolo(st);
     }
 
     @Override
     public List<String> helpLines(boolean admin) {
-        return List.of(
-                "&6&lCrash",
-                "&8• &e/gdx crash &7- Apostar y retirar antes de que explote",
-                "&8• &e/gdx crash apostar <monto> [auto] &7- Ej: &f/gdx crash apostar 100 2",
-                "&8• &e/gdx crash retirar &7- Cobrar ahora",
-                "");
+        List<String> l = new ArrayList<>();
+        l.add("&6&lCrash");
+        l.add("&8• &7Jugar: &fclick derecho&7 a una mesa de Crash");
+        if (commandAllowed(admin)) {
+            l.add("&8• &e/gdx crash &7- Abrir el menú");
+            l.add("&8• &e/gdx crash apostar <monto> [auto] &7- Ej: &f/gdx crash apostar 100 2");
+        }
+        l.add("&8• &e/gdx crash retirar &7- Cobrar ahora");
+        if (admin)
+            l.add("&8• &e/gdx station set crash &7- Crear mesa (mirando un bloque)");
+        l.add("");
+        return l;
+    }
+
+    /** El menú por comando: siempre para admins; para jugadores según allow_command. */
+    private boolean commandAllowed(boolean admin) {
+        return admin || config().getBoolean("allow_command", false);
     }
 
     @Override
     public boolean onCommand(Player player, String[] args) {
+        String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        boolean cashout = sub.equals("retirar") || sub.equals("cashout") || sub.equals("r");
+        if (!cashout && !commandAllowed(isAdmin(player))) {
+            player.sendMessage(msg("use_station", "&7Crash se juega en las mesas del casino: &fclick derecho&7 a una mesa de Crash."));
+            return true;
+        }
         if (args.length == 0) {
             openMenu(player);
             return true;
         }
-        switch (args[0].toLowerCase(Locale.ROOT)) {
+        switch (sub) {
             case "apostar", "bet", "a" -> {
                 if (args.length < 2) {
                     startBetFlow(player);
@@ -147,6 +199,104 @@ public class CrashModule extends GameModule {
             default -> player.sendMessage(msg("usage", "&cUso: /gdx crash [apostar <monto> [auto] | retirar]"));
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------
+    // Mesas (/gdx station set crash)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> stationTypes() {
+        return List.of("crash");
+    }
+
+    @Override
+    public void createStation(Player player, Block target, String[] args) {
+        String k = BlackjackTables.key(target.getLocation());
+        if (stations.containsKey(k)) {
+            player.sendMessage(msg("station_exists", "&eEse bloque ya es una mesa de Crash."));
+            return;
+        }
+        Station st = new Station(target.getLocation());
+        stations.put(k, st);
+        saveStations();
+        updateHolo(st);
+        player.sendMessage(msg("station_created", "&aMesa de Crash creada. &7Click derecho al bloque para jugar."));
+    }
+
+    @Override
+    public boolean removeStation(Player player, Block target) {
+        Station st = stations.remove(BlackjackTables.key(target.getLocation()));
+        if (st == null)
+            return false;
+        removeHolo(st);
+        saveStations();
+        player.sendMessage(msg("station_removed", "&aMesa de Crash eliminada."));
+        return true;
+    }
+
+    @Override
+    public List<String> stationListLines() {
+        return List.of("&8- &6Crash&7: &f" + stations.size());
+    }
+
+    private void saveStations() {
+        YamlConfiguration d = new YamlConfiguration();
+        d.set("stations", new ArrayList<>(stations.keySet()));
+        saveData(d);
+    }
+
+    private Station stationAt(Block b) {
+        return b == null ? null : stations.get(BlackjackTables.key(b.getLocation()));
+    }
+
+    private boolean loaded(Station st) {
+        World w = st.loc.getWorld();
+        return w != null && w.isChunkLoaded(st.loc.getBlockX() >> 4, st.loc.getBlockZ() >> 4);
+    }
+
+    private void updateHolo(Station st) {
+        if (!loaded(st))
+            return;
+        World w = st.loc.getWorld();
+        Location at = st.loc.clone().add(0.5, config().getDouble("station_holo_height", 1.2), 0.5);
+        Entity e = st.holo == null ? null : w.getEntity(st.holo);
+        TextDisplay td;
+        if (e instanceof TextDisplay existing && existing.isValid()) {
+            td = existing;
+            if (td.getLocation().distanceSquared(at) > 0.01)
+                td.teleport(at);
+        } else {
+            td = w.spawn(at, TextDisplay.class);
+            td.setPersistent(false);
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setDefaultBackground(false);
+            td.setBackgroundColor(Color.fromARGB(120, 0, 0, 0));
+            td.setShadowed(true);
+            td.setLineWidth(300);
+            st.holo = td.getUniqueId();
+        }
+        StringBuilder sb = new StringBuilder("&6&l✦ CRASH ✦\n");
+        switch (state) {
+            case BETTING -> sb.append("&eApuestas abiertas: &f").append(secondsLeft).append("s\n&7Jugadores: &f")
+                    .append(bets.size());
+            case RUNNING -> sb.append(multiplier < 2 ? "&a&l" : multiplier < 5 ? "&e&l" : "&c&l").append("x")
+                    .append(fmt(multiplier)).append("\n&7Jugadores: &f").append(bets.size());
+            case PAUSE -> sb.append("&c&lExplotó en x").append(fmt(crashPoint)).append("\n&7Siguiente en &f")
+                    .append(secondsLeft).append("s");
+        }
+        sb.append("\n&7Click derecho para jugar");
+        td.setText(color(sb.toString()));
+    }
+
+    private void removeHolo(Station st) {
+        if (st.holo == null)
+            return;
+        World w = st.loc.getWorld();
+        Entity e = w == null ? null : w.getEntity(st.holo);
+        if (e != null)
+            e.remove();
+        st.holo = null;
     }
 
     // ------------------------------------------------------------------
@@ -218,6 +368,8 @@ public class CrashModule extends GameModule {
             }
         }
         updateBar();
+        for (Station st : stations.values())
+            updateHolo(st);
         if (tickCounter % 2 == 0)
             refreshMenus();
     }
@@ -381,8 +533,10 @@ public class CrashModule extends GameModule {
 
         boolean everyone = config().getBoolean("show_bar_to_everyone", false);
         Set<UUID> wanted = new HashSet<>(bets.keySet());
+        double radius = config().getDouble("station_bar_radius", 8.0);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (everyone || p.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder)
+            if (everyone || p.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder
+                    || nearStation(p, radius))
                 wanted.add(p.getUniqueId());
         }
         for (Player p : new ArrayList<>(bar.getPlayers())) {
@@ -396,6 +550,17 @@ public class CrashModule extends GameModule {
         }
     }
 
+    private boolean nearStation(Player p, double radius) {
+        if (radius <= 0)
+            return false;
+        Location pl = p.getLocation();
+        for (Station st : stations.values()) {
+            if (st.loc.getWorld() == pl.getWorld() && st.loc.distanceSquared(pl) <= radius * radius)
+                return true;
+        }
+        return false;
+    }
+
     private void sendActionBars() {
         for (Map.Entry<UUID, Bet> e : bets.entrySet()) {
             Player p = Bukkit.getPlayer(e.getKey());
@@ -405,7 +570,7 @@ public class CrashModule extends GameModule {
             String text = b.cashedAt > 0
                     ? "&aRetiraste en x" + fmt(b.cashedAt) + " &8| &e+" + units(payoutFor(b, b.cashedAt))
                     : "&a&lx" + fmt(multiplier) + " &8| &7Si retiras ahora: &e" + units(payoutFor(b, multiplier))
-                            + " &8| &f/gdx crash retirar";
+                            + " &8| &fclick a la mesa o /gdx crash retirar";
             p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(color(text)));
         }
     }
@@ -521,6 +686,23 @@ public class CrashModule extends GameModule {
     // ------------------------------------------------------------------
 
     private final class Events implements Listener {
+
+        @EventHandler
+        public void onInteract(PlayerInteractEvent e) {
+            if (e.getAction() != Action.RIGHT_CLICK_BLOCK || stationAt(e.getClickedBlock()) == null)
+                return;
+            e.setCancelled(true);
+            if (e.getHand() == EquipmentSlot.HAND)
+                openMenu(e.getPlayer());
+        }
+
+        @EventHandler
+        public void onBreak(BlockBreakEvent e) {
+            if (stationAt(e.getBlock()) == null)
+                return;
+            e.setCancelled(true);
+            e.getPlayer().sendMessage(msg("cannot_break", "&cEs una mesa de Crash. Quítala con &f/gdx station remove&c."));
+        }
 
         @EventHandler
         public void onClick(InventoryClickEvent e) {

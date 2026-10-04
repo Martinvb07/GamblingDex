@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -425,8 +426,23 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (args.length < 3) {
                         player.sendMessage(
                                 cfg("messages.admin.station.set.usage", "&cUso: /gdx station set <slots|exchange>"));
+                        sendModuleStationTypes(player);
                         player.sendMessage(cfg("messages.admin.station.set.roulette_tip",
                                 "&7(Para ruleta física usa: &f/gdx roulette build [radio] [yOffset]&7)"));
+                        return true;
+                    }
+
+                    // Juegos con estación propia (crash, carrera, ...)
+                    var stationModules = GamblingDexPlugin.getInstance().getModuleManager();
+                    var stationModule = stationModules == null ? null : stationModules.byStationType(args[2]);
+                    if (stationModule != null) {
+                        Block target = player.getTargetBlockExact(6);
+                        if (target == null) {
+                            player.sendMessage(cfg("messages.admin.station.set.look_block",
+                                    "&cMira un bloque a menos de 6 bloques."));
+                            return true;
+                        }
+                        stationModule.createStation(player, target, Arrays.copyOfRange(args, 3, args.length));
                         return true;
                     }
 
@@ -434,6 +450,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     if (type == null) {
                         player.sendMessage(cfg("messages.admin.station.set.invalid_type",
                                 "&cTipo inválido. Usa: slots, exchange"));
+                        sendModuleStationTypes(player);
                         return true;
                     }
 
@@ -477,6 +494,10 @@ public class GamblingDexCommand implements CommandExecutor {
 
                     boolean removed = GamblingDexPlugin.getInstance().getStationManager()
                             .removeStation(target.getLocation());
+                    var removeModules = GamblingDexPlugin.getInstance().getModuleManager();
+                    if (!removed && removeModules != null && removeModules.removeStation(player, target)) {
+                        return true; // el juego ya avisó
+                    }
                     if (removed) {
                         player.sendMessage(cfg("messages.admin.station.remove.success", "&aMesa removida."));
                     } else {
@@ -511,6 +532,11 @@ public class GamblingDexCommand implements CommandExecutor {
                     player.sendMessage(applyPlaceholders(
                             cfg("messages.admin.station.list.exchange", "&8- &eExchange&7: &f{count}"),
                             Map.of("count", String.valueOf(counts.getOrDefault(GameItemType.EXCHANGE, 0)))));
+                    var listModules = GamblingDexPlugin.getInstance().getModuleManager();
+                    if (listModules != null) {
+                        for (String line : listModules.stationListLines())
+                            player.sendMessage(line);
+                    }
                     return true;
                 }
 
@@ -1249,5 +1275,17 @@ public class GamblingDexCommand implements CommandExecutor {
             case "invalid" -> pk("invalid_stakes", "&cCiegas inválidas. La grande debe ser >= la chica.");
             default -> pk("error", "&cNo se pudo completar la acción.");
         };
+    }
+
+    /** Tipos de /gdx station set que agregan los juegos (crash, carrera, ...). */
+    private static void sendModuleStationTypes(Player player) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var modules = plugin.getModuleManager();
+        if (modules == null)
+            return;
+        List<String> usages = modules.stationUsages();
+        if (usages.isEmpty())
+            return;
+        player.sendMessage(plugin.color("&7Juegos: &f" + String.join("&7, &f", usages)));
     }
 }

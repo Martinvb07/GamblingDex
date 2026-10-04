@@ -44,14 +44,14 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
 | 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), rondas automáticas y apuestas con click directo sobre los números. |
 | 🎡 **Rueda de la Fortuna** | Rueda con segmentos x1, x2, x5, x10, x20 y x40. Click derecho al bloque para apostar. |
-| 🐎 **Carrera de caballos** | Carriles con caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
+| 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
+| 📈 **Crash** | Mesa con holograma en vivo: el multiplicador sube hasta que explota. Retira a tiempo o pierdes. Incluye retiro automático. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 
 ### Juegos por menú / comando
 
 | Juego | Descripción |
 |---|---|
-| 📈 **Crash** | El multiplicador sube hasta que explota. Retira a tiempo o pierdes. Incluye retiro automático. |
 | 🪙 **Coinflip** | Cara o sello 1 vs 1 entre jugadores, 50/50. |
 | 🎟️ **Rasca y Gana** | Boletos Bronce, Plata y Oro. El resultado se sortea al comprar, así que no se puede hacer trampa. |
 | 🎱 **Bingo** | 75 bolas, partidas automáticas, premios por **línea** y **bingo**. Los números se marcan solos. |
@@ -117,14 +117,14 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
 | `/gdx top [n]` | Ranking por total ganado |
-| `/gdx crash` · `apostar <monto> [auto]` · `retirar` | Crash |
+| `/gdx crash retirar` | Cobrar en Crash (también desde el menú de la mesa) |
 | `/gdx coinflip` · `crear <monto> [cara\|sello]` · `cancelar` | Coinflip |
 | `/gdx rasca` · `comprar <tipo> [cantidad]` | Rasca y Gana |
 | `/gdx bingo` · `comprar <n>` | Bingo |
 | `/gdx loteria` · `comprar <n>` | Lotería |
 | `/gdx carrera [nombre]` | Apostar en una carrera |
 
-En las mesas físicas (blackjack, póker, ruleta, rueda, slots) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
+En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
 
 ### Administradores
 
@@ -132,6 +132,8 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, slots) se juega con **c
 |---|---|
 | `/gdx reload` | Recarga configuración y mensajes |
 | `/gdx station <set\|remove\|list> [slots\|exchange]` | Estaciones de slots y cambio (mirando el bloque) |
+| `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
+| `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
 | `/gdx blackjack seat <add\|remove\|list\|clear> <nombre>` | Asientos de blackjack |
@@ -141,7 +143,7 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, slots) se juega con **c
 | `/gdx poker torneo <mesa> <inscripción> [fichas] [minutos]` | Crear un torneo |
 | `/gdx poker torneo <empezar\|cancelar> <mesa>` | Empezar o cancelar un torneo |
 | `/gdx rueda <crear\|borrar\|lista> [nombre]` | Ruedas de la fortuna |
-| `/gdx carrera <crear\|borrar\|lista\|iniciar> ...` | Pistas de carrera |
+| `/gdx carrera <crear\|borrar\|lista\|iniciar> ...` | Pistas de carrera manuales |
 | `/gdx bingo iniciar` | Abrir la venta de bingo ya |
 | `/gdx loteria sortear` | Sortear la lotería ya |
 | `/gdx item <roulette\|slots> [cantidad]` | Ítems que abren menús |
@@ -206,13 +208,20 @@ Mira el bloque de la rueda: `/gdx rueda crear Rueda1`
 <details>
 <summary><b>🐎 Carrera de caballos</b></summary>
 
-Párate en la salida del carril 1, **mirando hacia la meta**:
+Párate en terreno plano, mira el bloque que será la **mesa de apuestas** y usa:
 
 ```
-/gdx carrera crear Pista1 [carriles] [largo]
+/gdx station set carrera 30 6
 ```
 
-Los carriles se crean hacia tu derecha.
+Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 carriles de 30 bloques con vallas, puertas de salida y meta a cuadros. Los jugadores apuestan con click derecho a la mesa. Para quitarla, mira la mesa y usa `/gdx station remove`: los bloques vuelven a como estaban.
+
+</details>
+
+<details>
+<summary><b>📈 Crash</b></summary>
+
+Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con la ronda en vivo y los jugadores juegan con click derecho.
 
 </details>
 

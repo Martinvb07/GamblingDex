@@ -2,6 +2,7 @@ package com.gamblingdex.modules;
 
 import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.gui.AmountPickerMenu;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 import java.io.File;
@@ -147,6 +148,57 @@ public class ModuleManager {
             t.printStackTrace();
         }
         return true;
+    }
+
+    /** Módulo activo que maneja /gdx station set &lt;tipo&gt;, o null. */
+    public GameModule byStationType(String type) {
+        if (type == null)
+            return null;
+        for (GameModule m : modules.values()) {
+            if (!enabled.contains(m.id()))
+                continue;
+            for (String t : m.stationTypes()) {
+                if (t.equalsIgnoreCase(type))
+                    return m;
+            }
+        }
+        return null;
+    }
+
+    /** Usos de /gdx station set de los módulos activos (ej. "crash", "carrera <distancia> <carriles>"). */
+    public List<String> stationUsages() {
+        List<String> out = new ArrayList<>();
+        for (GameModule m : modules.values()) {
+            if (enabled.contains(m.id()) && !m.stationTypes().isEmpty())
+                out.add(m.stationUsage());
+        }
+        return out;
+    }
+
+    /** /gdx station remove: true si algún módulo tenía una estación en ese bloque. */
+    public boolean removeStation(Player player, Block target) {
+        for (GameModule m : modules.values()) {
+            if (!enabled.contains(m.id()))
+                continue;
+            try {
+                if (m.removeStation(player, target))
+                    return true;
+            } catch (Throwable t) {
+                plugin.getLogger().warning("[" + m.id() + "] Error quitando estación: " + t);
+            }
+        }
+        return false;
+    }
+
+    public List<String> stationListLines() {
+        List<String> out = new ArrayList<>();
+        for (GameModule m : modules.values()) {
+            if (!enabled.contains(m.id()))
+                continue;
+            for (String l : m.stationListLines())
+                out.add(plugin.color(l));
+        }
+        return out;
     }
 
     public List<String> helpLines(boolean admin) {

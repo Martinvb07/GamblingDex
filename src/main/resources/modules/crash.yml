@@ -1,9 +1,10 @@
 # ======================
 # GamblingDex - Crash
 # ======================
-# /gdx crash                         -> menú (apostar / retirar)
-# /gdx crash apostar <monto> [auto]  -> ej: /gdx crash apostar 100 2.5
-# /gdx crash retirar                 -> cobrar ahora
+# Admin: /gdx station set crash      -> crear una mesa (mirando cualquier bloque)
+#        /gdx station remove         -> quitarla (mirando el bloque)
+# Jugadores: click derecho a la mesa -> menú (apostar / retirar)
+#            /gdx crash retirar      -> cobrar ahora (también desde el menú)
 #
 # Un multiplicador sube desde x1.00 hasta que "explota". Si retiras antes,
 # cobras apuesta x multiplicador. Si explota antes, pierdes la apuesta.
@@ -22,6 +23,10 @@ growth_per_second: 0.07   # qué tan rápido sube (0.07 = x2 a los ~10s)
 auto_cashout_options: [1.5, 2.0, 3.0, 5.0, 10.0]
 broadcast_win_min: 10000  # anunciar premios desde este monto (0 = nunca)
 show_bar_to_everyone: false  # true = todos ven la barra del multiplicador
+# true = los jugadores también pueden abrir el menú con /gdx crash (los admins siempre pueden)
+allow_command: false
+station_holo_height: 1.2  # altura del holograma sobre la mesa
+station_bar_radius: 8     # quienes estén a esta distancia de una mesa ven la barra (0 = nadie)
 
 messages:
   joined: "&aApostaste &e{amount}&a en Crash.{auto}"
@@ -35,7 +40,12 @@ messages:
   cashed_out: "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}"
   crashed_lost: "&c&l¡EXPLOTÓ en x{mult}! &7Perdiste &e{amount}&7."
   crashed_all: "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}"
-  round_open: "&6&lCrash &8» &7Nueva ronda: apuesta en los próximos &f{seconds}s &7(&e/gdx crash&7)"
+  round_open: "&6&lCrash &8» &7Nueva ronda: apuesta en los próximos &f{seconds}s &7(&emesa de Crash&7)"
   big_win: "&6&lCrash &8» &f{player} &7retiró en &fx{mult} &7y ganó &e{amount}&7!"
   refunded: "&7La ronda de Crash se canceló. Se te devolvieron &e{amount}&7."
   usage: "&cUso: /gdx crash [apostar <monto> [auto] | retirar]"
+  use_station: "&7Crash se juega en las mesas del casino: &fclick derecho&7 a una mesa de Crash."
+  station_created: "&aMesa de Crash creada. &7Click derecho al bloque para jugar."
+  station_exists: "&eEse bloque ya es una mesa de Crash."
+  station_removed: "&aMesa de Crash eliminada."
+  cannot_break: "&cEs una mesa de Crash. Quítala con &f/gdx station remove&c."
