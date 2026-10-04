@@ -992,7 +992,7 @@ public class GamblingDexCommand implements CommandExecutor {
         }
 
         player.sendMessage(cfg("messages.gdx.help.footer",
-                "&7Config: &fplugins/GamblingDex/config.yml &8(ver sección &fPERMISOS&8)"));
+                "&7Config: &fconfig.yml &7(general) y &fmodules/<juego>.yml &7(cada juego)"));
     }
 
     /** Líneas de ayuda desde messages (si existen) o las de por defecto. */

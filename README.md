@@ -45,7 +45,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), rondas automáticas y apuestas con click directo sobre los números. |
 | 🎡 **Rueda de la Fortuna** | Rueda con segmentos x1, x2, x5, x10, x20 y x40. Click derecho al bloque para apostar. |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
-| 📈 **Crash** | Mesa con holograma en vivo: el multiplicador sube hasta que explota. Retira a tiempo o pierdes. Incluye retiro automático. |
+| 📈 **Crash** | Mesa con holograma en vivo: el multiplicador sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 
 ### Juegos por menú / comando
@@ -54,7 +54,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 |---|---|
 | 🪙 **Coinflip** | Cara o sello 1 vs 1 entre jugadores, 50/50. |
 | 🎟️ **Rasca y Gana** | Boletos Bronce, Plata y Oro. El resultado se sortea al comprar, así que no se puede hacer trampa. |
-| 🎱 **Bingo** | 75 bolas, partidas automáticas, premios por **línea** y **bingo**. Los números se marcan solos. |
+| 🎱 **Bingo** | 75 bolas, premios por **línea** y **bingo**. Partidas a horas fijas (por defecto 2:00 p. m. y 8:00 p. m., hora de Colombia) o cuando un admin la inicie. |
 | 🍀 **Lotería** | Sorteos a horas fijas (con zona horaria). Más boletos, más probabilidad de ganar. |
 
 ---
@@ -221,7 +221,11 @@ Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 c
 <details>
 <summary><b>📈 Crash</b></summary>
 
-Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con la ronda en vivo y los jugadores juegan con click derecho.
+Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con el multiplicador en vivo.
+
+- **Click derecho** a la mesa: poner la apuesta.
+- **Shift + click derecho**: retirarse y cobrar.
+- Cada jugador ve sobre la barra de experiencia su apuesta, el multiplicador y lo que cobraría.
 
 </details>
 
@@ -238,21 +242,27 @@ Mira el bloque y usa `/gdx station set slots` o `/gdx station set exchange`.
 
 ```
 plugins/GamblingDex/
-├── config.yml            # Fichas, cambio, ruleta, blackjack, póker, slots y menús
+├── config.yml            # Solo lo general: fichas, cambio (Vault) y estaciones
 ├── messages/             # Todos los textos (editables)
 │   ├── gdx.yml
 │   ├── blackjack.yml
 │   ├── poker.yml
 │   └── ...
 └── modules/              # Un archivo por juego
-    ├── bingo.yml
-    ├── carrera.yml
-    ├── coinflip.yml
+    ├── blackjack.yml
+    ├── poker.yml
+    ├── ruleta.yml
+    ├── slots.yml
     ├── crash.yml
-    ├── loteria.yml
+    ├── carrera.yml
+    ├── rueda.yml
+    ├── coinflip.yml
     ├── rasca.yml
-    └── rueda.yml
+    ├── bingo.yml
+    └── loteria.yml
 ```
+
+Si vienes de una versión anterior, tus valores de blackjack, póker, ruleta y slots se copian solos de `config.yml` a sus archivos la primera vez.
 
 Los colores usan `&` (ej. `&a`, `&6&l`). Después de editar, usa `/gdx reload`.
 

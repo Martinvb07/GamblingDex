@@ -6,8 +6,13 @@
 # Colores: usa & (ej: &a, &e, &6)
 #
 # Importante:
-# - Los MENSAJES no se editan aquí (ver sección "MENSAJES" abajo)
-# - Este archivo contiene solo opciones de juego/GUI/economía
+# - Este archivo tiene solo lo GENERAL: fichas, cambio (Vault) y estaciones.
+# - Cada juego tiene su propio archivo en plugins/GamblingDex/modules/:
+#     blackjack.yml, poker.yml, ruleta.yml, slots.yml, crash.yml, carrera.yml,
+#     rueda.yml, coinflip.yml, rasca.yml, bingo.yml, loteria.yml
+#   (Si venías de una versión vieja, tus valores de blackjack/póker/ruleta/slots
+#    se copiaron solos a esos archivos; esas secciones de este archivo ya no se usan.)
+# - Los MENSAJES están en plugins/GamblingDex/messages/ (ver sección "MENSAJES" abajo)
 #
 
 # ======================
@@ -118,206 +123,6 @@ stations:
     exchange: "&e&lCAMBIO"
 
 # ======================
-# RULETA FÍSICA (WORLD)
-# ======================
-
-roulette_world:
-  radius: 6
-  segment_y_offset: -1
-  auto_cycle:
-    enabled: true
-    interval_seconds: 45
-  bet_window_seconds: 25
-  spin_ticks: 120
-  step_ticks: 2
-  max_bets_per_player: 30      # cuántas apuestas DISTINTAS por ronda (el monto no tiene tope)
-  broadcast_winners: false
-  holo_height: 2.3
-  holo_lines:
-    - "&6&lRULETA"
-    - "&7Haz click con tokens para apostar"
-    - "&eEsperando jugadores..."
-
-# ======================
-# BLACKJACK FÍSICO (WORLD)
-# ======================
-
-blackjack:
-  min_players: 2
-  max_players: 7
-  # Asientos físicos: los jugadores deben pararse en estas losas/bloques alrededor de la mesa.
-  seating:
-    enabled: true
-    # "manual" = tú defines los asientos con /gdx blackjack seat ...
-    # "auto"   = asientos en círculo usando radius_blocks + materials
-    mode: manual
-    # Distancia (en bloques) desde el centro hacia cada asiento.
-    radius_blocks: 2
-    # Materiales válidos para los asientos (usa nombres de Bukkit Material)
-    materials:
-      - QUARTZ_SLAB
-      - QUARTZ_BLOCK
-  # Tiempo para apostar antes de repartir
-  bet_window_seconds: 20
-  # Tiempo por turno (hit/stand)
-  turn_timeout_seconds: 20
-  # Delay (en segundos) antes de abrir el menú de acciones (al iniciar el turno y tras pedir).
-  # Esto te da tiempo para ver las cartas.
-  action_menu_delay_seconds: 5
-  # Marcador visual de turno (se dibuja una “flecha” con partículas sobre el jugador actual)
-  turn_marker:
-    enabled: true
-    particle: END_ROD
-    count: 1
-  # Regla del dealer: pide carta hasta llegar a 17.
-  # false = se planta en TODO 17 (regla clásica "S17", mejor para el jugador)
-  # true  = también pide con 17 suave (A+6)
-  dealer_hits_soft_17: false
-  # Pago de blackjack natural: "3:2" o "6:5" (se cobra al instante, tras revisar el dealer)
-  blackjack_payout: "3:2"
-  # Dividir (split): con 2 cartas iguales se separan en 2 manos con otra apuesta igual.
-  split:
-    max_hands: 4              # máximo de manos por jugador
-    any_ten_value: false      # true = permite dividir K+Q, J+10, etc. (cualquier carta de 10)
-    resplit_aces: false       # volver a dividir Ases
-    double_after_split: true  # doblar después de dividir
-  # Altura de tus cartas sobre tu cabeza (los demás las ven; tú las ves en pantalla)
-  hand_holo_height: 2.25
-  # Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
-  decks: 6
-  reshuffle_at_percent: 25
-  # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
-  dealer_draw_interval_ticks: 40
-  # Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda
-  result_display_seconds: 7
-  # Apuestas laterales (se pagan apenas se reparten las cartas). Pagos "X a 1".
-  # Requieren tener apuesta principal; si no, se devuelven.
-  side_bets:
-    enabled: true
-    perfect_pairs:
-      perfect_pair: 25   # mismo número y mismo palo
-      colored_pair: 12   # mismo número y mismo color
-      mixed_pair: 6      # mismo número, distinto color
-    21_plus_3:
-      suited_trips: 100     # trío del mismo palo
-      straight_flush: 40    # escalera de color
-      three_of_a_kind: 30   # trío
-      straight: 10          # escalera
-      flush: 5              # color (mismo palo)
-  # Altura del holograma (TextDisplay) por encima del dealer (se dibuja un poco más arriba
-  # para no encimarse con el nombre del aldeano)
-  holo_height: 2.3
-
-# ======================
-# PÓKER (TEXAS HOLD'EM NO-LIMIT)
-# ======================
-# Montaje (admin):
-#   1) Mira el bloque centro de la mesa:  /gdx poker create Mesa1 5 10   (ciegas 5/10)
-#   2) Párate en cada asiento (en orden horario): /gdx poker seat add Mesa1
-# Los jugadores se paran en un asiento, compran fichas (tokens -> fichas de mesa)
-# y al bajarse del asiento se les devuelven como tokens.
-# Las cartas de cada jugador solo las ve él (en pantalla, sobre la barra de ítems).
-
-poker:
-  min_players: 2
-  max_seats: 9
-  # Ciegas por defecto si no se indican en /gdx poker create
-  default_small_blind: 5
-  default_big_blind: 10
-  # Apuesta obligatoria de todos antes de repartir (0 = sin ante)
-  ante: 0
-  # Compra de fichas, en ciegas grandes (BB). Ej: 20-100 BB con ciegas 5/10 = 200-1000
-  buyin:
-    min_bb: 20
-    max_bb: 100
-  # Comisión de la casa sobre cada bote
-  rake:
-    enabled: true
-    percent: 5.0
-    # Máximo por mano, en ciegas grandes (0 = sin tope)
-    cap_bb: 3
-    # Sin comisión si la mano termina antes del flop
-    no_flop_no_drop: true
-  # Tiempos (segundos)
-  start_delay_seconds: 8        # espera antes de cada mano
-  turn_timeout_seconds: 30      # tiempo por turno (al agotarse: pasa si puede, si no se retira)
-  action_menu_delay_seconds: 1  # demora antes de abrir el menú de tu turno
-  menu_reopen_seconds: 3        # si cierras el menú en tu turno, se reabre tras esto
-  runout_delay_seconds: 2       # pausa entre calles cuando todos van all-in
-  showdown_seconds: 8           # resultados visibles antes de la siguiente mano
-  uncontested_seconds: 3        # pausa cuando todos se retiran
-  leave_grace_seconds: 4        # tiempo fuera del asiento antes de levantarte
-  # Turnos seguidos sin actuar antes de sacarte de la mesa
-  max_missed_turns: 2
-  # Radio (bloques) en el que los espectadores ven los mensajes de la mesa
-  spectator_radius: 10
-  # Hologramas
-  holo_height: 1.0              # mesa (cartas, bote): bloques sobre el bloque centro
-  player_holo_height: 2.55      # info de cada jugador SOBRE SU CABEZA (él no la ve: la tiene en pantalla)
-  player_holo_scale: 0.8
-  free_seat_holo_height: 1.0    # cartel "Asiento libre": bloques sobre la superficie del asiento
-  free_seat_holo_scale: 0.6
-  turn_marker:
-    enabled: true
-    particle: END_ROD
-  # Registrar cada mano en la consola
-  log_hands: true
-  # Torneos (sit & go): /gdx poker torneo <mesa> <inscripción> [fichas] [minutos]
-  tournament:
-    starting_stack_bb: 100    # fichas iniciales si no se indican (en ciegas grandes de la mesa)
-    level_minutes: 5          # cada cuánto suben las ciegas
-    house_cut_percent: 10.0   # comisión de la casa sobre las inscripciones
-    # Multiplicador de las ciegas de la mesa en cada nivel
-    blind_levels: [1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
-    # Premios según cuántos se inscribieron: "desde N jugadores": [1°, 2°, 3°...] en %
-    payouts:
-      "2": [100]
-      "4": [70, 30]
-      "7": [50, 30, 20]
-
-# ======================
-# ÍTEMS (GUI)
-# ======================
-
-games:
-  items:
-    roulette:
-      glow: true
-      name: "&c&lRuleta"
-      lore:
-        - "&8────────────────────────"
-        - "&7Click derecho para abrir"
-        - "&7la &cRuleta&7."
-        - "&8────────────────────────"
-    slots:
-      glow: true
-      name: "&d&lTragamonedas"
-      lore:
-        - "&8────────────────────────"
-        - "&7Click derecho para abrir"
-        - "&7los &dTragamonedas&7."
-        - "&8────────────────────────"
-
-  slots:
-    payout:
-      triple_multiplier: 5
-      double_multiplier: 2
-    # Anti-spam: cooldown entre giros (0 para desactivar)
-    spin_cooldown_ms: 0
-    # Probabilidades por símbolo (peso relativo). Si lo dejas vacío/no definido, es uniforme.
-    # Materiales sugeridos: DIAMOND, EMERALD, GOLD_INGOT, IRON_INGOT, AMETHYST_SHARD, NETHER_STAR
-    symbol_weights:
-      DIAMOND: 10
-      EMERALD: 10
-      GOLD_INGOT: 10
-      IRON_INGOT: 10
-      AMETHYST_SHARD: 10
-      NETHER_STAR: 10
-    log_big_wins:
-      # Si es >0, loggea premios >= threshold_units
-      threshold_units: 0
-
-# ======================
 # GUI
 # ======================
 
@@ -367,12 +172,3 @@ gui:
       # Placeholders: {money}
       money_line: "&7Dinero: &a{money}"
       money_na: "&7Dinero: &cN/A"
-
-  slots:
-    title: "&dTragamonedas"
-    spin_button_name: "&a&lGirar"
-    spin_button_lore_bet: "&7Apuesta: &e{bet}"
-    spin_button_lore_pay: "&7Paga: &a{triple}x&7 (triple), &a{double}x&7 (doble)"
-    paytable_name: "&eTabla de pagos"
-    paytable_line_triple: "&7Triple: &a{triple}x"
-    paytable_line_double: "&7Doble: &a{double}x"

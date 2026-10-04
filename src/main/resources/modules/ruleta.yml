@@ -1,0 +1,34 @@
+# ======================
+# GamblingDex - Ruleta física (americana, con 0 y 00)
+# ======================
+# Admin: /gdx roulette build [radio] [yOffset] (mirando el bloque centro)
+#        /gdx roulette remove | /gdx roulette list
+# Jugadores: click derecho con fichas al número para apostar.
+#
+# Recarga en caliente: /gdx reload
+
+radius: 6
+segment_y_offset: -1
+auto_cycle:
+  enabled: true
+  interval_seconds: 45
+bet_window_seconds: 25
+spin_ticks: 120
+step_ticks: 2
+max_bets_per_player: 30      # cuántas apuestas DISTINTAS por ronda (el monto no tiene tope)
+broadcast_winners: false
+holo_height: 2.3
+holo_lines:
+  - "&6&lRULETA"
+  - "&7Haz click con tokens para apostar"
+  - "&eEsperando jugadores..."
+
+# Ítem que abre la ruleta (/gdx item roulette)
+item:
+  glow: true
+  name: "&c&lRuleta"
+  lore:
+    - "&8────────────────────────"
+    - "&7Click derecho para abrir"
+    - "&7la &cRuleta&7."
+    - "&8────────────────────────"
