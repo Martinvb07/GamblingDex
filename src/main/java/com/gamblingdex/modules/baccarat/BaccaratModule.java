@@ -784,8 +784,14 @@ public class BaccaratModule extends GameModule {
         return color(config().getString("default_title", "&6&l♦ BACCARAT ♦"));
     }
 
+    /**
+     * Detrás de la mesa, a la MISMA altura del bloque registrado (parado en el piso).
+     * Si ahí hay un bloque sólido, sube hasta encontrar espacio.
+     */
     private Location dealerSpot(Table t) {
-        Location l = t.center.clone().add(0.5 + t.fx * -1, 1.0, 0.5 + t.fz * -1);
+        Location l = t.center.clone().add(0.5 + t.fx * -1, 0.0, 0.5 + t.fz * -1);
+        for (int i = 0; i < 3 && !l.getBlock().isPassable(); i++)
+            l.add(0, 1, 0);
         l.setDirection(new org.bukkit.util.Vector(t.fx, 0, t.fz));
         return l;
     }
@@ -797,6 +803,9 @@ public class BaccaratModule extends GameModule {
         Entity e = t.dealer == null ? null : w.getEntity(t.dealer);
         if (e instanceof Villager v && v.isValid()) {
             v.setCustomName(title(t));
+            Location want = dealerSpot(t);
+            if (v.getLocation().distanceSquared(want) > 0.04)
+                v.teleport(want);
             return;
         }
         spawningDealer = true;
@@ -831,11 +840,16 @@ public class BaccaratModule extends GameModule {
         World w = t.center.getWorld();
         if (w == null)
             return;
-        Location at = t.center.clone().add(0.5, config().getDouble("holo_height", 1.4), 0.5);
+        // Encima de la cabeza del dealer (por arriba de su nombre)
+        Location at = dealerSpot(t).add(0, config().getDouble("holo_above_dealer", 2.7), 0);
+        at.setYaw(0);
+        at.setPitch(0);
         Entity e = t.holo == null ? null : w.getEntity(t.holo);
         TextDisplay td;
         if (e instanceof TextDisplay existing && existing.isValid()) {
             td = existing;
+            if (td.getLocation().distanceSquared(at) > 0.01)
+                td.teleport(at);
         } else {
             td = w.spawn(at, TextDisplay.class);
             td.setPersistent(false);
