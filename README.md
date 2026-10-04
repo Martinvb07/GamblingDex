@@ -340,6 +340,8 @@ Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.624
 | `%gamblingdex_top_profit_1_value%` | Ganancia del 1° |
 | `%gamblingdex_topweek_profit_1_name%` | Igual, pero del ranking semanal |
 | `%gamblingdex_jackpot_ruleta%` | Pozo del jackpot de la ruleta |
+| `%gamblingdex_top_blackjack_profit_1_name%` · `_value` | Top de un juego (`topweek_...` = semana). Juegos: `blackjack`, `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `wheel`, `race`, `coinflip`, `scratch`, `bingo`, `lottery` |
+| `%gamblingdex_blackjack_profit%` · `_wagered` · `_biggest` · `_rounds` · `_rank` | Stats del jugador en un juego (`weekly_blackjack_...` = semana) |
 | `%gamblingdex_last_win_1%` | Último premio: "Martin +400.000 en Blackjack" (1 a 10; también `_name`, `_value`, `_game`) |
 | `%gamblingdex_record_win_name%` · `_value` · `_game` | Récord del casino (el premio más grande de la historia) |
 | `%gamblingdex_players_playing%` | Jugadores que jugaron en los últimos 5 minutos |
@@ -352,14 +354,90 @@ Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.624
 
 En los `top_...` puedes cambiar `profit` por `wagered`, `paid` o `biggest`, y el número por el puesto (1, 2, 3...). El ranking semanal se reinicia el lunes (`stats.timezone` en `config.yml`).
 
-**Ejemplo de holograma con DecentHolograms:**
+Todos estos placeholders funcionan desde la versión **1.1.0**. Si alguno sale como texto literal, actualiza el plugin.
 
+### Tableros para hologramas (DecentHolograms)
+
+Párate donde quieras el tablero y pega sus comandos. El `1` después del nombre es la página del holograma.
+
+**💰 Mejores premios de la semana** (siempre positivo)
 ```
-/dh create topcasino &6&l★ TOP GANANCIAS DE LA SEMANA ★
-/dh line add topcasino &e1. &f%gamblingdex_topweek_profit_1_name% &7- &a%gamblingdex_topweek_profit_1_value%
-/dh line add topcasino &72. &f%gamblingdex_topweek_profit_2_name% &7- &a%gamblingdex_topweek_profit_2_value%
-/dh line add topcasino &63. &f%gamblingdex_topweek_profit_3_name% &7- &a%gamblingdex_topweek_profit_3_value%
+/dh create topbiggest &6&l✦ MEJORES PREMIOS DE LA SEMANA ✦
+/dh line add topbiggest 1 &8&m                              
+/dh line add topbiggest 1 &e&l1. &f%gamblingdex_topweek_biggest_1_name% &8- &a%gamblingdex_topweek_biggest_1_value%
+/dh line add topbiggest 1 &7&l2. &f%gamblingdex_topweek_biggest_2_name% &8- &a%gamblingdex_topweek_biggest_2_value%
+/dh line add topbiggest 1 &6&l3. &f%gamblingdex_topweek_biggest_3_name% &8- &a%gamblingdex_topweek_biggest_3_value%
+/dh line add topbiggest 1 &8&l4. &7%gamblingdex_topweek_biggest_4_name% &8- &a%gamblingdex_topweek_biggest_4_value%
+/dh line add topbiggest 1 &8&l5. &7%gamblingdex_topweek_biggest_5_name% &8- &a%gamblingdex_topweek_biggest_5_value%
+/dh line add topbiggest 1 &8&m                              
+/dh line add topbiggest 1 &7Tu mejor premio: &a%gamblingdex_weekly_biggest%
 ```
+
+**🎲 Top apostadores de la semana**
+```
+/dh create topwagered &b&l✦ TOP APOSTADORES DE LA SEMANA ✦
+/dh line add topwagered 1 &8&m                              
+/dh line add topwagered 1 &e&l1. &f%gamblingdex_topweek_wagered_1_name% &8- &b%gamblingdex_topweek_wagered_1_value%
+/dh line add topwagered 1 &7&l2. &f%gamblingdex_topweek_wagered_2_name% &8- &b%gamblingdex_topweek_wagered_2_value%
+/dh line add topwagered 1 &6&l3. &f%gamblingdex_topweek_wagered_3_name% &8- &b%gamblingdex_topweek_wagered_3_value%
+/dh line add topwagered 1 &8&l4. &7%gamblingdex_topweek_wagered_4_name% &8- &b%gamblingdex_topweek_wagered_4_value%
+/dh line add topwagered 1 &8&l5. &7%gamblingdex_topweek_wagered_5_name% &8- &b%gamblingdex_topweek_wagered_5_value%
+/dh line add topwagered 1 &8&m                              
+/dh line add topwagered 1 &7Tú apostaste: &b%gamblingdex_weekly_wagered%
+```
+
+**🏆 Leyendas del casino** (ganancia de siempre)
+```
+/dh create topalltime &d&l✦ LEYENDAS DEL CASINO ✦
+/dh line add topalltime 1 &8&m                              
+/dh line add topalltime 1 &e&l1. &f%gamblingdex_top_profit_1_name% &8- &a%gamblingdex_top_profit_1_value%
+/dh line add topalltime 1 &7&l2. &f%gamblingdex_top_profit_2_name% &8- &a%gamblingdex_top_profit_2_value%
+/dh line add topalltime 1 &6&l3. &f%gamblingdex_top_profit_3_name% &8- &a%gamblingdex_top_profit_3_value%
+/dh line add topalltime 1 &8&l4. &7%gamblingdex_top_profit_4_name% &8- &a%gamblingdex_top_profit_4_value%
+/dh line add topalltime 1 &8&l5. &7%gamblingdex_top_profit_5_name% &8- &a%gamblingdex_top_profit_5_value%
+/dh line add topalltime 1 &8&m                              
+/dh line add topalltime 1 &7Tu puesto: &e%gamblingdex_rank% &8| &7Tu ganancia: &a%gamblingdex_profit%
+```
+
+**🔥 Últimos ganadores y récord**
+```
+/dh create ultimos &a&l✦ ÚLTIMOS GANADORES ✦
+/dh line add ultimos 1 &8&m                              
+/dh line add ultimos 1 &f%gamblingdex_last_win_1%
+/dh line add ultimos 1 &7%gamblingdex_last_win_2%
+/dh line add ultimos 1 &7%gamblingdex_last_win_3%
+/dh line add ultimos 1 &8%gamblingdex_last_win_4%
+/dh line add ultimos 1 &8%gamblingdex_last_win_5%
+/dh line add ultimos 1 &8&m                              
+/dh line add ultimos 1 &6&lRÉCORD: &e%gamblingdex_record_win_name% &a+%gamblingdex_record_win_value% &7en &f%gamblingdex_record_win_game%
+```
+
+**🃏 Top blackjack de la semana**
+```
+/dh create topblackjack &2&l✦ TOP BLACKJACK DE LA SEMANA ✦
+/dh line add topblackjack 1 &8&m                              
+/dh line add topblackjack 1 &e&l1. &f%gamblingdex_topweek_blackjack_profit_1_name% &8- &a%gamblingdex_topweek_blackjack_profit_1_value%
+/dh line add topblackjack 1 &7&l2. &f%gamblingdex_topweek_blackjack_profit_2_name% &8- &a%gamblingdex_topweek_blackjack_profit_2_value%
+/dh line add topblackjack 1 &6&l3. &f%gamblingdex_topweek_blackjack_profit_3_name% &8- &a%gamblingdex_topweek_blackjack_profit_3_value%
+/dh line add topblackjack 1 &8&l4. &7%gamblingdex_topweek_blackjack_profit_4_name% &8- &a%gamblingdex_topweek_blackjack_profit_4_value%
+/dh line add topblackjack 1 &8&l5. &7%gamblingdex_topweek_blackjack_profit_5_name% &8- &a%gamblingdex_topweek_blackjack_profit_5_value%
+/dh line add topblackjack 1 &8&m                              
+/dh line add topblackjack 1 &7Tu puesto: &e%gamblingdex_weekly_blackjack_rank% &8| &7Tu ganancia: &a%gamblingdex_weekly_blackjack_profit%
+```
+Sirve igual para cualquier juego cambiando `blackjack` por `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `wheel`, `race`, `coinflip`, `scratch`, `bingo` o `lottery`.
+
+**♠ Top póker de la semana**
+```
+/dh create toppoker &5&l✦ TOP PÓKER DE LA SEMANA ✦
+/dh line add toppoker 1 &8&m                              
+/dh line add toppoker 1 &e&l1. &f%gamblingdex_topweek_poker_profit_1_name% &8- &a%gamblingdex_topweek_poker_profit_1_value%
+/dh line add toppoker 1 &7&l2. &f%gamblingdex_topweek_poker_profit_2_name% &8- &a%gamblingdex_topweek_poker_profit_2_value%
+/dh line add toppoker 1 &6&l3. &f%gamblingdex_topweek_poker_profit_3_name% &8- &a%gamblingdex_topweek_poker_profit_3_value%
+/dh line add toppoker 1 &8&m                              
+/dh line add toppoker 1 &7Tus manos: &f%gamblingdex_weekly_poker_hands% &8| &7Ganadas: &a%gamblingdex_weekly_poker_hands_won%
+```
+
+Los tops `topweek_...` se reinician cada lunes; los `top_...` son de siempre. Para más puestos, copia una línea y cambia el número (6, 7...). Mover: `/dh movehere <nombre>` · borrar: `/dh delete <nombre>`.
 
 ---
 

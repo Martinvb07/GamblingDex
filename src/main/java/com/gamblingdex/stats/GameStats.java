@@ -165,6 +165,9 @@ public class GameStats {
     private final File file;
     private final Map<UUID, Entry> allTime = new HashMap<>();
     private final Map<UUID, Entry> weekly = new HashMap<>();
+    // Por juego (id del juego → jugador → stats), para los tops de cada juego
+    private final Map<String, Map<UUID, Entry>> gameAll = new HashMap<>();
+    private final Map<String, Map<UUID, Entry>> gameWeekly = new HashMap<>();
     private final Map<UUID, PokerEntry> pokerAll = new HashMap<>();
     private final Map<UUID, PokerEntry> pokerWeekly = new HashMap<>();
     private final Map<UUID, Deque<Play>> history = new HashMap<>();
@@ -201,6 +204,10 @@ public class GameStats {
         Entry all = allTime.computeIfAbsent(player, k -> new Entry());
         apply(all, wager, payout);
         apply(weekly.computeIfAbsent(player, k -> new Entry()), wager, payout);
+        if (game != null && !game.isBlank()) {
+            apply(gameAll.computeIfAbsent(game, k -> new HashMap<>()).computeIfAbsent(player, k -> new Entry()), wager, payout);
+            apply(gameWeekly.computeIfAbsent(game, k -> new HashMap<>()).computeIfAbsent(player, k -> new Entry()), wager, payout);
+        }
         lastPlay.put(player, System.currentTimeMillis());
 
         String name = nameOf(player);
@@ -352,6 +359,32 @@ public class GameStats {
     }
 
     /** Top ordenado de mayor a menor (se recalcula como mucho cada 30 s). */
+    /** Stats de un jugador en un juego (blackjack, ruleta, crash...). */
+    public Entry get(UUID player, String game, boolean week) {
+        checkWeek();
+        Map<UUID, Entry> m = (week ? gameWeekly : gameAll).get(game);
+        Entry e = m == null ? null : m.get(player);
+        return e == null ? new Entry() : e;
+    }
+
+    /** Top de un juego concreto. */
+    public List<Map.Entry<UUID, Long>> top(String game, Metric metric, boolean week) {
+        checkWeek();
+        refreshCache();
+        return topCache.computeIfAbsent("G_" + game + "_" + metric.name() + (week ? "_w" : ""), k -> {
+            List<Map.Entry<UUID, Long>> list = new ArrayList<>();
+            Map<UUID, Entry> m = (week ? gameWeekly : gameAll).get(game);
+            if (m != null)
+                for (Map.Entry<UUID, Entry> e : m.entrySet()) {
+                    long v = metric.of(e.getValue());
+                    if (metric == Metric.PROFIT ? e.getValue().rounds > 0 : v > 0)
+                        list.add(Map.entry(e.getKey(), v));
+                }
+            list.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+            return list;
+        });
+    }
+
     public List<Map.Entry<UUID, Long>> top(Metric metric, boolean week) {
         checkWeek();
         refreshCache();
@@ -374,6 +407,34 @@ public class GameStats {
             if (list.get(i).getKey().equals(player))
                 return i + 1;
         return 0;
+    }
+
+    public int rank(UUID player, String game, Metric metric, boolean week) {
+        List<Map.Entry<UUID, Long>> list = top(game, metric, week);
+        for (int i = 0; i < list.size(); i++)
+            if (list.get(i).getKey().equals(player))
+                return i + 1;
+        return 0;
+    }
+
+    /** Id del juego para los placeholders (acepta los nombres en inglés), o null. */
+    public static String gameId(String s) {
+        return switch (s == null ? "" : s) {
+            case "slots" -> "slots";
+            case "ruleta", "roulette" -> "ruleta";
+            case "blackjack", "bj" -> "blackjack";
+            case "baccarat" -> "baccarat";
+            case "crash" -> "crash";
+            case "rueda", "wheel" -> "rueda";
+            case "carrera", "race" -> "carrera";
+            case "coinflip" -> "coinflip";
+            case "rasca", "scratch" -> "rasca";
+            case "bingo" -> "bingo";
+            case "loteria", "lottery" -> "loteria";
+            case "mines" -> "mines";
+            case "plinko" -> "plinko";
+            default -> null;
+        };
     }
 
     private String nameOf(UUID id) {
@@ -411,6 +472,7 @@ public class GameStats {
                 plugin.getLogger().info("[Stats] Nueva semana (" + k + "): se reinicia el ranking semanal.");
             weekKey = k;
             weekly.clear();
+            gameWeekly.clear();
             pokerWeekly.clear();
             topCache.clear();
             dirty = true;
@@ -426,6 +488,16 @@ public class GameStats {
         readSection(y.getConfigurationSection("all_time"), allTime);
         weekKey = y.getString("week", null);
         readSection(y.getConfigurationSection("weekly"), weekly);
+        for (String[] part : new String[][] { { "games_all", "a" }, { "games_weekly", "w" } }) {
+            ConfigurationSection gs = y.getConfigurationSection(part[0]);
+            if (gs == null)
+                continue;
+            for (String game : gs.getKeys(false)) {
+                Map<UUID, Entry> m = new HashMap<>();
+                readSection(gs.getConfigurationSection(game), m);
+                (part[1].equals("a") ? gameAll : gameWeekly).put(game, m);
+            }
+        }
         readPoker(y.getConfigurationSection("poker_all"), pokerAll);
         readPoker(y.getConfigurationSection("poker_weekly"), pokerWeekly);
         for (String s : y.getStringList("recent_wins")) {
@@ -530,6 +602,10 @@ public class GameStats {
         y.set("week", weekKey);
         writeSection(y, "all_time", allTime);
         writeSection(y, "weekly", weekly);
+        for (Map.Entry<String, Map<UUID, Entry>> e : gameAll.entrySet())
+            writeSection(y, "games_all." + e.getKey(), e.getValue());
+        for (Map.Entry<String, Map<UUID, Entry>> e : gameWeekly.entrySet())
+            writeSection(y, "games_weekly." + e.getKey(), e.getValue());
         writePoker(y, "poker_all", pokerAll);
         writePoker(y, "poker_weekly", pokerWeekly);
         List<String> recent = new ArrayList<>();

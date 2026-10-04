@@ -828,7 +828,9 @@ public class BaccaratModule extends GameModule {
             return;
         Entity e = t.dealer == null ? null : w.getEntity(t.dealer);
         if (e instanceof Villager v && v.isValid()) {
-            v.setCustomName(title(t));
+            // El título ya va en el holograma de encima: el aldeano no muestra nombre.
+            v.setCustomName(null);
+            v.setCustomNameVisible(false);
             Location want = dealerSpot(t);
             if (v.getLocation().distanceSquared(want) > 0.04)
                 v.teleport(want);
@@ -842,8 +844,7 @@ public class BaccaratModule extends GameModule {
                 v.setInvulnerable(true);
                 v.setSilent(true);
                 v.setCollidable(false);
-                v.setCustomName(title(t));
-                v.setCustomNameVisible(true);
+                v.setCustomNameVisible(false); // el título va en el holograma
             };
             Villager v = w.spawn(dealerSpot(t), Villager.class, setup);
             if (v.isValid())
