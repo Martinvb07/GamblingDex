@@ -58,33 +58,29 @@ public class RouletteBetMenu {
                 "§72. Elige cuántas fichas",
                 "§7El 0 y el 00 solo pagan si apostaste a ese número.")));
 
-        // Simples: pagan 1 a 1
-        inv.setItem(9, label(Material.WHITE_BANNER, "§f§lSIMPLES", "§7Pagan §f1 a 1 §8(2x)"));
+        // Columnas a la izquierda (pagan 2 a 1)
+        inv.setItem(9, typeButton(WorldRouletteBetType.COLUMN_1, Material.CYAN_CONCRETE, "§3", "§71, 4, 7 ... 34"));
+        inv.setItem(18, typeButton(WorldRouletteBetType.COLUMN_2, Material.LIGHT_BLUE_CONCRETE, "§b", "§72, 5, 8 ... 35"));
+        inv.setItem(27, typeButton(WorldRouletteBetType.COLUMN_3, Material.BLUE_CONCRETE, "§9", "§73, 6, 9 ... 36"));
+
+        // Simples (pagan 1 a 1), en parejas: rojo/negro, par/impar, 1-18/19-36
         inv.setItem(11, typeButton(WorldRouletteBetType.RED, Material.RED_CONCRETE, "§c", "§7Cualquier número rojo"));
-        inv.setItem(12, typeButton(WorldRouletteBetType.BLACK, Material.BLACK_CONCRETE, "§8", "§7Cualquier número negro"));
+        inv.setItem(20, typeButton(WorldRouletteBetType.BLACK, Material.BLACK_CONCRETE, "§8", "§7Cualquier número negro"));
         inv.setItem(13, typeButton(WorldRouletteBetType.EVEN, Material.LIME_DYE, "§a", "§72, 4, 6 ... 36"));
-        inv.setItem(14, typeButton(WorldRouletteBetType.ODD, Material.ORANGE_DYE, "§6", "§71, 3, 5 ... 35"));
-        inv.setItem(15, typeButton(WorldRouletteBetType.LOW, Material.LIGHT_BLUE_DYE, "§b", "§7Del 1 al 18"));
-        inv.setItem(16, typeButton(WorldRouletteBetType.HIGH, Material.BLUE_DYE, "§9", "§7Del 19 al 36"));
+        inv.setItem(22, typeButton(WorldRouletteBetType.ODD, Material.ORANGE_DYE, "§6", "§71, 3, 5 ... 35"));
+        inv.setItem(15, typeButton(WorldRouletteBetType.LOW, Material.WHITE_CONCRETE, "§f", "§7Del 1 al 18"));
+        inv.setItem(24, typeButton(WorldRouletteBetType.HIGH, Material.LIGHT_GRAY_CONCRETE, "§7", "§7Del 19 al 36"));
 
-        // Docenas: pagan 2 a 1
-        inv.setItem(18, label(Material.YELLOW_BANNER, "§e§lDOCENAS", "§7Pagan §f2 a 1 §8(3x)"));
-        inv.setItem(20, typeButton(WorldRouletteBetType.DOZEN_1, Material.YELLOW_CONCRETE, "§e", "§7Del 1 al 12"));
-        inv.setItem(22, typeButton(WorldRouletteBetType.DOZEN_2, Material.ORANGE_CONCRETE, "§6", "§7Del 13 al 24"));
-        inv.setItem(24, typeButton(WorldRouletteBetType.DOZEN_3, Material.RED_CONCRETE, "§c", "§7Del 25 al 36"));
+        // Docenas (pagan 2 a 1)
+        inv.setItem(29, typeButton(WorldRouletteBetType.DOZEN_1, Material.YELLOW_CONCRETE, "§e", "§7Del 1 al 12"));
+        inv.setItem(31, typeButton(WorldRouletteBetType.DOZEN_2, Material.ORANGE_CONCRETE, "§6", "§7Del 13 al 24"));
+        inv.setItem(33, typeButton(WorldRouletteBetType.DOZEN_3, Material.RED_TERRACOTTA, "§c", "§7Del 25 al 36"));
 
-        // Columnas: pagan 2 a 1
-        inv.setItem(27, label(Material.CYAN_BANNER, "§3§lCOLUMNAS", "§7Pagan §f2 a 1 §8(3x)"));
-        inv.setItem(29, typeButton(WorldRouletteBetType.COLUMN_1, Material.CYAN_CONCRETE, "§3", "§71, 4, 7 ... 34"));
-        inv.setItem(31, typeButton(WorldRouletteBetType.COLUMN_2, Material.LIGHT_BLUE_CONCRETE, "§b", "§72, 5, 8 ... 35"));
-        inv.setItem(33, typeButton(WorldRouletteBetType.COLUMN_3, Material.BLUE_CONCRETE, "§9", "§73, 6, 9 ... 36"));
-
-        // Pleno: paga 35 a 1
-        inv.setItem(36, label(Material.LIME_BANNER, "§a§lPLENO", "§7Paga §f35 a 1 §8(36x)"));
+        // Pleno (paga 35 a 1): 0, elegir número, 00
         inv.setItem(38, numberButton(0));
-        inv.setItem(39, numberButton(WorldRouletteTables.DOUBLE_ZERO));
-        inv.setItem(41, actionButton("open", "numbers", Material.PAPER, "§e§lElegir número (1-36)",
+        inv.setItem(40, actionButton("open", "numbers", Material.PAPER, "§e§lElegir número (1-36)",
                 List.of("§7Paga §f35 a 1 §8(36x)", "", "§eClick para ver los números")));
+        inv.setItem(42, numberButton(WorldRouletteTables.DOUBLE_ZERO));
 
         // Abajo: tus apuestas, repetir, cerrar, fichas
         List<String> mine = table.describeBets(player.getUniqueId());
@@ -134,10 +130,6 @@ public class RouletteBetMenu {
             it.setItemMeta(im);
         }
         return it;
-    }
-
-    private ItemStack label(Material mat, String name, String line) {
-        return actionButton("noop", "label", mat, name, List.of(line));
     }
 
     private ItemStack filler(Material mat) {
