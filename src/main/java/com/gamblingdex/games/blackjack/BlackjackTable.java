@@ -1988,10 +1988,11 @@ public class BlackjackTable {
             long net = totalPayout - totalBet + early;
             roundNet.put(id, net);
             if (early != 0) {
+                // Desglose: lo de la(s) mano(s) y lo de laterales/blackjack natural.
                 p.sendMessage(plugin.getMessages().format(
                         "blackjack.result.round_total",
-                        "&7Total de la ronda &8(mano + laterales)&7: {amount}",
-                        Map.of("amount", net >= 0 ? "§a+" + prettyUnits(net) : "§c-" + prettyUnits(-net))));
+                        "&7Mano: {hand} &8| &7Laterales: {side} &8| &7Total de la ronda: {amount}",
+                        Map.of("hand", signed(totalPayout - totalBet), "side", signed(early), "amount", signed(net))));
             }
             if (net > 0) {
                 p.sendTitle(plugin.color(anyBlackjack ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
@@ -2489,6 +2490,15 @@ public class BlackjackTable {
         }
     }
 
+    /** "+1.000" en verde, "-1.000" en rojo, "0" en gris. */
+    private static String signed(long v) {
+        if (v > 0)
+            return "§a+" + prettyUnits(v);
+        if (v < 0)
+            return "§c-" + prettyUnits(-v);
+        return "§70";
+    }
+
     /** Tus cartas en pantalla (encima de la barra de experiencia). */
     private void sendHandActionBars() {
         for (UUID id : hands.keySet()) {
@@ -2513,7 +2523,7 @@ public class BlackjackTable {
             }
             Long total = resultsShown ? roundNet.get(id) : null;
             if (total != null) {
-                sb.append(" §8| §7Total: ").append(total >= 0 ? "§a+" + prettyUnits(total) : "§c-" + prettyUnits(-total));
+                sb.append(" §8| §7Total: ").append(signed(total));
             }
             p.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
                     .deserialize(plugin.color(sb.toString())));
