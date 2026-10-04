@@ -6,7 +6,6 @@
 # Jugadores: click derecho a la mesa          -> poner la apuesta
 #            shift + click derecho a la mesa  -> retirarse (cobrar)
 #            Sobre la barra de experiencia ves tu apuesta, el multiplicador y lo que cobras.
-#            /gdx crash retirar               -> también retira
 #
 # Un multiplicador sube desde x1.00 hasta que "explota". Si retiras antes,
 # cobras apuesta x multiplicador. Si explota antes, pierdes la apuesta.
@@ -22,13 +21,9 @@ max_multiplier: 1000.0
 bet_window_seconds: 15    # tiempo para apostar antes de que despegue
 pause_seconds: 5          # pausa tras explotar antes de la siguiente ronda
 growth_per_second: 0.07   # qué tan rápido sube (0.07 = x2 a los ~10s)
-auto_cashout_options: [1.5, 2.0, 3.0, 5.0, 10.0]
 broadcast_win_min: 10000  # anunciar premios desde este monto (0 = nunca)
-show_bar_to_everyone: false  # true = todos ven la barra del multiplicador
-# true = los jugadores también pueden abrir el menú con /gdx crash (los admins siempre pueden)
-allow_command: false
+show_bar_to_everyone: false  # la barra de arriba solo la ven los que apostaron (true = todos)
 station_holo_height: 1.2  # altura del holograma sobre la mesa
-station_bar_radius: 8     # quienes estén a esta distancia de una mesa ven la barra (0 = nadie)
 
 messages:
   joined: "&aApostaste &e{amount}&a en Crash.{auto}"
@@ -44,8 +39,7 @@ messages:
   crashed_all: "&6&lCrash &8» &c&lEXPLOTÓ en x{mult}"
   big_win: "&6&lCrash &8» &f{player} &7retiró en &fx{mult} &7y ganó &e{amount}&7!"
   refunded: "&7La ronda de Crash se canceló. Se te devolvieron &e{amount}&7."
-  usage: "&cUso: /gdx crash [apostar <monto> [auto] | retirar]"
-  use_station: "&7Crash se juega en las mesas del casino: &fclick derecho&7 a una mesa de Crash."
+  use_station: "&7Crash se juega en las mesas: &fclick derecho&7 para apostar, &fshift + click derecho&7 para retirar."
   station_created: "&aMesa de Crash creada. &7Click derecho al bloque para jugar."
   station_exists: "&eEse bloque ya es una mesa de Crash."
   station_removed: "&aMesa de Crash eliminada."

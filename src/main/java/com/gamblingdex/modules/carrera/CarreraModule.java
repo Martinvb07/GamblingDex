@@ -238,19 +238,10 @@ public class CarreraModule extends GameModule {
                 }
             }
         }
-        if (!isAdmin(player) && !config().getBoolean("allow_command", false)) {
-            player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
-            return true;
-        }
-        Track t = args.length >= 1 ? tracks.get(a) : (tracks.size() == 1 ? tracks.values().iterator().next() : null);
-        if (t == null) {
-            if (tracks.isEmpty())
-                player.sendMessage(msg("no_tracks", "&cNo hay pistas de carreras todavía."));
-            else
-                notFound(player);
-            return true;
-        }
-        openMenu(player, t);
+        // Se apuesta solo en la mesa de la pista: no hay comandos de jugador.
+        player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
+        if (isAdmin(player))
+            player.sendMessage(msg("usage_admin", "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"));
         return true;
     }
 
@@ -895,12 +886,8 @@ public class CarreraModule extends GameModule {
                 + " &8| &f" + Math.round(pct * 100) + "%"));
         t.bar.setProgress(Math.max(0, Math.min(1, pct)));
 
-        // Barra para apostadores y quienes miran cerca.
+        // Barra solo para los que apostaron.
         Set<UUID> wanted = new HashSet<>(t.bets.keySet());
-        if (loaded(t)) {
-            for (Player p : t.start.getWorld().getNearbyPlayers(t.start, config().getDouble("announce_radius", 40)))
-                wanted.add(p.getUniqueId());
-        }
         for (UUID id : wanted) {
             Player p = Bukkit.getPlayer(id);
             if (p != null && !t.bar.getPlayers().contains(p))

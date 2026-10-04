@@ -8,7 +8,6 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -24,15 +23,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.security.SecureRandom;
 import java.util.*;
@@ -82,17 +75,8 @@ public class CrashModule extends GameModule {
         }
     }
 
-    private static final class MenuHolder implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
-    }
-
     private State state = State.PAUSE;
     private final Map<UUID, Bet> bets = new LinkedHashMap<>();
-    private final Map<UUID, Double> chosenAuto = new HashMap<>();
-    private final Deque<Double> history = new ArrayDeque<>();
     private double crashPoint = 1.0;
     private double multiplier = 1.0;
     private long runStartMs;
@@ -153,53 +137,19 @@ public class CrashModule extends GameModule {
         List<String> l = new ArrayList<>();
         l.add("&6&lCrash");
         l.add("&8• &fClick derecho&7 a la mesa: apostar &8| &fShift + click derecho&7: retirar");
-        if (commandAllowed(admin)) {
-            l.add("&8• &e/gdx crash &7- Abrir el menú");
-            l.add("&8• &e/gdx crash apostar <monto> [auto] &7- Ej: &f/gdx crash apostar 100 2");
-        }
-        l.add("&8• &e/gdx crash retirar &7- Cobrar ahora");
         if (admin)
             l.add("&8• &e/gdx station set crash &7- Crear mesa (mirando un bloque)");
         l.add("");
         return l;
     }
 
-    /** El menú por comando: siempre para admins; para jugadores según allow_command. */
-    private boolean commandAllowed(boolean admin) {
-        return admin || config().getBoolean("allow_command", false);
-    }
-
     @Override
     public boolean onCommand(Player player, String[] args) {
-        String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-        boolean cashout = sub.equals("retirar") || sub.equals("cashout") || sub.equals("r");
-        if (!cashout && !commandAllowed(isAdmin(player))) {
-            player.sendMessage(msg("use_station", "&7Crash se juega en las mesas del casino: &fclick derecho&7 a una mesa de Crash."));
-            return true;
-        }
-        if (args.length == 0) {
-            openMenu(player);
-            return true;
-        }
-        switch (sub) {
-            case "apostar", "bet", "a" -> {
-                if (args.length < 2) {
-                    startBetFlow(player);
-                    return true;
-                }
-                long amount = parseAmount(args[1]);
-                double auto = 0;
-                if (args.length >= 3) {
-                    try {
-                        auto = Double.parseDouble(args[2].replace("x", "").replace(",", "."));
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-                placeBet(player, amount, auto);
-            }
-            case "retirar", "cashout", "r" -> cashOut(player);
-            default -> player.sendMessage(msg("usage", "&cUso: /gdx crash [apostar <monto> [auto] | retirar]"));
-        }
+        // Crash solo se juega en las mesas: no hay comandos de jugador.
+        player.sendMessage(msg("use_station",
+                "&7Crash se juega en las mesas: &fclick derecho&7 para apostar, &fshift + click derecho&7 para retirar."));
+        if (isAdmin(player))
+            player.sendMessage(msg("admin_hint", "&7Admin: &f/gdx station set crash &7(mirando un bloque) | &f/gdx station remove"));
         return true;
     }
 
@@ -257,7 +207,7 @@ public class CrashModule extends GameModule {
                 AmountPickerMenu.open(p, "&6&lCrash &8- &eTu apuesta", min, max, min,
                         List.of("&7Despega en &f" + secondsLeft + "s",
                                 "&7Shift + click derecho a la mesa para retirar"),
-                        amount -> placeBet(p, amount, chosenAuto.getOrDefault(p.getUniqueId(), 0.0)), null);
+                        amount -> placeBet(p, amount, 0.0), null);
             }
             case RUNNING -> {
                 if (b == null) {
@@ -399,16 +349,11 @@ public class CrashModule extends GameModule {
         updateBar();
         for (Station st : stations.values())
             updateHolo(st);
-        if (tickCounter % 2 == 0)
-            refreshMenus();
     }
 
     private void crash() {
         state = State.PAUSE;
         secondsLeft = Math.max(1, config().getInt("pause_seconds", 5));
-        history.addFirst(crashPoint);
-        while (history.size() > 9)
-            history.removeLast();
 
         // Resumen solo para los que jugaron la ronda.
         List<String> winners = new ArrayList<>();
@@ -458,22 +403,6 @@ public class CrashModule extends GameModule {
     // ------------------------------------------------------------------
     // Apostar / retirar
     // ------------------------------------------------------------------
-
-    private void startBetFlow(Player player) {
-        if (state != State.BETTING) {
-            player.sendMessage(msg("not_betting", "&cAhora no se puede apostar. Espera la próxima ronda."));
-            return;
-        }
-        long min = Math.max(1, config().getLong("min_bet", 10L));
-        long max = Math.max(0, config().getLong("max_bet", 0L));
-        double auto = chosenAuto.getOrDefault(player.getUniqueId(), 0.0);
-        AmountPickerMenu.open(player, "&6&lCrash &8- &eApuesta", min, max, min,
-                List.of(auto > 0 ? "&7Retiro automático: &fx" + fmt(auto) : "&7Sin retiro automático"),
-                amount -> {
-                    placeBet(player, amount, chosenAuto.getOrDefault(player.getUniqueId(), 0.0));
-                    openMenu(player);
-                }, () -> openMenu(player));
-    }
 
     private void placeBet(Player player, long amount, double auto) {
         if (state != State.BETTING) {
@@ -576,10 +505,9 @@ public class CrashModule extends GameModule {
 
         boolean everyone = config().getBoolean("show_bar_to_everyone", false);
         Set<UUID> wanted = new HashSet<>(bets.keySet());
-        double radius = config().getDouble("station_bar_radius", 8.0);
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (everyone || p.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder
-                    || nearStation(p, radius))
+        // Solo los que apostaron en la ronda (o todos si show_bar_to_everyone).
+        if (everyone) {
+            for (Player p : Bukkit.getOnlinePlayers())
                 wanted.add(p.getUniqueId());
         }
         for (Player p : new ArrayList<>(bar.getPlayers())) {
@@ -591,17 +519,6 @@ public class CrashModule extends GameModule {
             if (p != null && !bar.getPlayers().contains(p))
                 bar.addPlayer(p);
         }
-    }
-
-    private boolean nearStation(Player p, double radius) {
-        if (radius <= 0)
-            return false;
-        Location pl = p.getLocation();
-        for (Station st : stations.values()) {
-            if (st.loc.getWorld() == pl.getWorld() && st.loc.distanceSquared(pl) <= radius * radius)
-                return true;
-        }
-        return false;
     }
 
     private void sendActionBars() {
@@ -625,108 +542,6 @@ public class CrashModule extends GameModule {
             }
             p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(color(text)));
         }
-    }
-
-    private void openMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(new MenuHolder(), 27, color("&6&lCrash"));
-        fillMenu(player, inv);
-        player.openInventory(inv);
-    }
-
-    private void refreshMenus() {
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            Inventory top = p.getOpenInventory().getTopInventory();
-            if (top.getHolder() instanceof MenuHolder)
-                fillMenu(p, top);
-        }
-    }
-
-    private void fillMenu(Player p, Inventory inv) {
-        for (int i = 0; i < 18; i++)
-            inv.setItem(i, item(Material.BLACK_STAINED_GLASS_PANE, " ", null));
-        Bet b = bets.get(p.getUniqueId());
-        double auto = chosenAuto.getOrDefault(p.getUniqueId(), 0.0);
-
-        switch (state) {
-            case BETTING -> {
-                if (b == null) {
-                    inv.setItem(11, item(Material.GOLD_BLOCK, "&a&lApostar",
-                            List.of("&7Despega en &f" + secondsLeft + "s", "&7Tus fichas: &e" + units(TokenWallet.balance(p)))));
-                } else {
-                    inv.setItem(11, item(Material.LIME_STAINED_GLASS, "&aYa apostaste &e" + units(b.amount),
-                            List.of("&7Despega en &f" + secondsLeft + "s")));
-                }
-                inv.setItem(13, item(Material.CLOCK, "&eApuestas abiertas: &f" + secondsLeft + "s",
-                        List.of("&7Jugadores: &f" + bets.size())));
-                inv.setItem(15, item(Material.HOPPER, "&bRetiro automático: &f" + (auto > 0 ? "x" + fmt(auto) : "no"),
-                        List.of("&7Click para cambiar", "&7Retira solo al llegar a ese x")));
-            }
-            case RUNNING -> {
-                if (b != null && b.cashedAt == 0) {
-                    inv.setItem(13, item(Material.EMERALD_BLOCK, "&a&lRETIRAR &fx" + fmt(multiplier),
-                            List.of("&7Cobras: &e" + units(payoutFor(b, multiplier)), "&7Apostaste: &f" + units(b.amount))));
-                } else if (b != null) {
-                    inv.setItem(13, item(Material.LIME_STAINED_GLASS, "&aRetiraste en x" + fmt(b.cashedAt),
-                            List.of("&e+" + units(payoutFor(b, b.cashedAt)))));
-                } else {
-                    inv.setItem(13, item(Material.FIREWORK_ROCKET, "&a&lx" + fmt(multiplier),
-                            List.of("&7No estás en esta ronda")));
-                }
-            }
-            case PAUSE -> inv.setItem(13, item(Material.TNT, "&c&lExplotó en x" + fmt(crashPoint),
-                    List.of("&7Siguiente ronda en &f" + secondsLeft + "s")));
-        }
-
-        // Historial (últimas explosiones)
-        int slot = 18;
-        for (int i = 18; i < 27; i++)
-            inv.setItem(i, item(Material.GRAY_STAINED_GLASS_PANE, " ", null));
-        for (double h : history) {
-            Material m = h < 2 ? Material.RED_STAINED_GLASS_PANE
-                    : h < 5 ? Material.YELLOW_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
-            inv.setItem(slot++, item(m, "&fx" + fmt(h), List.of("&8Ronda anterior")));
-            if (slot >= 27)
-                break;
-        }
-    }
-
-    private void cycleAuto(Player p) {
-        List<Double> opts = new ArrayList<>();
-        opts.add(0.0);
-        for (Object o : config().getList("auto_cashout_options", List.of(1.5, 2.0, 3.0, 5.0, 10.0))) {
-            if (o instanceof Number n && n.doubleValue() >= 1.01)
-                opts.add(n.doubleValue());
-        }
-        double cur = chosenAuto.getOrDefault(p.getUniqueId(), 0.0);
-        int idx = 0;
-        for (int i = 0; i < opts.size(); i++) {
-            if (Math.abs(opts.get(i) - cur) < 0.001) {
-                idx = i;
-                break;
-            }
-        }
-        double next = opts.get((idx + 1) % opts.size());
-        chosenAuto.put(p.getUniqueId(), next);
-        // Si ya apostó en esta ronda, se aplica a su apuesta.
-        Bet b = bets.get(p.getUniqueId());
-        if (b != null && state == State.BETTING)
-            b.auto = next;
-    }
-
-    private ItemStack item(Material m, String name, List<String> lore) {
-        ItemStack it = new ItemStack(m);
-        ItemMeta meta = it.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(color(name));
-            if (lore != null) {
-                List<String> l = new ArrayList<>();
-                for (String s : lore)
-                    l.add(color(s));
-                meta.setLore(l);
-            }
-            it.setItemMeta(meta);
-        }
-        return it;
     }
 
     private static String fmt(double d) {
@@ -754,31 +569,6 @@ public class CrashModule extends GameModule {
                 return;
             e.setCancelled(true);
             e.getPlayer().sendMessage(msg("cannot_break", "&cEs una mesa de Crash. Quítala con &f/gdx station remove&c."));
-        }
-
-        @EventHandler
-        public void onClick(InventoryClickEvent e) {
-            if (!(e.getInventory().getHolder() instanceof MenuHolder))
-                return;
-            e.setCancelled(true);
-            if (!(e.getWhoClicked() instanceof Player p))
-                return;
-            int slot = e.getRawSlot();
-            if (state == State.BETTING && slot == 11 && !bets.containsKey(p.getUniqueId())) {
-                startBetFlow(p);
-            } else if (state == State.BETTING && slot == 15) {
-                cycleAuto(p);
-                fillMenu(p, e.getInventory());
-            } else if (state == State.RUNNING && slot == 13) {
-                cashOut(p);
-                fillMenu(p, e.getInventory());
-            }
-        }
-
-        @EventHandler
-        public void onDrag(InventoryDragEvent e) {
-            if (e.getInventory().getHolder() instanceof MenuHolder)
-                e.setCancelled(true);
         }
 
         @EventHandler
