@@ -1,0 +1,39 @@
+# ======================
+# GamblingDex - Bingo (75 bolas)
+# ======================
+# /gdx bingo                -> comprar cartones / ver tus cartones
+# /gdx bingo comprar <n>    -> comprar n cartones (durante la venta)
+# Admin: /gdx bingo iniciar -> abrir la venta ahora
+#
+# Premios: LÍNEA (fila, columna o diagonal) y BINGO (cartón lleno).
+# Los números se marcan solos.
+
+enabled: true
+
+card_price: 100
+max_cards_per_player: 4
+house_cut_percent: 10.0
+line_prize_percent: 30.0      # % del pozo para la línea; el resto es para el bingo
+min_players: 2
+
+auto_start: true
+interval_minutes: 15          # cada cuánto empieza una partida automática
+sale_seconds: 60              # tiempo para comprar cartones
+call_seconds: 4               # segundos entre bolas
+
+messages:
+  sale_open: "&6&lBingo &8» &e¡Venta de cartones abierta! &7Cartón: &e{price} &7(&f{seconds}s&7) &8| &e/gdx bingo"
+  sale_closing: "&6&lBingo &8» &7Quedan &f{seconds}s &7para comprar cartones. Pozo: &e{pot}"
+  bought: "&aCompraste &e{amount} &acartón(es). Tienes &f{total}&a."
+  not_sale: "&cAhora no se venden cartones."
+  max_cards: "&cSolo puedes tener &e{max}&c cartones."
+  not_enough: "&cNo te alcanzan las fichas. Necesitas &e{price}&c y tienes &e{balance}&c."
+  start: "&6&lBingo &8» &a¡Empieza! &7Jugadores: &f{players} &8| &7Pozo: &e{pot} &8| &7Línea: &e{line} &8| &7Bingo: &e{bingo}"
+  not_enough_players: "&6&lBingo &8» &7No hubo suficientes jugadores (mínimo {min}). Se devolvieron los cartones."
+  refunded: "&7Se te devolvieron &e{amount}&7 de tus cartones de bingo."
+  line_winner: "&6&lBingo &8» &a&l¡LÍNEA! &f{players} &7con la bola &f{ball} &7→ &e{amount}"
+  bingo_winner: "&6&lBingo &8» &6&l¡BINGO! &f{players} &7con la bola &f{ball} &7→ &e{amount}"
+  you_won_line: "&a&l¡LÍNEA! &7Cobras &e{amount}"
+  you_won_bingo: "&6&l¡BINGO! &7Cobras &e{amount}"
+  near: "&e¡Te falta 1 número para BINGO!"
+  usage: "&cUso: /gdx bingo [comprar <cantidad>]"
