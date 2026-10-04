@@ -175,7 +175,7 @@ public class GdxTabCompleter implements TabCompleter {
                     return filter(List.of("add", "remove", "list", "clear"), cur);
                 return n == 4 ? filter(tables, cur) : List.of();
             }
-            case "rename", "renombrar", "displayname", "prettyname", "name" -> {
+            case "rename", "renombrar" -> {
                 return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<title...>") : List.of();
             }
         }
@@ -198,7 +198,7 @@ public class GdxTabCompleter implements TabCompleter {
             case "remove", "del", "delete" -> {
                 return n == 3 ? filter(tables, cur) : List.of();
             }
-            case "rename", "renombrar", "displayname", "name" -> {
+            case "rename", "renombrar" -> {
                 return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<name...>") : List.of();
             }
             case "stakes", "blinds", "ciegas" -> {

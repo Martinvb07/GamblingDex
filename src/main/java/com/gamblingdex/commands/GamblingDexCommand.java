@@ -833,8 +833,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
-                if (action.equals("rename") || action.equals("renombrar") || action.equals("displayname")
-                        || action.equals("prettyname") || action.equals("name")) {
+                if (action.equals("rename") || action.equals("renombrar")) {
                     if (args.length < 4) {
                         player.sendMessage(cfg(
                                 "messages.admin.blackjack.rename_usage",
@@ -843,7 +842,7 @@ public class GamblingDexCommand implements CommandExecutor {
                                 "messages.admin.blackjack.rename_example",
                                 "&7Ej: &f/gdx blackjack rename Mesa1 &6&l♠ BLACKJACK &8| &eVIP"));
                         player.sendMessage(cfg(
-                                "messages.admin.blackjack.displayname_reset",
+                                "messages.admin.blackjack.rename_reset",
                                 "&7Tip: usa &f- &7para resetear al nombre interno."));
                         return true;
                     }
@@ -1190,7 +1189,7 @@ public class GamblingDexCommand implements CommandExecutor {
                             "seats", String.valueOf(t.getSeatKeys().size())));
                 }
             }
-            case "rename", "renombrar", "displayname", "name" -> {
+            case "rename", "renombrar" -> {
                 if (args.length < 4 || pm.getByName(args[2]) == null) {
                     player.sendMessage(pk("rename_usage", "&cUso: /gdx poker rename <table> <name...> &7(&f-&7 = nombre interno)"));
                     return true;
