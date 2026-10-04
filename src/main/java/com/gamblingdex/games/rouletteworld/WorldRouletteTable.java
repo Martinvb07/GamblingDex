@@ -1,6 +1,7 @@
 package com.gamblingdex.games.rouletteworld;
 
 import com.gamblingdex.GamblingDexPlugin;
+import com.gamblingdex.economy.TokenWallet;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -98,6 +99,10 @@ public class WorldRouletteTable {
     private final Map<UUID, WorldRouletteSelection> selections = new HashMap<>();
     // player -> (betKey -> bet)
     private final Map<UUID, Map<String, WorldRouletteBet>> bets = new HashMap<>();
+    // apuestas de la ronda anterior de cada jugador (para "Repetir apuesta")
+    private final Map<UUID, List<WorldRouletteBet>> lastBets = new HashMap<>();
+    // último número que quedó iluminado (el giro arranca desde ahí)
+    private Integer lastLitNumber;
 
     private State state = State.WAITING;
     private int countdownSeconds = 0;
@@ -288,6 +293,96 @@ public class WorldRouletteTable {
         return true;
     }
 
+    // ------------------------------------------------------------------
+    // Apostar desde el menú (fichas del inventario, sin tope salvo max_bet)
+    // ------------------------------------------------------------------
+
+    /** Cobra {@code amount} en fichas y apuesta a {@code type}/{@code number}. Devuelve las fichas si falla. */
+    public boolean placeBetFromWallet(Player player, WorldRouletteBetType type, Integer number, long amount) {
+        if (state != State.COUNTDOWN) {
+            player.sendMessage(msg("messages.roulette_world.bets_closed",
+                    "&cApuestas cerradas. &7Espera a que se abran."));
+            return false;
+        }
+        if (!TokenWallet.take(player, amount)) {
+            player.sendMessage(msg("messages.roulette_world.not_enough",
+                    "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
+                    Map.of("balance", prettyUnits(TokenWallet.balance(player)))));
+            return false;
+        }
+        WorldRouletteSelection sel = getSelection(player.getUniqueId());
+        sel.setType(type);
+        sel.setNumber(type == WorldRouletteBetType.NUMBER ? number : null);
+        if (!placeBet(player, amount)) {
+            TokenWallet.give(player.getUniqueId(), amount);
+            return false;
+        }
+        return true;
+    }
+
+    /** Vuelve a poner las mismas apuestas de la ronda anterior. */
+    public void repeatLastBet(Player player) {
+        List<WorldRouletteBet> last = lastBets.get(player.getUniqueId());
+        if (last == null || last.isEmpty()) {
+            player.sendMessage(msg("messages.roulette_world.no_last_bet", "&7No tienes una apuesta anterior para repetir."));
+            return;
+        }
+        if (state != State.COUNTDOWN) {
+            player.sendMessage(msg("messages.roulette_world.bets_closed",
+                    "&cApuestas cerradas. &7Espera a que se abran."));
+            return;
+        }
+        long total = lastBetTotal(player.getUniqueId());
+        if (!TokenWallet.take(player, total)) {
+            player.sendMessage(msg("messages.roulette_world.not_enough",
+                    "&cNo te alcanzan las fichas. Tienes &e{balance}&c.",
+                    Map.of("balance", prettyUnits(TokenWallet.balance(player)))));
+            return;
+        }
+        long refund = 0;
+        for (WorldRouletteBet b : last) {
+            WorldRouletteSelection sel = getSelection(player.getUniqueId());
+            sel.setType(b.getType());
+            sel.setNumber(b.getNumber());
+            if (!placeBet(player, b.getAmount()))
+                refund += b.getAmount();
+        }
+        if (refund > 0)
+            TokenWallet.give(player.getUniqueId(), refund);
+    }
+
+    public long lastBetTotal(UUID playerId) {
+        long t = 0;
+        for (WorldRouletteBet b : lastBets.getOrDefault(playerId, List.of()))
+            t += b.getAmount();
+        return t;
+    }
+
+    public List<String> describeLastBets(UUID playerId) {
+        List<String> out = new ArrayList<>();
+        for (WorldRouletteBet b : lastBets.getOrDefault(playerId, List.of()))
+            out.add("§f" + describeBet(b) + " §8» §e" + prettyUnits(b.getAmount()));
+        return out;
+    }
+
+    public List<String> describeBets(UUID playerId) {
+        List<String> out = new ArrayList<>();
+        Map<String, WorldRouletteBet> m = bets.get(playerId);
+        if (m != null)
+            for (WorldRouletteBet b : m.values())
+                out.add("§f" + describeBet(b) + " §8» §e" + prettyUnits(b.getAmount()));
+        return out;
+    }
+
+    public String totalBet(UUID playerId) {
+        long t = 0;
+        Map<String, WorldRouletteBet> m = bets.get(playerId);
+        if (m != null)
+            for (WorldRouletteBet b : m.values())
+                t += b.getAmount();
+        return prettyUnits(t);
+    }
+
     public void ensureAutoCycleStarted() {
         boolean enabled = plugin.getConfig().getBoolean("roulette_world.auto_cycle.enabled", true);
         if (!enabled)
@@ -415,7 +510,7 @@ public class WorldRouletteTable {
 
     private void startCountdown() {
         state = State.COUNTDOWN;
-        countdownSeconds = plugin.getConfig().getInt("roulette_world.bet_window_seconds", 25);
+        countdownSeconds = plugin.getConfig().getInt("roulette_world.bet_window_seconds", 40);
 
         updateHologramLine(2, "§aAPUESTAS ABIERTAS §7(" + countdownSeconds + "s)");
 
@@ -485,32 +580,49 @@ public class WorldRouletteTable {
 
         int winningNumber = sequence.get(ThreadLocalRandom.current().nextInt(sequence.size()));
 
-        int ticks = plugin.getConfig().getInt("roulette_world.spin_ticks", 120);
-        int stepEvery = Math.max(1, plugin.getConfig().getInt("roulette_world.step_ticks", 2));
+        // La luz arranca donde quedó la última vez, da vueltas rápido unos
+        // segundos y frena de a poco hasta parar EXACTAMENTE en el ganador.
+        int n = sequence.size();
+        int startIdx = lastLitNumber == null ? 0 : Math.max(0, sequence.indexOf(lastLitNumber));
+        int winIdx = sequence.indexOf(winningNumber);
+        int fastTicks = Math.max(20, (int) Math.round(plugin.getConfig().getDouble("roulette_world.spin_fast_seconds", 4.0) * 20));
+        int minSlowSteps = Math.max(5, plugin.getConfig().getInt("roulette_world.spin_slow_steps", 18));
+        int maxDelay = Math.max(2, plugin.getConfig().getInt("roulette_world.spin_slow_max_ticks", 12));
+        // pasos rápidos (1 por tick) + pasos lentos, cuidando que el último caiga en el ganador
+        int fastSteps = fastTicks;
+        int slowSteps = minSlowSteps;
+        while (Math.floorMod(startIdx + fastSteps + slowSteps - winIdx, n) != 0)
+            fastSteps++; // como mucho una vuelta extra rápida (< 2 s)
+        int[] delays = new int[fastSteps + slowSteps];
+        for (int k = 0; k < fastSteps; k++)
+            delays[k] = 1;
+        for (int k = 0; k < slowSteps; k++) {
+            double f = (k + 1) / (double) slowSteps;
+            delays[fastSteps + k] = 1 + (int) Math.round((maxDelay - 1) * f * f);
+        }
 
         if (spinTask != null)
             spinTask.cancel();
         spinTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
-            int t = 0;
-            int idx = 0;
+            int step = 0;
+            int wait = 1;
 
             @Override
             public void run() {
-                t++;
-                if (t % stepEvery == 0) {
-                    int current = sequence.get(idx % sequence.size());
-                    highlightNumber(current);
-                    idx++;
-                }
-
-                if (t >= ticks) {
-                    // force highlight winner
-                    highlightNumber(winningNumber);
+                if (--wait > 0)
+                    return;
+                int current = sequence.get(Math.floorMod(startIdx + step + 1, n));
+                highlightNumber(current);
+                step++;
+                if (step >= delays.length) {
                     if (spinTask != null)
                         spinTask.cancel();
                     spinTask = null;
+                    lastLitNumber = winningNumber;
                     finishRound(winningNumber);
+                    return;
                 }
+                wait = delays[step];
             }
         }, 1L, 1L);
     }
@@ -693,6 +805,8 @@ public class WorldRouletteTable {
 
         Bukkit.getScheduler().runTaskLater(plugin, this::restoreLastHighlight, 160L);
 
+        for (Map.Entry<UUID, Map<String, WorldRouletteBet>> e : bets.entrySet())
+            lastBets.put(e.getKey(), new ArrayList<>(e.getValue().values()));
         bets.clear();
         selections.clear();
 

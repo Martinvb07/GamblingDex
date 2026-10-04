@@ -40,9 +40,9 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 
 | Juego | Descripción |
 |---|---|
-| 🃏 **Blackjack** | Mesa con dealer y asientos reales (hasta 7 jugadores). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
+| 🃏 **Blackjack** | Mesa con dealer y asientos reales (de 1 a 7 jugadores: se puede jugar solo). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
 | ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
-| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), rondas automáticas y apuestas con click directo sobre los números. |
+| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00). Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |

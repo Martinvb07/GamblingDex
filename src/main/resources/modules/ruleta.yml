@@ -3,7 +3,9 @@
 # ======================
 # Admin: /gdx roulette build [radio] [yOffset] (mirando el bloque centro)
 #        /gdx roulette remove | /gdx roulette list
-# Jugadores: click derecho con fichas al número para apostar.
+# Jugadores: click derecho al centro -> menú: eliges la apuesta, el monto y listo.
+#            También: fichas en la mano + click derecho al centro (shift = todo el stack).
+#            "Repetir apuesta" vuelve a poner lo de la ronda anterior.
 #
 # Recarga en caliente: /gdx reload
 
@@ -12,9 +14,13 @@ segment_y_offset: -1
 auto_cycle:
   enabled: true
   interval_seconds: 45
-bet_window_seconds: 25
-spin_ticks: 120
-step_ticks: 2
+bet_window_seconds: 40       # tiempo de apuestas abiertas
+min_bet: 1                   # apuesta mínima por jugada (en fichas)
+max_bet: 0                   # apuesta máxima por jugada (0 = sin límite)
+# Giro: la luz da vueltas rápido unos segundos y frena de a poco hasta el ganador
+spin_fast_seconds: 4         # segundos girando rápido
+spin_slow_steps: 18          # cuántos números recorre mientras frena
+spin_slow_max_ticks: 12      # pausa del último paso (20 ticks = 1 s); más alto = frena más
 max_bets_per_player: 30      # cuántas apuestas DISTINTAS por ronda (el monto no tiene tope)
 broadcast_winners: false
 holo_height: 2.3

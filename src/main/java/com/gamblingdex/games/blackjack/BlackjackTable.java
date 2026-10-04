@@ -1303,7 +1303,7 @@ public class BlackjackTable {
         if (state != State.WAITING)
             return;
 
-        int minPlayers = Math.max(2, plugin.getConfig().getInt("blackjack.min_players", 2));
+        int minPlayers = Math.max(1, plugin.getConfig().getInt("blackjack.min_players", 1));
         if (seated.size() < minPlayers)
             return;
 
@@ -1366,7 +1366,7 @@ public class BlackjackTable {
     }
 
     private void startRound() {
-        int minPlayers = Math.max(2, plugin.getConfig().getInt("blackjack.min_players", 2));
+        int minPlayers = Math.max(1, plugin.getConfig().getInt("blackjack.min_players", 1));
 
         // Participants: seated players with a bet.
         List<UUID> participants = new ArrayList<>();
@@ -2111,7 +2111,7 @@ public class BlackjackTable {
 
         String status;
         if (state == State.WAITING) {
-            int min = Math.max(2, plugin.getConfig().getInt("blackjack.min_players", 2));
+            int min = Math.max(1, plugin.getConfig().getInt("blackjack.min_players", 1));
             int max = getConfiguredMaxPlayers();
             status = plugin.getMessages().format(
                     "blackjack.holo.waiting",

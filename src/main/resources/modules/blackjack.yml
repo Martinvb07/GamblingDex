@@ -8,7 +8,7 @@
 #
 # Recarga en caliente: /gdx reload
 
-min_players: 2
+min_players: 1   # 1 = se puede jugar solo contra el dealer
 max_players: 7
 # Asientos físicos: los jugadores deben pararse en estas losas/bloques alrededor de la mesa.
 seating:
