@@ -407,10 +407,29 @@ public class PokerTable {
     }
 
     private void sit(int i, Player p) {
+        if (tournament != null && tournament.started) {
+            // Torneo en curso: no entra nadie nuevo.
+            long now = System.currentTimeMillis();
+            Long last = buyInPromptAt.get(p.getUniqueId());
+            if (last == null || now - last > 10_000L) {
+                buyInPromptAt.put(p.getUniqueId(), now);
+                p.sendMessage(msg("tournament.running", "&cHay un torneo en curso en esta mesa. Espera a que termine."));
+            }
+            return;
+        }
         Seat s = seats.get(i);
         s.clearPlayer();
         s.player = p.getUniqueId();
         s.name = p.getName();
+
+        if (tournament != null) {
+            p.sendMessage(msg("tournament.sat",
+                    "&d&lTORNEO &8» &7Inscripción: &e{fee} &7→ recibes &f{stack} &7fichas de torneo. Abre el menú para inscribirte.",
+                    "fee", units(tournament.entryFee), "stack", units(tournament.startingStack)));
+            promptBuyIn(p);
+            updateDisplays();
+            return;
+        }
 
         p.sendMessage(msg("sat_down",
                 "&aTe sentaste en la mesa de póker &f{table}&a. Ciegas &e{sb}/{bb}&a. Compra entre &e{min}&a y &e{max}&a fichas.",
@@ -423,6 +442,9 @@ public class PokerTable {
     }
 
     private void promptBuyIn(Player p) {
+        // Al apagar no se pueden programar tareas (y no tiene sentido abrir menús).
+        if (!plugin.isEnabled())
+            return;
         long now = System.currentTimeMillis();
         Long last = buyInPromptAt.get(p.getUniqueId());
         if (last != null && now - last < 5000L)
@@ -476,6 +498,11 @@ public class PokerTable {
         Seat s = seats.get(i);
         if (s.player == null)
             return;
+        if (tournament != null) {
+            // Fichas de torneo: no se cobran. Salir = devolver inscripción o quedar eliminado.
+            tournamentLeave(i);
+            return;
+        }
         UUID id = s.player;
         String pname = s.name;
         long amount = s.stack;
@@ -565,6 +592,8 @@ public class PokerTable {
         int i = seatOf(playerId);
         if (i < 0)
             return msg("not_seated", "&cPárate en un asiento de la mesa para jugar.");
+        if (tournament != null)
+            return msg("tournament.no_deposit", "&cEn el torneo no se compran fichas: todos empiezan con las mismas.");
         if (isHandRunning() && dealt.contains(i))
             return msg("deposit_in_hand", "&cNo puedes añadir fichas en medio de una mano.");
         if (getRoomToMax(playerId) <= 0)
@@ -619,6 +648,8 @@ public class PokerTable {
     // =====================================================================
 
     private void maybeStartCountdown() {
+        if (tournament != null && !tournament.started)
+            return; // inscripción abierta: arranca cuando el admin lo indique
         if (eligibleCount() < minPlayers())
             return;
         state = State.STARTING;
@@ -674,6 +705,8 @@ public class PokerTable {
                     allIn.add(i);
             }
         }
+        if (tournament != null)
+            applyTournamentLevel();
         postBlind(sbSeat, smallBlind);
         postBlind(bbSeat, bigBlind);
         currentBet = bigBlind;
@@ -1296,6 +1329,8 @@ public class PokerTable {
     }
 
     private long computeRake(long total) {
+        if (tournament != null)
+            return 0L; // en torneo la casa cobra en la inscripción
         if (!cfgBool("rake.enabled", true) || total <= 0)
             return 0L;
         if (cfgBool("rake.no_flop_no_drop", true) && !flopSeen)
@@ -1344,6 +1379,10 @@ public class PokerTable {
                 }
             }
             if (s.stack <= 0) {
+                if (tournament != null) {
+                    tournamentLeave(i); // eliminado
+                    continue;
+                }
                 s.boughtIn = false;
                 p.sendMessage(msg("busted",
                         "&cTe quedaste sin fichas. Compra más en el menú o bájate del asiento."));
@@ -1353,6 +1392,7 @@ public class PokerTable {
 
         clearHand();
         state = State.WAITING;
+        checkTournamentEnd();
         updateDisplays();
     }
 
@@ -1385,6 +1425,10 @@ public class PokerTable {
      */
     public void shutdown() {
         cancelMenuTask();
+        if (tournament != null) {
+            // Torneo sin terminar: se devuelven todas las inscripciones.
+            cancelTournament();
+        }
         if (state == State.BETTING || state == State.RUNOUT) {
             for (int i : dealt) {
                 seats.get(i).stack += contributed.getOrDefault(i, 0L);
@@ -1405,6 +1449,316 @@ public class PokerTable {
             payOut(id, amount, false);
         }
         removeDisplays();
+    }
+
+    // =====================================================================
+    // Torneo (sit & go): inscripción en tokens, fichas de torneo, ciegas que
+    // suben con el tiempo y premios para los primeros puestos.
+    // =====================================================================
+
+    private PokerTournament tournament;
+
+    public boolean isTournament() {
+        return tournament != null;
+    }
+
+    public boolean isTournamentRegistering() {
+        return tournament != null && !tournament.started;
+    }
+
+    public boolean isRegistered(UUID id) {
+        return tournament != null && tournament.registered.containsKey(id);
+    }
+
+    public long getTournamentFee() {
+        return tournament == null ? 0L : tournament.entryFee;
+    }
+
+    public long getTournamentStack() {
+        return tournament == null ? 0L : tournament.startingStack;
+    }
+
+    public int getTournamentRegisteredCount() {
+        return tournament == null ? 0 : tournament.registered.size();
+    }
+
+    /** Abre la inscripción. null = OK; si no, el mensaje de error. */
+    public String openTournament(long fee, long startingStack, int levelMinutes) {
+        if (tournament != null)
+            return msg("tournament.already", "&cYa hay un torneo en esta mesa.");
+        if (isHandRunning() || state == State.STARTING)
+            return msg("tournament.busy", "&cHay una mano en curso. Espera a que termine.");
+        for (Seat s : seats) {
+            if (s.player != null && s.stack > 0)
+                return msg("tournament.cash_players",
+                        "&cHay jugadores con fichas en la mesa. Deben levantarse antes de abrir el torneo.");
+        }
+        if (seats.size() < 2)
+            return msg("tournament.no_seats", "&cLa mesa necesita al menos 2 asientos.");
+
+        List<Double> levels = new ArrayList<>();
+        for (Object o : plugin.getConfig().getList("poker.tournament.blind_levels",
+                List.of(1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64))) {
+            if (o instanceof Number n && n.doubleValue() > 0)
+                levels.add(n.doubleValue());
+        }
+        tournament = new PokerTournament(fee, startingStack, Math.max(1, levelMinutes) * 60_000L,
+                smallBlind, bigBlind, levels);
+        state = State.WAITING;
+
+        String text = msg("tournament.open",
+                "&d&lTORNEO DE PÓKER &8» &7Mesa &f{table}&7: inscripción &e{fee}&7, fichas &f{stack}&7. ¡Siéntate para inscribirte!",
+                "table", name, "fee", units(fee), "stack", units(startingStack));
+        for (Player p : Bukkit.getOnlinePlayers())
+            p.sendMessage(text);
+        for (Seat s : seats) {
+            Player p = s.player == null ? null : Bukkit.getPlayer(s.player);
+            if (p != null)
+                promptBuyIn(p);
+        }
+        updateDisplays();
+        return null;
+    }
+
+    /** El jugador sentado paga la inscripción y recibe las fichas de torneo. */
+    public boolean register(Player p) {
+        if (!isTournamentRegistering()) {
+            p.sendMessage(msg("tournament.not_open", "&cNo hay inscripciones abiertas en esta mesa."));
+            return false;
+        }
+        int i = seatOf(p.getUniqueId());
+        if (i < 0) {
+            p.sendMessage(msg("not_seated", "&cPárate en un asiento de la mesa para jugar."));
+            return false;
+        }
+        if (tournament.registered.containsKey(p.getUniqueId())) {
+            p.sendMessage(msg("tournament.already_registered", "&eYa estás inscrito."));
+            return false;
+        }
+        if (!com.gamblingdex.economy.TokenWallet.take(p, tournament.entryFee)) {
+            p.sendMessage(msg("tournament.not_enough", "&cNo te alcanzan las fichas para la inscripción (&e{fee}&c).",
+                    "fee", units(tournament.entryFee)));
+            return false;
+        }
+        tournament.registered.put(p.getUniqueId(), p.getName());
+        Seat s = seats.get(i);
+        s.stack = tournament.startingStack;
+        s.boughtIn = true;
+        p.sendMessage(msg("tournament.registered", "&a¡Inscrito! Empiezas con &f{stack}&a fichas de torneo.",
+                "stack", units(tournament.startingStack)));
+        p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.7f, 1.6f);
+        broadcast(msg("tournament.player_registered", "&d{player} &7se inscribió al torneo &8({count} inscritos)",
+                "player", p.getName(), "count", String.valueOf(tournament.registered.size())));
+        updateDisplays();
+        return true;
+    }
+
+    /** Cierra la inscripción y arranca. null = OK; si no, el mensaje de error. */
+    public String startTournament() {
+        if (!isTournamentRegistering())
+            return msg("tournament.not_open", "&cNo hay inscripciones abiertas en esta mesa.");
+        if (tournament.registered.size() < 2)
+            return msg("tournament.need_players", "&cSe necesitan al menos 2 inscritos.");
+
+        // Sentados que no se inscribieron: se levantan.
+        for (Seat s : seats) {
+            if (s.player != null && !tournament.registered.containsKey(s.player)) {
+                Player p = Bukkit.getPlayer(s.player);
+                if (p != null)
+                    p.sendMessage(msg("tournament.not_registered_kick",
+                            "&7El torneo empezó y no estabas inscrito: liberamos tu asiento."));
+                s.clearPlayer();
+            }
+        }
+        tournament.started = true;
+        tournament.startMs = System.currentTimeMillis();
+        tournament.level = 0;
+        smallBlind = tournament.sbAt(0);
+        bigBlind = tournament.bbAt(0);
+        button = -1;
+
+        String text = msg("tournament.started",
+                "&d&lTORNEO DE PÓKER &8» &a¡Empezó en la mesa {table}! &7Jugadores: &f{count} &8| &7Premio: &e{pool}",
+                "table", name, "count", String.valueOf(tournament.registered.size()),
+                "pool", units(tournament.prizePool(cutPercent())));
+        for (Player p : Bukkit.getOnlinePlayers())
+            p.sendMessage(text);
+        updateDisplays();
+        return null;
+    }
+
+    /** Cancela el torneo y devuelve todas las inscripciones. */
+    public void cancelTournament() {
+        if (tournament == null)
+            return;
+        if (isHandRunning() || state == State.STARTING) {
+            closeAllActionMenus();
+            clearHand();
+            state = State.WAITING;
+        }
+        for (UUID id : tournament.registered.keySet())
+            com.gamblingdex.economy.TokenWallet.give(id, tournament.entryFee);
+        broadcast(msg("tournament.cancelled", "&7El torneo se canceló. Se devolvieron las inscripciones."));
+        endTournamentCleanup();
+    }
+
+    private double cutPercent() {
+        return plugin.getConfig().getDouble("poker.tournament.house_cut_percent", 10.0);
+    }
+
+    private void endTournamentCleanup() {
+        smallBlind = tournament.baseSb;
+        bigBlind = tournament.baseBb;
+        tournament = null;
+        // Las fichas de torneo no valen nada fuera del torneo.
+        for (Seat s : seats) {
+            if (s.player == null)
+                continue;
+            s.stack = 0L;
+            s.boughtIn = false;
+            Player p = Bukkit.getPlayer(s.player);
+            if (p != null)
+                promptBuyIn(p);
+        }
+        updateDisplays();
+    }
+
+    /** Sube las ciegas según el tiempo transcurrido (al empezar cada mano). */
+    private void applyTournamentLevel() {
+        int lvl = tournament.levelNow();
+        if (lvl != tournament.level) {
+            tournament.level = lvl;
+            broadcast(msg("tournament.level_up", "&d&lTORNEO &8» &eSuben las ciegas: &fNivel {level} &8(&e{sb}/{bb}&8)",
+                    "level", String.valueOf(lvl + 1), "sb", units(tournament.sbAt(lvl)),
+                    "bb", units(tournament.bbAt(lvl))));
+        }
+        smallBlind = tournament.sbAt(tournament.level);
+        bigBlind = tournament.bbAt(tournament.level);
+    }
+
+    /** Sale del torneo: antes de empezar se devuelve la inscripción; después, eliminado. */
+    private void tournamentLeave(int i) {
+        Seat s = seats.get(i);
+        UUID id = s.player;
+        s.clearPlayer();
+        buyInPromptAt.remove(id);
+        Player p = Bukkit.getPlayer(id);
+
+        if (!tournament.started) {
+            if (tournament.registered.remove(id) != null) {
+                com.gamblingdex.economy.TokenWallet.give(id, tournament.entryFee);
+                if (p != null)
+                    p.sendMessage(msg("tournament.left_refund", "&7Saliste del torneo: se te devolvió la inscripción."));
+            } else if (p != null) {
+                p.sendMessage(msg("left_table", "&7Saliste de la mesa de póker."));
+            }
+        } else if (tournament.registered.containsKey(id) && !tournament.eliminated.contains(id)) {
+            tournament.eliminated.add(id);
+            int place = tournament.remaining() + 1;
+            String pname = tournament.registered.get(id);
+            broadcast(msg("tournament.eliminated", "&d&lTORNEO &8» &c{player} &7quedó eliminado en el puesto &f{place}°",
+                    "player", pname, "place", String.valueOf(place)));
+            if (p != null)
+                p.sendMessage(msg("tournament.you_eliminated",
+                        "&cQuedaste eliminado del torneo en el puesto &f{place}°&c.", "place", String.valueOf(place)));
+            if (!isHandRunning())
+                checkTournamentEnd();
+        }
+        updateDisplays();
+    }
+
+    /** Si queda un solo jugador con fichas, termina y paga los premios. */
+    private void checkTournamentEnd() {
+        if (tournament == null || !tournament.started || tournament.remaining() > 1 || isHandRunning())
+            return;
+
+        List<UUID> places = new ArrayList<>();
+        for (UUID id : tournament.registered.keySet()) {
+            if (!tournament.eliminated.contains(id))
+                places.add(id);
+        }
+        List<UUID> out = new ArrayList<>(tournament.eliminated);
+        Collections.reverse(out); // el último en caer es 2°
+        places.addAll(out);
+
+        long pool = tournament.prizePool(cutPercent());
+        List<Double> pcts = PokerTournament.payoutsFor(tournament.registered.size(), payoutTable());
+        double sum = 0;
+        for (double d : pcts)
+            sum += d;
+        long[] amounts = new long[pcts.size()];
+        long given = 0;
+        for (int k = 0; k < pcts.size(); k++) {
+            amounts[k] = (long) Math.floor(pool * pcts.get(k) / sum);
+            given += amounts[k];
+        }
+        if (amounts.length > 0)
+            amounts[0] += pool - given;
+
+        String header = msg("tournament.finished", "&d&lTORNEO DE PÓKER &8» &6&l¡Terminó! &7Mesa &f{table}",
+                "table", name);
+        for (Player o : Bukkit.getOnlinePlayers())
+            o.sendMessage(header);
+        StringBuilder log = new StringBuilder();
+        for (int k = 0; k < amounts.length && k < places.size(); k++) {
+            UUID id = places.get(k);
+            String pname = tournament.registered.getOrDefault(id, "?");
+            com.gamblingdex.economy.TokenWallet.give(id, amounts[k]);
+            String line = msg("tournament.prize", "&f{place}° &a{player} &7→ &e{amount}",
+                    "place", String.valueOf(k + 1), "player", pname, "amount", units(amounts[k]));
+            for (Player o : Bukkit.getOnlinePlayers())
+                o.sendMessage(line);
+            Player p = Bukkit.getPlayer(id);
+            if (p != null) {
+                p.sendTitle(plugin.color(k == 0 ? "&6&l¡CAMPEÓN!" : "&a&l" + (k + 1) + "° LUGAR"),
+                        plugin.color("&e+" + units(amounts[k])), 10, 80, 20);
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+            }
+            log.append(k + 1).append("° ").append(pname).append(" +").append(amounts[k]).append("; ");
+        }
+        plugin.getLogger().info("[Poker] Torneo " + name + ": " + tournament.registered.size() + " jugadores, pozo "
+                + pool + " | " + log);
+        endTournamentCleanup();
+    }
+
+    private Map<Integer, List<Double>> payoutTable() {
+        Map<Integer, List<Double>> out = new HashMap<>();
+        org.bukkit.configuration.ConfigurationSection sec = plugin.getConfig()
+                .getConfigurationSection("poker.tournament.payouts");
+        if (sec != null) {
+            for (String k : sec.getKeys(false)) {
+                try {
+                    List<Double> l = new ArrayList<>();
+                    for (Object o : sec.getList(k, List.of())) {
+                        if (o instanceof Number n && n.doubleValue() > 0)
+                            l.add(n.doubleValue());
+                    }
+                    out.put(Integer.parseInt(k.trim()), l);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        if (out.isEmpty()) {
+            out.put(2, List.of(100.0));
+            out.put(4, List.of(70.0, 30.0));
+            out.put(7, List.of(50.0, 30.0, 20.0));
+        }
+        return out;
+    }
+
+    private String tournamentLine() {
+        if (tournament == null)
+            return null;
+        if (!tournament.started) {
+            return msg("tournament.holo_registering", "&d&lTORNEO &8| &7Inscripción &e{fee} &8| &7Inscritos: &f{count}",
+                    "fee", units(tournament.entryFee), "count", String.valueOf(tournament.registered.size()));
+        }
+        long ms = tournament.msToNextLevel();
+        String next = ms < 0 ? "-" : (ms / 60000) + ":" + String.format(Locale.ROOT, "%02d", (ms / 1000) % 60);
+        return msg("tournament.holo_running",
+                "&d&lTORNEO &8| &7Nivel &f{level} &8| &7Sube en &f{next} &8| &7Quedan &f{left}",
+                "level", String.valueOf(tournament.level + 1), "next", next,
+                "left", String.valueOf(tournament.remaining()));
     }
 
     // =====================================================================
@@ -1677,6 +2031,9 @@ public class PokerTable {
         sb.append(msg("holo.title", "&6&l♠ ♥ PÓKER ♦ ♣")).append('\n');
         sb.append(msg("holo.stakes", "&f{table} &8| &7NL Hold'em &e{sb}/{bb}",
                 "table", name, "sb", units(smallBlind), "bb", units(bigBlind))).append('\n');
+        String tLine = tournamentLine();
+        if (tLine != null)
+            sb.append(tLine).append('\n');
 
         StringBuilder cards = new StringBuilder(board.isEmpty() ? "" : formatCards(board));
         for (int k = board.size(); k < 5; k++) {
@@ -1769,6 +2126,9 @@ public class PokerTable {
                     "table", name, "sb", units(smallBlind), "bb", units(bigBlind),
                     "ready", String.valueOf(eligibleCount()), "min", String.valueOf(minPlayers()));
         }
+        if (tournament != null && state != State.BETTING && state != State.RUNOUT) {
+            title = tournamentLine();
+        }
         infoBar.setTitle(plugin.color(title));
         infoBar.setProgress(progress);
 
@@ -1837,7 +2197,11 @@ public class PokerTable {
             Player p = Bukkit.getPlayer(s.player);
             if (p == null)
                 continue;
-            String text = !s.boughtIn
+            String text = isTournamentRegistering() && !isRegistered(s.player)
+                    ? msg("tournament.actionbar_register",
+                            "&d&lTORNEO &8| &7Inscríbete por &e{fee} &7(click derecho a la mesa)",
+                            "fee", units(tournament.entryFee))
+                    : !s.boughtIn
                     ? msg("actionbar_buyin", "&7Fichas en la mesa: &e{stack} &8| &eCompra al menos &f{min} &7(click derecho a la mesa)",
                             "stack", units(s.stack), "min", units(getMinBuyIn()))
                     : msg("actionbar_seated", "&7Fichas en la mesa: &e{stack}", "stack", units(s.stack));

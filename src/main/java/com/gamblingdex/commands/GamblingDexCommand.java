@@ -932,6 +932,7 @@ public class GamblingDexCommand implements CommandExecutor {
                 "&8• &7Jugar: &fpárate en un asiento&7 de la mesa y compra fichas",
                 "&8• &e/gdx poker menu &7- Abrir tu menú (o &fclick derecho&7 al centro de la mesa)",
                 "&8• &7Irte con tus fichas: &fbájate del asiento",
+                "&8• &e/gdx poker inscribirme &7- Inscribirte a un torneo (sentado en la mesa)",
                 "&8• &7Tus cartas y fichas salen &fen pantalla&7; nadie más las ve",
                 ""));
 
@@ -953,6 +954,8 @@ public class GamblingDexCommand implements CommandExecutor {
                     "&8• &e/gdx poker seat <add|remove|list|clear> <nombre> &7- Asientos (parado encima, en orden)",
                     "&8• &e/gdx poker stakes <nombre> <chica> <grande> &7- Cambiar ciegas",
                     "&8• &e/gdx poker remove <nombre>&7|&elist&7|&erake &7- Gestionar mesas",
+                    "&8• &e/gdx poker torneo <mesa> <inscripción> [fichas] [minutos] &7- Abrir torneo",
+                    "&8• &e/gdx poker torneo <empezar|cancelar> <mesa> &7- Arrancar o cancelar",
                     ""));
         }
 
@@ -1028,6 +1031,16 @@ public class GamblingDexCommand implements CommandExecutor {
             return true;
         }
 
+        if (action.equals("inscribirme") || action.equals("register")) {
+            var t = pm.getTableOf(player.getUniqueId());
+            if (t == null) {
+                player.sendMessage(pk("not_seated", "&cNo estás sentado en una mesa de póker."));
+            } else {
+                t.register(player);
+            }
+            return true;
+        }
+
         boolean admin = player.hasPermission("gamblingdex.admin");
         if (action.equals("help") || !admin) {
             player.sendMessage(pk("help_player",
@@ -1040,6 +1053,8 @@ public class GamblingDexCommand implements CommandExecutor {
                 player.sendMessage(pk("help_admin_3",
                         "&e/gdx poker stakes <nombre> <chica> <grande> &8| &e/gdx poker remove <nombre>"));
                 player.sendMessage(pk("help_admin_4", "&e/gdx poker list &8| &e/gdx poker rake"));
+                player.sendMessage(pk("help_admin_5",
+                        "&e/gdx poker torneo <mesa> <inscripción> [fichas] [minutos] &8| &e/gdx poker torneo <empezar|cancelar> <mesa>"));
             }
             return true;
         }
@@ -1102,6 +1117,7 @@ public class GamblingDexCommand implements CommandExecutor {
                 String err = pm.setStakes(args[2], parseUnits(args[3]), parseUnits(args[4]));
                 player.sendMessage(err == null ? pk("stakes_set", "&aCiegas actualizadas.") : pokerError(err));
             }
+            case "torneo", "tournament" -> handlePokerTournament(player, pm, args);
             case "rake" -> player.sendMessage(pk("rake_total",
                     "&7Comisión total cobrada por las mesas de póker: &e{amount}",
                     "amount", String.valueOf(pm.getRakeTotal())));
@@ -1153,6 +1169,74 @@ public class GamblingDexCommand implements CommandExecutor {
                     "&cAcción inválida. Usa: create, remove, list, seat, stakes, rake, menu"));
         }
         return true;
+    }
+
+    /**
+     * /gdx poker torneo &lt;mesa&gt; &lt;inscripción&gt; [fichas] [minutos]
+     * /gdx poker torneo empezar|cancelar &lt;mesa&gt;
+     */
+    private void handlePokerTournament(Player player, com.gamblingdex.games.poker.PokerManager pm, String[] args) {
+        if (args.length < 3) {
+            player.sendMessage(pk("tournament_usage",
+                    "&cUso: /gdx poker torneo <mesa> <inscripción> [fichas] [minutos por nivel]"));
+            player.sendMessage(pk("tournament_usage2", "&c     /gdx poker torneo <empezar|cancelar> <mesa>"));
+            return;
+        }
+        String sub = args[2].toLowerCase(Locale.ROOT);
+        if (sub.equals("empezar") || sub.equals("start") || sub.equals("cancelar") || sub.equals("cancel")) {
+            var t = args.length >= 4 ? pm.getByName(args[3]) : null;
+            if (t == null) {
+                player.sendMessage(pokerError("not_found"));
+                return;
+            }
+            if (sub.startsWith("e") || sub.equals("start")) {
+                String err = t.startTournament();
+                if (err != null)
+                    player.sendMessage(err);
+            } else {
+                if (!t.isTournament()) {
+                    player.sendMessage(pk("tournament_none", "&cEsa mesa no tiene torneo."));
+                    return;
+                }
+                t.cancelTournament();
+                player.sendMessage(pk("tournament_cancelled", "&aTorneo cancelado. Se devolvieron las inscripciones."));
+            }
+            return;
+        }
+
+        var t = pm.getByName(args[2]);
+        if (t == null) {
+            player.sendMessage(pokerError("not_found"));
+            return;
+        }
+        if (args.length < 4) {
+            player.sendMessage(pk("tournament_usage",
+                    "&cUso: /gdx poker torneo <mesa> <inscripción> [fichas] [minutos por nivel]"));
+            return;
+        }
+        var cfg = GamblingDexPlugin.getInstance().getConfig();
+        long fee = parseUnits(args[3]);
+        long stack = args.length >= 5 ? parseUnits(args[4])
+                : t.getBigBlind() * Math.max(10, cfg.getLong("poker.tournament.starting_stack_bb", 100));
+        int minutes = cfg.getInt("poker.tournament.level_minutes", 5);
+        if (args.length >= 6) {
+            try {
+                minutes = Integer.parseInt(args[5]);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (fee <= 0 || stack <= 0 || minutes <= 0) {
+            player.sendMessage(pk("tournament_invalid", "&cValores inválidos. La inscripción y las fichas deben ser > 0."));
+            return;
+        }
+        String err = t.openTournament(fee, stack, minutes);
+        if (err != null) {
+            player.sendMessage(err);
+            return;
+        }
+        player.sendMessage(pk("tournament_opened",
+                "&aInscripción abierta en &f{table}&a. Cuando estén todos: &f/gdx poker torneo empezar {table}",
+                "table", t.getName()));
     }
 
     private static String pokerError(String code) {

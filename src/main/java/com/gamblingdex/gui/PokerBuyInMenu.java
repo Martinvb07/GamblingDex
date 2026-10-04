@@ -48,6 +48,11 @@ public class PokerBuyInMenu {
                     border ? Material.GREEN_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE));
         }
 
+        if (table.isTournament()) {
+            openTournament(player, table, inv);
+            return;
+        }
+
         int[] tokenSlots = { 10, 11, 12, 13, 14, 15, 16, 19, 20, 21 };
         int idx = 0;
         TokenManager tokenManager = plugin.getTokenManager();
@@ -111,6 +116,57 @@ public class PokerBuyInMenu {
         }
         inv.setItem(31, close);
 
+        player.openInventory(inv);
+    }
+
+    /** Versión torneo: inscribirse (o ver el estado si ya está inscrito). */
+    private void openTournament(Player player, PokerTable table, Inventory inv) {
+        UUID id = player.getUniqueId();
+        boolean registered = table.isRegistered(id);
+        List<String> lore = new ArrayList<>();
+        lore.add("§7Inscripción: §e" + PokerTable.units(table.getTournamentFee()));
+        lore.add("§7Fichas de torneo: §f" + PokerTable.units(table.getTournamentStack()));
+        lore.add("§7Inscritos: §f" + table.getTournamentRegisteredCount());
+        lore.add("");
+        lore.add("§7Las ciegas suben con el tiempo.");
+        lore.add("§7El que se queda sin fichas queda eliminado.");
+        lore.add("§cSi te levantas o te desconectas, quedas eliminado.");
+
+        if (table.isTournamentRegistering() && !registered) {
+            lore.add("");
+            lore.add("§aClick para inscribirte");
+            ItemStack btn = MenuUtils.createButton("§d§lInscribirme al torneo", Material.NETHER_STAR);
+            ItemMeta meta = btn.getItemMeta();
+            if (meta != null) {
+                meta.setLore(lore);
+                meta.getPersistentDataContainer().set(new NamespacedKey(plugin, KEY_ACTION),
+                        PersistentDataType.STRING, "register");
+                btn.setItemMeta(meta);
+            }
+            inv.setItem(13, btn);
+        } else {
+            lore.add("");
+            lore.add(registered ? "§a¡Estás inscrito! Tus fichas: §f" + PokerTable.units(table.getStack(id))
+                    : "§cEl torneo ya empezó.");
+            ItemStack info = MenuUtils.createButton("§d§lTorneo de póker", Material.NETHER_STAR);
+            ItemMeta meta = info.getItemMeta();
+            if (meta != null) {
+                meta.setLore(lore);
+                info.setItemMeta(meta);
+            }
+            inv.setItem(13, info);
+        }
+        inv.setItem(22, MenuUtils.createButton("§7Tus fichas (tokens): §e"
+                + PokerTable.units(com.gamblingdex.economy.TokenWallet.balance(player)), Material.SUNFLOWER));
+
+        ItemStack close = MenuUtils.createButton("§7Cerrar", Material.BARRIER);
+        ItemMeta cm = close.getItemMeta();
+        if (cm != null) {
+            cm.getPersistentDataContainer().set(new NamespacedKey(plugin, KEY_ACTION), PersistentDataType.STRING,
+                    "close");
+            close.setItemMeta(cm);
+        }
+        inv.setItem(31, close);
         player.openInventory(inv);
     }
 
