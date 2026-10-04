@@ -7,6 +7,8 @@ name: Build jar
 on:
   push:
     branches: [main]
+    # Cambios solo de documentación no publican versión nueva.
+    paths-ignore: ['**.md']
   workflow_dispatch:
     inputs:
       version:
