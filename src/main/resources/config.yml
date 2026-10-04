@@ -126,7 +126,7 @@ exchange:
 # ======================
 
 stations:
-  holo_height: 1.8 # Altura del holograma (TextDisplay)
+  holo_height: 1.2 # Altura del holograma (TextDisplay), igual que Crash
   holograms:
     slots: "&d&lSLOTS"
     exchange: "&e&lCAMBIO"

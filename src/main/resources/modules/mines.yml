@@ -34,8 +34,8 @@ frame_material: POLISHED_BLACKSTONE_BRICKS # marco
 holo_offset: 0.3
 
 # Estación con menú
-station_holo: "&c&l✦ MINES ✦\n&7Click derecho para jugar"
-station_holo_height: 1.3
+station_holo: "&c&lMINES\n&7Click para jugar"
+station_holo_height: 1.2
 
 messages:
   use_station: "&7Mines se juega en las estaciones: &fclick derecho&7 para abrir el tablero."

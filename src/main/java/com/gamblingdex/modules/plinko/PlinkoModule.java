@@ -116,7 +116,7 @@ public class PlinkoModule extends GameModule {
         menu = new PlinkoMenu(this);
         listen(menu);
         menuStations = new com.gamblingdex.modules.SimpleStations(this,
-                () -> config().getString("station_holo", "&6&l✦ PLINKO ✦\n&7Click derecho para jugar"));
+                () -> config().getString("station_holo", "&6&lPLINKO\n&7Click para jugar"));
         menuStations.load();
         listen(new Events());
         runTimer(this::tick, 1L, 1L);

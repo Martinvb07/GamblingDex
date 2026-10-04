@@ -25,8 +25,8 @@ title_min_multiplier: 5     # mostrar título en pantalla desde este multiplicad
 ball_item: SLIME_BALL       # ítem que se ve como bola
 
 # Estación con menú
-station_holo: "&6&l✦ PLINKO ✦\n&7Click derecho para jugar"
-station_holo_height: 1.3
+station_holo: "&6&lPLINKO\n&7Click para jugar"
+station_holo_height: 1.2
 
 # Multiplicador de cada casilla, de izquierda a derecha (filas + 1 valores)
 multipliers:

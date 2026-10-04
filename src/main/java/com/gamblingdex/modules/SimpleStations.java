@@ -94,12 +94,17 @@ public final class SimpleStations {
         World w = loc == null ? null : loc.getWorld();
         if (w == null || !w.isChunkLoaded(loc.getBlockX() >> 4, loc.getBlockZ() >> 4))
             return;
-        Location at = loc.clone().add(0.5, module.config().getDouble("station_holo_height", 1.3), 0.5);
+        double h = module.config().getDouble("station_holo_height", 1.2);
+        if (h == 1.3)
+            h = 1.2; // valor de la primera versión (quedaba alto)
+        Location at = loc.clone().add(0.5, h, 0.5);
         UUID id = holos.get(k);
         Entity e = id == null ? null : w.getEntity(id);
         TextDisplay td;
         if (e instanceof TextDisplay existing && existing.isValid()) {
             td = existing;
+            if (td.getLocation().distanceSquared(at) > 0.01)
+                td.teleport(at);
         } else {
             td = w.spawn(at, TextDisplay.class);
             td.setPersistent(false);
@@ -110,7 +115,11 @@ public final class SimpleStations {
             td.setLineWidth(300);
             holos.put(k, td.getUniqueId());
         }
-        td.setText(module.color(holoText.get()));
+        String text = holoText.get();
+        if (text != null && text.contains("Click derecho para ")) // textos largos de la primera versión
+            text = text.replace("Click derecho para reclamar", "Click para reclamar")
+                    .replace("Click derecho para jugar", "Click para jugar").replace("✦ ", "").replace(" ✦", "");
+        td.setText(module.color(text));
     }
 
     private void removeHolo(String k) {

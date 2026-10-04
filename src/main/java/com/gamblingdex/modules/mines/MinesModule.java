@@ -143,7 +143,7 @@ public class MinesModule extends GameModule {
         menu = new MinesMenu(this);
         listen(menu);
         menuStations = new com.gamblingdex.modules.SimpleStations(this,
-                () -> config().getString("station_holo", "&c&l✦ MINES ✦\n&7Click derecho para jugar"));
+                () -> config().getString("station_holo", "&c&lMINES\n&7Click para jugar"));
         menuStations.load();
         listen(new Events());
         runTimer(this::tick, 20L, 10L);

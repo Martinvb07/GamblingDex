@@ -20,8 +20,8 @@ tiers:
     permission: gamblingdex.daily.mvp
     amount: 2000
 
-station_holo: "&a&l✦ BONO DIARIO ✦\n&7Click derecho para reclamar"
-station_holo_height: 1.3
+station_holo: "&a&lBONO DIARIO\n&7Click para reclamar"
+station_holo_height: 1.2
 
 messages:
   claimed: "&a&l✦ BONO DIARIO &8» &7Recibiste &e{amount} &7fichas. &8(racha: &f{streak} &8día(s))"
