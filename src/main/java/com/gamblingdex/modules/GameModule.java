@@ -150,6 +150,15 @@ public abstract class GameModule {
         return config;
     }
 
+    /** Guarda modules/&lt;id&gt;.yml (por ejemplo, después de agregar una mesa a table_names). */
+    protected void saveConfigFile() {
+        try {
+            config.save(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().warning("[" + id() + "] No se pudo guardar " + configFile.getName() + ": " + e.getMessage());
+        }
+    }
+
     // ------------------------------------------------------------------
     // Datos persistentes del módulo (plugins/GamblingDex/modules/<id>_data.yml)
     // ------------------------------------------------------------------
