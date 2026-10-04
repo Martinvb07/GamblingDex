@@ -48,6 +48,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 📈 **Crash** | Mesa con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
 | 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
 | 💣 **Mines** | Pared de 5×5 casillas en el mundo. Eliges cuántas minas y tu apuesta; cada casilla segura sube el multiplicador y te retiras cuando quieras (shift + click derecho). |
+| 🎯 **Plinko** | Pared con clavos y casillas con multiplicador. Cada apuesta suelta una bola que rebota hasta abajo; las orillas pagan hasta x10. Varias bolas a la vez. |
 
 ### Juegos por menú / comando
 
@@ -134,6 +135,7 @@ En las mesas físicas (blackjack, póker, ruleta, rueda, carrera, crash, slots) 
 | `/gdx station set crash` | Mesa de Crash (mirando cualquier bloque) |
 | `/gdx station set rueda` | Construir la rueda física (mirando un faro) |
 | `/gdx station set mines` | Construir el tablero de Mines (mirando el bloque de la mesa) |
+| `/gdx station set plinko [filas]` | Construir el tablero de Plinko (mirando el bloque de la mesa) |
 | `/gdx station set carrera <distancia> <carriles> [nombre]` | Construir una pista de carreras completa |
 | `/gdx roulette <build\|remove\|list> [radio] [yOffset]` | Ruletas físicas |
 | `/gdx blackjack <create\|remove\|list> <nombre>` | Mesas de blackjack |
@@ -220,6 +222,13 @@ Detrás de ese bloque, en la dirección en que miras, se construye la pista: 6 c
 </details>
 
 <details>
+<summary><b>🎯 Plinko</b></summary>
+
+Mira el bloque que será la mesa y usa `/gdx station set plinko [6|8|10|12]` (filas; por defecto 8). Detrás se construye la pared con clavos y las casillas con su multiplicador. Necesita espacio: 8 filas = 19 × 19 bloques. Los jugadores sueltan bolas con click derecho a la mesa; shift + click derecho repite la apuesta.
+
+</details>
+
+<details>
 <summary><b>💣 Mines</b></summary>
 
 Mira el bloque que será la mesa y usa `/gdx station set mines`. Detrás se construye una pared de 5×5 casillas con marco. Los jugadores empiezan con click derecho a la mesa (eligen minas y apuesta), abren casillas con click derecho y se retiran con shift + click derecho.
@@ -262,6 +271,7 @@ plugins/GamblingDex/
     ├── ruleta.yml
     ├── slots.yml
     ├── mines.yml
+    ├── plinko.yml
     ├── crash.yml
     ├── carrera.yml
     ├── rueda.yml
