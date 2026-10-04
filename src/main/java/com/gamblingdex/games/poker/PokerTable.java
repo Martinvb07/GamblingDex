@@ -154,6 +154,12 @@ public class PokerTable {
         return name;
     }
 
+    /** Nombre para mostrar: poker.table_names.<mesa> de modules/poker.yml, o el nombre normal. */
+    public String getDisplayName() {
+        String pretty = plugin.tableNameFromConfig("poker", name);
+        return pretty != null ? pretty : name;
+    }
+
     public Location getCenter() {
         return center;
     }
@@ -433,7 +439,7 @@ public class PokerTable {
 
         p.sendMessage(msg("sat_down",
                 "&aTe sentaste en la mesa de póker &f{table}&a. Ciegas &e{sb}/{bb}&a. Compra entre &e{min}&a y &e{max}&a fichas.",
-                "table", name, "sb", units(smallBlind), "bb", units(bigBlind),
+                "table", getDisplayName(), "sb", units(smallBlind), "bb", units(bigBlind),
                 "min", units(getMinBuyIn()), "max", units(getMaxBuyIn())));
         p.playSound(p.getLocation(), Sound.BLOCK_WOODEN_TRAPDOOR_OPEN, 0.6f, 1.4f);
         broadcastExcept(p.getUniqueId(), msg("player_sat", "&7{player} se sentó en la mesa.", "player", p.getName()));
@@ -1508,7 +1514,7 @@ public class PokerTable {
 
         String text = msg("tournament.open",
                 "&d&lTORNEO DE PÓKER &8» &7Mesa &f{table}&7: inscripción &e{fee}&7, fichas &f{stack}&7. ¡Siéntate para inscribirte!",
-                "table", name, "fee", units(fee), "stack", units(startingStack));
+                "table", getDisplayName(), "fee", units(fee), "stack", units(startingStack));
         for (Player p : Bukkit.getOnlinePlayers())
             p.sendMessage(text);
         for (Seat s : seats) {
@@ -1579,7 +1585,7 @@ public class PokerTable {
 
         String text = msg("tournament.started",
                 "&d&lTORNEO DE PÓKER &8» &a¡Empezó en la mesa {table}! &7Jugadores: &f{count} &8| &7Premio: &e{pool}",
-                "table", name, "count", String.valueOf(tournament.registered.size()),
+                "table", getDisplayName(), "count", String.valueOf(tournament.registered.size()),
                 "pool", units(tournament.prizePool(cutPercent())));
         for (Player p : Bukkit.getOnlinePlayers())
             p.sendMessage(text);
@@ -1696,7 +1702,7 @@ public class PokerTable {
             amounts[0] += pool - given;
 
         String header = msg("tournament.finished", "&d&lTORNEO DE PÓKER &8» &6&l¡Terminó! &7Mesa &f{table}",
-                "table", name);
+                "table", getDisplayName());
         for (Player o : Bukkit.getOnlinePlayers())
             o.sendMessage(header);
         StringBuilder log = new StringBuilder();
@@ -2030,7 +2036,7 @@ public class PokerTable {
         StringBuilder sb = new StringBuilder();
         sb.append(msg("holo.title", "&6&l♠ ♥ PÓKER ♦ ♣")).append('\n');
         sb.append(msg("holo.stakes", "&f{table} &8| &7NL Hold'em &e{sb}/{bb}",
-                "table", name, "sb", units(smallBlind), "bb", units(bigBlind))).append('\n');
+                "table", getDisplayName(), "sb", units(smallBlind), "bb", units(bigBlind))).append('\n');
         String tLine = tournamentLine();
         if (tLine != null)
             sb.append(tLine).append('\n');
@@ -2120,10 +2126,10 @@ public class PokerTable {
             case SHOWDOWN -> title = msg("bar.showdown", "&6Resultado &8| &7Siguiente mano en &f{seconds}s",
                     "seconds", String.valueOf(Math.max(0, countdown)));
             case STARTING -> title = msg("bar.starting", "&ePóker {table} &8| &7Nueva mano en &f{seconds}s",
-                    "table", name, "seconds", String.valueOf(Math.max(0, countdown)));
+                    "table", getDisplayName(), "seconds", String.valueOf(Math.max(0, countdown)));
             default -> title = msg("bar.waiting",
                     "&ePóker {table} &8| &7Ciegas &f{sb}/{bb} &8| &7Esperando jugadores &f({ready}/{min})",
-                    "table", name, "sb", units(smallBlind), "bb", units(bigBlind),
+                    "table", getDisplayName(), "sb", units(smallBlind), "bb", units(bigBlind),
                     "ready", String.valueOf(eligibleCount()), "min", String.valueOf(minPlayers()));
         }
         if (tournament != null && state != State.BETTING && state != State.RUNOUT) {

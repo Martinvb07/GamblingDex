@@ -300,7 +300,8 @@ public class TokenManager {
     private static String color(String text) {
         if (text == null)
             return "";
-        return text.replace('&', '§');
+        com.gamblingdex.GamblingDexPlugin plugin = com.gamblingdex.GamblingDexPlugin.getInstance();
+        return plugin != null ? plugin.color(text) : text.replace('&', '§');
     }
 
     private static TokenStyle styleFor(Material material, int denomValue) {

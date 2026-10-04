@@ -265,7 +265,14 @@ plugins/GamblingDex/
 
 Si vienes de una versión anterior, tus valores de blackjack, póker, ruleta y slots se copian solos de `config.yml` a sus archivos la primera vez.
 
-Los colores usan `&` (ej. `&a`, `&6&l`). Después de editar, usa `/gdx reload`.
+Los colores usan `&` (ej. `&a`, `&6&l`) y también hexadecimales `&#RRGGBB` (ej. `&#FF8800`). Después de editar, usa `/gdx reload`.
+
+**Nombres de las mesas:** cada mesa de blackjack y póker que creas aparece sola en `table_names` de `modules/blackjack.yml` / `modules/poker.yml`. El identificador es el nombre con el que la creaste; ahí le pones el título que quieras, con colores y símbolos:
+
+```yaml
+table_names:
+  MESA-VIP1: "&6&l✦ &#FFD700&lMESA VIP &6&l✦"
+```
 
 ---
 

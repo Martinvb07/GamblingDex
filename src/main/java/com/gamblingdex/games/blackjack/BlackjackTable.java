@@ -411,6 +411,10 @@ public class BlackjackTable {
     }
 
     private String resolveDealerName() {
+        String fromConfig = plugin.tableNameFromConfig("blackjack", displayName);
+        if (fromConfig != null) {
+            return fromConfig;
+        }
         if (prettyDisplayName != null && !prettyDisplayName.isBlank()) {
             return prettyDisplayName;
         }
