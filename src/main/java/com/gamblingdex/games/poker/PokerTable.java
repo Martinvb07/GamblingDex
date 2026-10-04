@@ -1592,7 +1592,7 @@ public class PokerTable {
         sb.append(msg("holo.stakes", "&f{table} &8| &7NL Hold'em &e{sb}/{bb}",
                 "table", name, "sb", units(smallBlind), "bb", units(bigBlind))).append('\n');
 
-        StringBuilder cards = new StringBuilder(formatCards(board));
+        StringBuilder cards = new StringBuilder(board.isEmpty() ? "" : formatCards(board));
         for (int k = board.size(); k < 5; k++) {
             if (cards.length() > 0)
                 cards.append(' ');
@@ -1817,7 +1817,8 @@ public class PokerTable {
         for (int k = 0; k + 1 < kv.length; k += 2) {
             m.put(kv[k], kv[k + 1]);
         }
-        return plugin.getMessages().format("poker." + key, def, m);
+        // Admite saltos de línea escritos como \n literal en el YAML.
+        return plugin.getMessages().format("poker." + key, def, m).replace("\\n", "\n");
     }
 
     public static String formatCard(Card c) {

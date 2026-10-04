@@ -64,7 +64,7 @@ holo:
   turn: "&aTurno: &f{player} &8(&f{seconds}s&8)"
   runout: "&6&lALL-IN &7- repartiendo..."
   showdown: "&6Resultado &8| &7siguiente mano en &f{seconds}s"
-  seat_free: "&7Asiento libre\\n&8Párate aquí para jugar"
+  seat_free: "&7Asiento libre\n&8Párate aquí para jugar"
   seat_buying: "&eComprando fichas..."
 
 admin:
