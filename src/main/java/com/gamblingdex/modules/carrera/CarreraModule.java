@@ -28,9 +28,11 @@ import org.bukkit.entity.Horse;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -121,6 +123,9 @@ public class CarreraModule extends GameModule {
     }
 
     private final Map<String, Track> tracks = new LinkedHashMap<>();
+    /** true mientras el plugin crea sus caballos (para que otros plugins no los bloqueen). */
+    private boolean spawningHorses;
+    private boolean warnedSpawnBlocked;
     private int tickCount;
 
     @Override
@@ -183,7 +188,7 @@ public class CarreraModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lCarrera de caballos",
-                "&8• &e/gdx carrera [pista] &7- Apostar (o click derecho a la mesa o a un caballo)"));
+                "&8• &7Apostar: &fclick derecho&7 a la mesa de la pista"));
         if (admin) {
             l.add("&8• &e/gdx station set carrera <distancia> <carriles> &7- Construir pista (mirando un bloque)");
             l.add("&8• &e/gdx station remove &7- Quitar la pista (mirando su mesa; restaura los bloques)");
@@ -232,6 +237,10 @@ public class CarreraModule extends GameModule {
                 default -> {
                 }
             }
+        }
+        if (!isAdmin(player) && !config().getBoolean("allow_command", false)) {
+            player.sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
+            return true;
         }
         Track t = args.length >= 1 ? tracks.get(a) : (tracks.size() == 1 ? tracks.values().iterator().next() : null);
         if (t == null) {
@@ -663,17 +672,32 @@ public class CarreraModule extends GameModule {
         Horse.Color[] colors = Horse.Color.values();
         for (int i = 0; i < t.lanes; i++) {
             Location l = lanePos(t, i, 0);
-            Horse h = l.getWorld().spawn(l, Horse.class);
-            h.setPersistent(false);
-            h.setAI(false);
-            h.setInvulnerable(true);
-            h.setAdult();
-            h.setTamed(true);
-            h.setColor(colors[i % colors.length]);
-            h.setStyle(Horse.Style.values()[RNG.nextInt(Horse.Style.values().length)]);
-            h.setCustomName(color("&f#" + (i + 1) + " " + horseName(i)));
-            h.setCustomNameVisible(true);
-            t.horses.add(h.getUniqueId());
+            final int lane = i;
+            Horse h;
+            spawningHorses = true;
+            try {
+                java.util.function.Consumer<Horse> setup = horse -> {
+                    horse.setPersistent(false);
+                    horse.setAI(false);
+                    horse.setInvulnerable(true);
+                    horse.setAdult();
+                    horse.setTamed(true);
+                    horse.setColor(colors[lane % colors.length]);
+                    horse.setStyle(Horse.Style.values()[RNG.nextInt(Horse.Style.values().length)]);
+                    horse.setCustomName(color("&f#" + (lane + 1) + " " + horseName(lane)));
+                    horse.setCustomNameVisible(true);
+                };
+                h = l.getWorld().spawn(l, Horse.class, setup);
+            } finally {
+                spawningHorses = false;
+            }
+            if (h.isValid()) {
+                t.horses.add(h.getUniqueId());
+            } else if (!warnedSpawnBlocked) {
+                warnedSpawnBlocked = true;
+                plugin.getLogger().warning("[Carrera] Otro plugin no deja aparecer los caballos de la pista " + t.name
+                        + " (¿WorldGuard o un plugin de protección con mobs desactivados en esa zona?).");
+            }
         }
     }
 
@@ -753,12 +777,14 @@ public class CarreraModule extends GameModule {
 
         long pot = pot(t);
         long winnerPool = pool(t, winner);
-        String odds = winnerPool > 0 ? fmt(pot / (double) winnerPool) : "-";
+        String odds = fixedOdds() ? fmt(fixedMultiplier(t)) : winnerPool > 0 ? fmt(pot / (double) winnerPool) : "-";
         announce(t, msg("winner", "&6&lCarrera &8» &a&l¡Ganó el #{horse} {name}! &7Paga &fx{odds}",
                 "horse", String.valueOf(winner + 1), "name", color(horseName(winner)), "odds", odds));
         playNear(t, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
 
-        if (winnerPool <= 0) {
+        if (fixedOdds()) {
+            payFixed(t, winner);
+        } else if (winnerPool <= 0) {
             announce(t, msg("no_winner_bets", "&6&lCarrera &8» &7Nadie apostó al ganador: se devuelven las apuestas."));
             refundAll(t);
         } else {
@@ -788,6 +814,36 @@ public class CarreraModule extends GameModule {
             t.bar.setTitle(color("&a&l¡Ganó el #" + (winner + 1) + " " + horseName(winner) + "&a&l!"));
     }
 
+    /** Cuota fija: el que acertó cobra apuesta x multiplicador; lo demás se pierde. */
+    private void payFixed(Track t, int winner) {
+        double mult = fixedMultiplier(t);
+        List<String> winners = new ArrayList<>();
+        for (Map.Entry<UUID, Map<Integer, Long>> e : t.bets.entrySet()) {
+            long staked = 0;
+            for (long v : e.getValue().values())
+                staked += v;
+            long onWinner = e.getValue().getOrDefault(winner, 0L);
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (onWinner > 0) {
+                long won = (long) Math.floor(onWinner * mult);
+                TokenWallet.give(e.getKey(), won);
+                String n = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
+                winners.add("&f" + n + " &e+" + units(won));
+                if (p != null) {
+                    p.sendMessage(msg("you_won", "&a&l¡GANASTE! &7Tu caballo #{horse} ganó → &e+{amount}",
+                            "horse", String.valueOf(winner + 1), "amount", units(won)));
+                    p.sendTitle(color("&a&l¡GANASTE!"), color("&e+" + units(won)), 5, 60, 15);
+                }
+            } else if (p != null) {
+                p.sendMessage(msg("you_lost", "&7Ganó el #{horse}. Perdiste &e{amount}&7.",
+                        "horse", String.valueOf(winner + 1), "amount", units(staked)));
+            }
+        }
+        announce(t, msg("summary", "&6&lCarrera &8» &7Ganadores: {players}", "players",
+                winners.isEmpty() ? color("&8nadie") : color(String.join("&7, ", winners))));
+        t.bets.clear();
+    }
+
     private void tick() {
         tickCount++;
         for (Track t : tracks.values()) {
@@ -800,7 +856,7 @@ public class CarreraModule extends GameModule {
                                     "track", t.name, "seconds", "10"));
                         if (t.countdown <= 0)
                             startRace(t);
-                        else if (t.horses.isEmpty())
+                        else if (horsesMissing(t))
                             spawnHorses(t); // el chunk no estaba cargado
                     }
                 }
@@ -892,12 +948,30 @@ public class CarreraModule extends GameModule {
         return s;
     }
 
+    /**
+     * Cuota fija (por defecto): cada caballo paga carriles x (1 - comisión), así se
+     * puede jugar solo. "mutual": apuestas mutuas, el pozo se reparte entre los que acertaron.
+     */
+    private boolean fixedOdds() {
+        return !"mutual".equalsIgnoreCase(config().getString("odds_mode", "fixed"));
+    }
+
+    private double cut() {
+        return Math.max(0.0, Math.min(50.0, config().getDouble("house_cut_percent", 8.0))) / 100.0;
+    }
+
+    private double fixedMultiplier(Track t) {
+        return Math.floor(t.lanes * (1.0 - cut()) * 100.0) / 100.0;
+    }
+
     private long pot(Track t) {
         double cut = Math.max(0.0, Math.min(50.0, config().getDouble("house_cut_percent", 8.0))) / 100.0;
         return (long) Math.floor(totalBets(t) * (1.0 - cut));
     }
 
     private String oddsText(Track t, int horse) {
+        if (fixedOdds())
+            return fmt(fixedMultiplier(t));
         long pool = pool(t, horse);
         return pool > 0 ? fmt(pot(t) / (double) pool) : "-";
     }
@@ -922,9 +996,9 @@ public class CarreraModule extends GameModule {
                     "balance", units(TokenWallet.balance(p))));
             return;
         }
+        t.bets.computeIfAbsent(p.getUniqueId(), k -> new LinkedHashMap<>()).merge(horse, amount, Long::sum);
         if (t.state == State.IDLE)
             startBetting(t);
-        t.bets.computeIfAbsent(p.getUniqueId(), k -> new LinkedHashMap<>()).merge(horse, amount, Long::sum);
         p.sendMessage(msg("bet_placed", "&aApostaste &e{amount}&a al &f#{horse} {name}&a. &7Cuota actual: &fx{odds}",
                 "amount", units(amount), "horse", String.valueOf(horse + 1), "name", color(horseName(horse)),
                 "odds", oddsText(t, horse)));
@@ -990,9 +1064,15 @@ public class CarreraModule extends GameModule {
             case RACING -> "&a¡En carrera!";
             case RESULT -> "&6Ganó el #" + (t.winner + 1);
         };
-        inv.setItem(4, item(Material.GOLDEN_HORSE_ARMOR, "&6&lPozo: &e" + units(pot(t)), List.of(status,
-                "&7La cuota cambia según lo que apuesten todos.",
-                "&7Si nadie acierta, se devuelve todo.")));
+        if (fixedOdds()) {
+            inv.setItem(4, item(Material.GOLDEN_HORSE_ARMOR, "&6&lCada caballo paga &fx" + fmt(fixedMultiplier(t)),
+                    List.of(status, "&7Apostado en esta carrera: &e" + units(totalBets(t)),
+                            "&7Si tu caballo gana: apuesta x" + fmt(fixedMultiplier(t)))));
+        } else {
+            inv.setItem(4, item(Material.GOLDEN_HORSE_ARMOR, "&6&lPozo: &e" + units(pot(t)), List.of(status,
+                    "&7La cuota cambia según lo que apuesten todos.",
+                    "&7Si nadie acierta, se devuelve todo.")));
+        }
         inv.setItem(26, item(Material.SUNFLOWER, "&7Tus fichas: &e" + units(TokenWallet.balance(p)), null));
     }
 
@@ -1012,17 +1092,11 @@ public class CarreraModule extends GameModule {
         return it;
     }
 
+    /** Mensaje solo para los que apostaron en esta carrera. */
     private void announce(Track t, String text) {
-        Set<UUID> sent = new HashSet<>();
-        if (loaded(t)) {
-            for (Player p : t.start.getWorld().getNearbyPlayers(t.start, config().getDouble("announce_radius", 40))) {
-                p.sendMessage(text);
-                sent.add(p.getUniqueId());
-            }
-        }
         for (UUID id : t.bets.keySet()) {
             Player p = Bukkit.getPlayer(id);
-            if (p != null && sent.add(id))
+            if (p != null)
                 p.sendMessage(text);
         }
     }
@@ -1055,8 +1129,12 @@ public class CarreraModule extends GameModule {
             if (t == null)
                 return;
             e.setCancelled(true); // no se pueden montar
-            if (e.getHand() == EquipmentSlot.HAND)
-                openMenu(e.getPlayer(), t);
+            if (e.getHand() != EquipmentSlot.HAND)
+                return;
+            if (t.station != null)
+                e.getPlayer().sendMessage(msg("use_station", "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."));
+            else
+                openMenu(e.getPlayer(), t); // pistas manuales (sin mesa)
         }
 
         @EventHandler
@@ -1091,6 +1169,13 @@ public class CarreraModule extends GameModule {
                     return;
                 }
             }
+        }
+
+        /** Los caballos de la pista los crea el plugin: que una protección de mobs no los cancele. */
+        @EventHandler(priority = EventPriority.HIGHEST)
+        public void onSpawn(CreatureSpawnEvent e) {
+            if (spawningHorses && e.getEntity() instanceof Horse)
+                e.setCancelled(false);
         }
 
         @EventHandler

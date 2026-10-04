@@ -11,12 +11,15 @@
 # Pista manual: párate en la salida del carril 1, MIRANDO HACIA LA META, y usa:
 #   /gdx carrera crear <nombre> [carriles] [largo]
 #   /gdx carrera borrar <nombre> | /gdx carrera lista | /gdx carrera iniciar <nombre>
-# Jugadores: click derecho a la mesa o a un caballo (o /gdx carrera [nombre]).
+# Jugadores: click derecho a la mesa de la pista para apostar.
+# Los mensajes de la carrera solo les llegan a los que apostaron.
 #
-# Apuestas mutuas (como en el hipódromo): todo lo apostado forma un pozo; la
-# casa se queda con house_cut_percent y el resto se reparte entre quienes
-# apostaron al ganador, según cuánto puso cada uno. Si nadie acertó, se
-# devuelve todo.
+# Cuotas (odds_mode):
+#   fixed  -> cada caballo paga carriles x (1 - house_cut_percent). Ej: 6 carriles y 8% = x5.52.
+#             Se puede jugar SOLO. Lo que se pierde se lo queda la casa.
+#   mutual -> apuestas mutuas (hipódromo): todo forma un pozo, la casa se queda con
+#             house_cut_percent y el resto se reparte entre los que acertaron.
+#             Si nadie acierta se devuelve todo (necesita varios jugadores).
 
 enabled: true
 
@@ -26,10 +29,11 @@ lane_spacing: 2
 min_bet: 10
 max_bet: 100000           # 0 = sin tope
 house_cut_percent: 8.0
+odds_mode: fixed          # fixed (cuota fija, se puede jugar solo) o mutual
+allow_command: false      # true = los jugadores también pueden apostar con /gdx carrera
 bet_window_seconds: 40    # cuenta regresiva desde la primera apuesta
 result_seconds: 10
 race_speed: 1.0           # 1.0 = ~15 s para 30 bloques
-announce_radius: 40
 
 # Pista automática (/gdx station set carrera). default_lanes/default_length de arriba
 # se usan si no indicas carriles/distancia.
@@ -67,3 +71,5 @@ messages:
   station_exists: "&eEse bloque ya es la mesa de la pista &f{track}&e."
   station_blocked: "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja el área o mira hacia otro lado."
   cannot_break: "&cEs parte de la pista &f{track}&c. Quítala con &f/gdx station remove&c (mirando la mesa)."
+  summary: "&6&lCarrera &8» &7Ganadores: {players}"
+  use_station: "&7Para apostar, haz &fclick derecho&7 a la mesa de la pista."
