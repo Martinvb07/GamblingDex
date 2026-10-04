@@ -895,12 +895,8 @@ public class CarreraModule extends GameModule {
                 + " &8| &f" + Math.round(pct * 100) + "%"));
         t.bar.setProgress(Math.max(0, Math.min(1, pct)));
 
-        // Barra para apostadores y quienes miran cerca.
+        // Barra solo para los que apostaron.
         Set<UUID> wanted = new HashSet<>(t.bets.keySet());
-        if (loaded(t)) {
-            for (Player p : t.start.getWorld().getNearbyPlayers(t.start, config().getDouble("announce_radius", 40)))
-                wanted.add(p.getUniqueId());
-        }
         for (UUID id : wanted) {
             Player p = Bukkit.getPlayer(id);
             if (p != null && !t.bar.getPlayers().contains(p))

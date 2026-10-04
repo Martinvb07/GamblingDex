@@ -576,10 +576,9 @@ public class CrashModule extends GameModule {
 
         boolean everyone = config().getBoolean("show_bar_to_everyone", false);
         Set<UUID> wanted = new HashSet<>(bets.keySet());
-        double radius = config().getDouble("station_bar_radius", 8.0);
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (everyone || p.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder
-                    || nearStation(p, radius))
+        // Solo los que apostaron en la ronda (o todos si show_bar_to_everyone).
+        if (everyone) {
+            for (Player p : Bukkit.getOnlinePlayers())
                 wanted.add(p.getUniqueId());
         }
         for (Player p : new ArrayList<>(bar.getPlayers())) {
@@ -591,17 +590,6 @@ public class CrashModule extends GameModule {
             if (p != null && !bar.getPlayers().contains(p))
                 bar.addPlayer(p);
         }
-    }
-
-    private boolean nearStation(Player p, double radius) {
-        if (radius <= 0)
-            return false;
-        Location pl = p.getLocation();
-        for (Station st : stations.values()) {
-            if (st.loc.getWorld() == pl.getWorld() && st.loc.distanceSquared(pl) <= radius * radius)
-                return true;
-        }
-        return false;
     }
 
     private void sendActionBars() {

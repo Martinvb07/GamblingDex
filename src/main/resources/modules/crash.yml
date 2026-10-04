@@ -24,11 +24,10 @@ pause_seconds: 5          # pausa tras explotar antes de la siguiente ronda
 growth_per_second: 0.07   # qué tan rápido sube (0.07 = x2 a los ~10s)
 auto_cashout_options: [1.5, 2.0, 3.0, 5.0, 10.0]
 broadcast_win_min: 10000  # anunciar premios desde este monto (0 = nunca)
-show_bar_to_everyone: false  # true = todos ven la barra del multiplicador
+show_bar_to_everyone: false  # la barra de arriba solo la ven los que apostaron (true = todos)
 # true = los jugadores también pueden abrir el menú con /gdx crash (los admins siempre pueden)
 allow_command: false
 station_holo_height: 1.2  # altura del holograma sobre la mesa
-station_bar_radius: 8     # quienes estén a esta distancia de una mesa ven la barra (0 = nadie)
 
 messages:
   joined: "&aApostaste &e{amount}&a en Crash.{auto}"
