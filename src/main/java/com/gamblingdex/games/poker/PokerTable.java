@@ -1572,7 +1572,7 @@ public class PokerTable {
         if (!centerLoaded())
             return;
 
-        double h = plugin.getConfig().getDouble("poker.holo_height", 2.2);
+        double h = plugin.getConfig().getDouble("poker.holo_height", 1.0);
         TextDisplay boardTd = ensureText(boardDisplayId, center.clone().add(0.5, h, 0.5));
         boardDisplayId = boardTd.getUniqueId();
         boardTd.setText(plugin.color(boardText()));
