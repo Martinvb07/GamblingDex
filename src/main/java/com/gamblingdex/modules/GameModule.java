@@ -2,6 +2,7 @@ package com.gamblingdex.modules;
 
 import com.gamblingdex.GamblingDexPlugin;
 import org.bukkit.Bukkit;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -66,6 +67,34 @@ public abstract class GameModule {
 
     /** Líneas para /gdx help (con colores &). */
     public List<String> helpLines(boolean admin) {
+        return List.of();
+    }
+
+    // ------------------------------------------------------------------
+    // Estaciones (/gdx station set <tipo> ...)
+    // ------------------------------------------------------------------
+
+    /** Tipos que acepta /gdx station set para este juego (el primero es el principal). */
+    public List<String> stationTypes() {
+        return List.of();
+    }
+
+    /** Uso que se muestra en la ayuda de /gdx station set (ej. "carrera <distancia> <carriles>"). */
+    public String stationUsage() {
+        return stationTypes().isEmpty() ? "" : stationTypes().get(0);
+    }
+
+    /** /gdx station set &lt;tipo&gt; [args...] mirando {@code target}. {@code args} va sin el tipo. */
+    public void createStation(Player player, Block target, String[] args) {
+    }
+
+    /** /gdx station remove mirando {@code target}: true si era una estación de este juego. */
+    public boolean removeStation(Player player, Block target) {
+        return false;
+    }
+
+    /** Líneas para /gdx station list. */
+    public List<String> stationListLines() {
         return List.of();
     }
 

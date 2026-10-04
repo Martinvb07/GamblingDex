@@ -6,25 +6,36 @@ import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.Tag;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Fence;
+import org.bukkit.block.data.type.Gate;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Horse;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -38,6 +49,11 @@ import java.util.*;
  * Carrera de caballos con apuestas mutuas. Una pista son N carriles paralelos
  * de L bloques. Caballos reales corren (teletransportados cada tick) con
  * velocidades aleatorias y arranques; todos tienen la misma probabilidad.
+ *
+ * Pista automática: /gdx station set carrera &lt;distancia&gt; &lt;carriles&gt; mirando un
+ * bloque. Ese bloque queda como mesa de apuestas y detrás se construye la pista
+ * (vallas, puertas de salida y meta). Los bloques originales se guardan y se
+ * restauran al quitarla con /gdx station remove.
  */
 public class CarreraModule extends GameModule {
 
@@ -71,6 +87,15 @@ public class CarreraModule extends GameModule {
         int[] burst;
         int winner = -1;
         BossBar bar;
+        /** Separación entre carriles; 0 = la de la config (pistas viejas). */
+        double spacing;
+        /** Bloque de la mesa (solo pistas construidas con /gdx station set carrera). */
+        Location station;
+        /** Bloques que cambió la construcción: clave → BlockData original. */
+        final Map<String, String> built = new LinkedHashMap<>();
+        final List<String> gates = new ArrayList<>();
+        UUID holo;
+        UUID finishHolo;
 
         Track(String name, Location start, int dx, int dz, int lanes, int length) {
             this.name = name;
@@ -122,9 +147,18 @@ public class CarreraModule extends GameModule {
                 Location l = BlackjackTables.parseKey(sec.getString(name + ".start"));
                 if (l == null)
                     continue;
-                tracks.put(name.toLowerCase(Locale.ROOT), new Track(name, l,
+                Track t = new Track(name, l,
                         sec.getInt(name + ".dx"), sec.getInt(name + ".dz"),
-                        sec.getInt(name + ".lanes", 6), sec.getInt(name + ".length", 30)));
+                        sec.getInt(name + ".lanes", 6), sec.getInt(name + ".length", 30));
+                t.spacing = sec.getDouble(name + ".spacing", 0);
+                t.station = BlackjackTables.parseKey(sec.getString(name + ".station"));
+                for (String b : sec.getStringList(name + ".built")) {
+                    int bar = b.indexOf('|');
+                    if (bar > 0)
+                        t.built.put(b.substring(0, bar), b.substring(bar + 1));
+                }
+                t.gates.addAll(sec.getStringList(name + ".gates"));
+                tracks.put(name.toLowerCase(Locale.ROOT), t);
             }
         }
         listen(new Events());
@@ -139,6 +173,9 @@ public class CarreraModule extends GameModule {
             removeHorses(t);
             if (t.bar != null)
                 t.bar.removeAll();
+            if (t.state == State.RACING || t.state == State.RESULT)
+                setGates(t, false);
+            removeHolos(t);
         }
     }
 
@@ -146,9 +183,10 @@ public class CarreraModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lCarrera de caballos",
-                "&8• &e/gdx carrera [pista] &7- Apostar a un caballo (o click derecho a un caballo)"));
+                "&8• &e/gdx carrera [pista] &7- Apostar (o click derecho a la mesa o a un caballo)"));
         if (admin) {
-            l.add("&8• &e/gdx carrera crear <nombre> [carriles] [largo] &7- En la salida, mirando a la meta");
+            l.add("&8• &e/gdx station set carrera <distancia> <carriles> &7- Construir pista (mirando un bloque)");
+            l.add("&8• &e/gdx carrera crear <nombre> [carriles] [largo] &7- Pista manual, en la salida mirando a la meta");
             l.add("&8• &e/gdx carrera borrar <nombre>&7|&elista&7|&einiciar <nombre>");
         }
         l.add("");
@@ -170,12 +208,7 @@ public class CarreraModule extends GameModule {
                         notFound(player);
                         return true;
                     }
-                    refundAll(t);
-                    removeHorses(t);
-                    if (t.bar != null)
-                        t.bar.removeAll();
-                    tracks.remove(t.name.toLowerCase(Locale.ROOT));
-                    save();
+                    deleteTrack(t);
                     player.sendMessage(msg("removed", "&aPista eliminada (se devolvieron las apuestas)."));
                     return true;
                 }
@@ -257,8 +290,331 @@ public class CarreraModule extends GameModule {
             d.set(b + "dz", t.dz);
             d.set(b + "lanes", t.lanes);
             d.set(b + "length", t.length);
+            if (t.spacing > 0)
+                d.set(b + "spacing", t.spacing);
+            if (t.station != null) {
+                d.set(b + "station", BlackjackTables.key(t.station));
+                List<String> built = new ArrayList<>();
+                for (Map.Entry<String, String> e : t.built.entrySet())
+                    built.add(e.getKey() + "|" + e.getValue());
+                d.set(b + "built", built);
+                d.set(b + "gates", t.gates);
+            }
         }
         saveData(d);
+    }
+
+    // ------------------------------------------------------------------
+    // Pista automática (/gdx station set carrera <distancia> <carriles>)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> stationTypes() {
+        return List.of("carrera", "racehorse", "caballos", "hipodromo");
+    }
+
+    @Override
+    public String stationUsage() {
+        return "carrera <distancia> <carriles>";
+    }
+
+    @Override
+    public List<String> stationListLines() {
+        int n = 0;
+        for (Track t : tracks.values())
+            if (t.station != null)
+                n++;
+        return List.of("&8- &6Carrera&7: &f" + n + " &8(" + tracks.size() + " pistas en total)");
+    }
+
+    @Override
+    public boolean removeStation(Player player, Block target) {
+        String k = BlackjackTables.key(target.getLocation());
+        for (Track t : new ArrayList<>(tracks.values())) {
+            if (t.station != null && k.equals(BlackjackTables.key(t.station))) {
+                deleteTrack(t);
+                player.sendMessage(msg("station_removed",
+                        "&aPista &f{track}&a eliminada: se devolvieron las apuestas y se restauraron los bloques.",
+                        "track", t.name));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Construye la pista detrás del bloque mirado, en la dirección en que mira
+     * el admin. Filas desde la mesa (d): 1 valla trasera, 2 salida de los
+     * caballos, 3 puertas, 2+largo meta (piso a cuadros), 3+largo valla final.
+     * Carriles de 1 bloque separados por líneas de vallas.
+     */
+    @Override
+    public void createStation(Player p, Block target, String[] args) {
+        int length = config().getInt("default_length", 30);
+        int lanes = config().getInt("default_lanes", 6);
+        try {
+            if (args.length >= 1)
+                length = Integer.parseInt(args[0]);
+            if (args.length >= 2)
+                lanes = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            p.sendMessage(msg("station_usage", "&cUso: /gdx station set carrera <distancia> <carriles> [nombre]"));
+            return;
+        }
+        length = Math.max(10, Math.min(200, length));
+        lanes = Math.max(2, Math.min(MAX_LANES, lanes));
+
+        String name;
+        if (args.length >= 3) {
+            name = args[2].replaceAll("[^a-zA-Z0-9_\\-]", "");
+            if (name.isBlank() || tracks.containsKey(name.toLowerCase(Locale.ROOT))) {
+                p.sendMessage(msg("exists", "&cYa existe una pista con ese nombre."));
+                return;
+            }
+        } else {
+            int n = 1;
+            while (tracks.containsKey("pista" + n))
+                n++;
+            name = "pista" + n;
+        }
+        for (Track t : tracks.values()) {
+            if (t.station != null && BlackjackTables.key(t.station).equals(BlackjackTables.key(target.getLocation()))) {
+                p.sendMessage(msg("station_exists", "&eEse bloque ya es la mesa de la pista &f{track}&e.", "track", t.name));
+                return;
+            }
+        }
+
+        BlockFace f = p.getFacing();
+        int dx = f.getModX(), dz = f.getModZ();
+        int rx = -dz, rz = dx; // derecha del sentido de carrera
+        World w = target.getWorld();
+        int y = p.getLocation().getBlockY(); // nivel del piso donde corren los caballos
+        int bx = target.getX(), bz = target.getZ();
+        int last = length + 3;
+
+        Material fenceMat = material("station.fence_material", Material.OAK_FENCE);
+        Material gateMat = material("station.gate_material", Material.OAK_FENCE_GATE);
+        String floorName = config().getString("station.floor_material", "COARSE_DIRT");
+        Material floorMat = floorName == null || floorName.isBlank() ? null : Material.matchMaterial(floorName);
+        List<String> finishNames = config().getStringList("station.finish_materials");
+        Material finishA = finishNames.size() > 0 ? Material.matchMaterial(finishNames.get(0)) : null;
+        Material finishB = finishNames.size() > 1 ? Material.matchMaterial(finishNames.get(1)) : null;
+        if (finishA == null)
+            finishA = Material.WHITE_CONCRETE;
+        if (finishB == null)
+            finishB = Material.BLACK_CONCRETE;
+        if (!Tag.FENCES.isTagged(fenceMat))
+            fenceMat = Material.OAK_FENCE;
+        if (!Tag.FENCE_GATES.isTagged(gateMat))
+            gateMat = Material.OAK_FENCE_GATE;
+        if (floorMat != null && !floorMat.isBlock())
+            floorMat = null;
+
+        // Plan: bloque → lo que va ahí. Primero se revisa que no haya nada sólido en el camino.
+        Map<Block, BlockData> plan = new LinkedHashMap<>();
+        List<Block> fences = new ArrayList<>();
+        List<Block> gates = new ArrayList<>();
+        Block blocked = null;
+        for (int d = 1; d <= last; d++) {
+            for (int o = -lanes; o <= lanes; o++) {
+                boolean fenceLine = Math.floorMod(o + lanes, 2) == 0;
+                int x = bx + dx * d + rx * o, z = bz + dz * d + rz * o;
+                for (int yy = y; yy <= y + 2; yy++) {
+                    Block b = w.getBlockAt(x, yy, z);
+                    BlockData want;
+                    if (yy == y && (fenceLine || d == 1 || d == last)) {
+                        want = fenceMat.createBlockData();
+                        fences.add(b);
+                    } else if (yy == y && d == 3) {
+                        Gate g = (Gate) gateMat.createBlockData();
+                        g.setFacing(f);
+                        g.setOpen(false);
+                        want = g;
+                        gates.add(b);
+                    } else {
+                        want = Material.AIR.createBlockData();
+                    }
+                    if (b.getType().isSolid() && b.getType() != want.getMaterial() && blocked == null)
+                        blocked = b;
+                    plan.put(b, want);
+                }
+                // Piso
+                Block floor = w.getBlockAt(x, y - 1, z);
+                if (d == length + 2) {
+                    plan.put(floor, (Math.floorMod(o, 2) == 0 ? finishA : finishB).createBlockData());
+                } else if (!fenceLine && floorMat != null) {
+                    plan.put(floor, floorMat.createBlockData());
+                }
+            }
+        }
+        if (blocked != null) {
+            p.sendMessage(msg("station_blocked",
+                    "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja el área o mira hacia otro lado.",
+                    "x", String.valueOf(blocked.getX()), "y", String.valueOf(blocked.getY()),
+                    "z", String.valueOf(blocked.getZ()), "block", blocked.getType().name()));
+            return;
+        }
+
+        Location start = new Location(w, bx + dx * 2 - rx * (lanes - 1), y, bz + dz * 2 - rz * (lanes - 1));
+        Track t = new Track(name, start, dx, dz, lanes, length);
+        t.spacing = 2;
+        t.station = target.getLocation();
+        for (Map.Entry<Block, BlockData> e : plan.entrySet()) {
+            Block b = e.getKey();
+            if (b.getBlockData().matches(e.getValue()))
+                continue;
+            t.built.putIfAbsent(BlackjackTables.key(b.getLocation()), b.getBlockData().getAsString());
+            b.setBlockData(e.getValue(), false);
+        }
+        // Conexiones de las vallas (sin física no se calculan solas)
+        for (Block b : fences)
+            connectFence(b);
+        for (Block b : gates)
+            t.gates.add(BlackjackTables.key(b.getLocation()));
+
+        tracks.put(name.toLowerCase(Locale.ROOT), t);
+        save();
+        spawnHorses(t);
+        updateHolos(t);
+        p.sendMessage(msg("station_created",
+                "&aPista &f{track}&a construida: &f{lanes}&a carriles de &f{length}&a bloques. &7Click derecho a la mesa para apostar.",
+                "track", name, "lanes", String.valueOf(lanes), "length", String.valueOf(length)));
+    }
+
+    private Material material(String path, Material def) {
+        Material m = Material.matchMaterial(config().getString(path, def.name()));
+        return m == null ? def : m;
+    }
+
+    private static void connectFence(Block b) {
+        if (!(b.getBlockData() instanceof Fence fd))
+            return;
+        for (BlockFace face : fd.getAllowedFaces())
+            fd.setFace(face, fenceConnects(b, face));
+        b.setBlockData(fd, false);
+    }
+
+    private static boolean fenceConnects(Block from, BlockFace face) {
+        Block n = from.getRelative(face);
+        Material m = n.getType();
+        if (Tag.FENCES.isTagged(m))
+            return true;
+        if (n.getBlockData() instanceof Gate g) {
+            // La puerta se une por sus costados, no por el frente.
+            return g.getFacing() != face && g.getFacing() != face.getOppositeFace();
+        }
+        return m.isOccluding();
+    }
+
+    private void setGates(Track t, boolean open) {
+        boolean any = false;
+        for (String k : t.gates) {
+            Location l = BlackjackTables.parseKey(k);
+            if (l == null)
+                continue;
+            Block b = l.getBlock();
+            if (b.getBlockData() instanceof Gate g && g.isOpen() != open) {
+                g.setOpen(open);
+                b.setBlockData(g, false);
+                any = true;
+            }
+        }
+        if (any && loaded(t))
+            playNear(t, open ? Sound.BLOCK_FENCE_GATE_OPEN : Sound.BLOCK_FENCE_GATE_CLOSE, 1f, 1f);
+    }
+
+    /** Devuelve cada bloque cambiado a como estaba antes de construir la pista. */
+    private void restoreBlocks(Track t) {
+        List<Map.Entry<String, String>> entries = new ArrayList<>(t.built.entrySet());
+        Collections.reverse(entries);
+        for (Map.Entry<String, String> e : entries) {
+            Location l = BlackjackTables.parseKey(e.getKey());
+            if (l == null)
+                continue;
+            try {
+                l.getBlock().setBlockData(Bukkit.createBlockData(e.getValue()), false);
+            } catch (IllegalArgumentException ex) {
+                plugin.getLogger().warning("[Carrera] No se pudo restaurar " + e.getKey() + ": " + e.getValue());
+            }
+        }
+        t.built.clear();
+        t.gates.clear();
+    }
+
+    private void deleteTrack(Track t) {
+        refundAll(t);
+        removeHorses(t);
+        if (t.bar != null)
+            t.bar.removeAll();
+        removeHolos(t);
+        restoreBlocks(t);
+        tracks.remove(t.name.toLowerCase(Locale.ROOT));
+        save();
+    }
+
+    private boolean horsesMissing(Track t) {
+        if (t.horses.size() != t.lanes)
+            return true;
+        World w = t.start.getWorld();
+        for (UUID id : t.horses) {
+            Entity e = w == null ? null : w.getEntity(id);
+            if (e == null || !e.isValid())
+                return true;
+        }
+        return false;
+    }
+
+    private void updateHolos(Track t) {
+        if (t.station == null || !loaded(t))
+            return;
+        StringBuilder sb = new StringBuilder("&6&l✦ CARRERA ✦ &7").append(t.name).append("\n");
+        switch (t.state) {
+            case IDLE -> sb.append("&7Apuesta para abrir la carrera");
+            case BETTING -> sb.append("&eSale en &f").append(t.countdown).append("s &8| &7Pozo: &e").append(units(pot(t)));
+            case RACING -> sb.append("&a¡En carrera! &8| &7Pozo: &e").append(units(pot(t)));
+            case RESULT -> sb.append("&6Ganó el #").append(t.winner + 1).append(" ").append(horseName(t.winner));
+        }
+        sb.append("\n&7Click derecho para apostar");
+        t.holo = textDisplay(t.holo, t.station.clone().add(0.5, config().getDouble("station.holo_height", 1.2), 0.5),
+                sb.toString());
+        t.finishHolo = textDisplay(t.finishHolo, lanePos(t, 0, t.length).add(
+                (-t.dz) * (t.lanes - 1) * (t.spacing / 2.0), 2.5, t.dx * (t.lanes - 1) * (t.spacing / 2.0)),
+                "&f&l» META «");
+    }
+
+    /** Crea o mueve un holograma y le pone el texto. Devuelve su UUID. */
+    private UUID textDisplay(UUID id, Location at, String text) {
+        World w = at.getWorld();
+        Entity e = id == null ? null : w.getEntity(id);
+        TextDisplay td;
+        if (e instanceof TextDisplay existing && existing.isValid()) {
+            td = existing;
+            if (td.getLocation().distanceSquared(at) > 0.01)
+                td.teleport(at);
+        } else {
+            td = w.spawn(at, TextDisplay.class);
+            td.setPersistent(false);
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setDefaultBackground(false);
+            td.setBackgroundColor(Color.fromARGB(120, 0, 0, 0));
+            td.setShadowed(true);
+            td.setLineWidth(300);
+        }
+        td.setText(color(text));
+        return td.getUniqueId();
+    }
+
+    private void removeHolos(Track t) {
+        World w = t.start.getWorld();
+        if (w == null)
+            return;
+        for (UUID id : new UUID[] { t.holo, t.finishHolo }) {
+            Entity e = id == null ? null : w.getEntity(id);
+            if (e != null)
+                e.remove();
+        }
+        t.holo = null;
+        t.finishHolo = null;
     }
 
     // ------------------------------------------------------------------
@@ -273,7 +629,7 @@ public class CarreraModule extends GameModule {
 
     /** Posición en el carril {@code lane} a {@code dist} bloques de la salida. */
     private Location lanePos(Track t, int lane, double dist) {
-        double spacing = config().getDouble("lane_spacing", 2.0);
+        double spacing = t.spacing > 0 ? t.spacing : config().getDouble("lane_spacing", 2.0);
         // Derecha del sentido de carrera: (-dz, dx)
         double rx = -t.dz, rz = t.dx;
         Location l = t.start.clone().add(0.5 + rx * lane * spacing + t.dx * dist, 0,
@@ -334,13 +690,15 @@ public class CarreraModule extends GameModule {
 
     private void startRace(Track t) {
         if (t.bets.isEmpty()) {
-            removeHorses(t);
+            if (t.station == null)
+                removeHorses(t);
             t.state = State.IDLE;
             return;
         }
         if (t.horses.size() != t.lanes)
             spawnHorses(t);
         t.state = State.RACING;
+        setGates(t, true);
         t.base = new double[t.lanes];
         t.burst = new int[t.lanes];
         double speed = Math.max(0.2, config().getDouble("race_speed", 1.0));
@@ -452,10 +810,20 @@ public class CarreraModule extends GameModule {
                         t.state = State.IDLE;
                         if (t.bar != null)
                             t.bar.removeAll();
+                        if (t.station != null) {
+                            setGates(t, false);
+                            spawnHorses(t); // de vuelta a la salida
+                        }
                     }
                 }
                 default -> {
                 }
+            }
+            if (t.station != null && tickCount % 20 == 0 && loaded(t)) {
+                // Caballos esperando en la salida (se pierden si el chunk se descarga)
+                if (t.state == State.IDLE && horsesMissing(t))
+                    spawnHorses(t);
+                updateHolos(t);
             }
         }
         if (tickCount % 10 == 0)
@@ -688,6 +1056,40 @@ public class CarreraModule extends GameModule {
             e.setCancelled(true); // no se pueden montar
             if (e.getHand() == EquipmentSlot.HAND)
                 openMenu(e.getPlayer(), t);
+        }
+
+        @EventHandler
+        public void onInteractBlock(PlayerInteractEvent e) {
+            if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null)
+                return;
+            String k = BlackjackTables.key(e.getClickedBlock().getLocation());
+            for (Track t : tracks.values()) {
+                if (t.station != null && k.equals(BlackjackTables.key(t.station))) {
+                    e.setCancelled(true);
+                    if (e.getHand() == EquipmentSlot.HAND)
+                        openMenu(e.getPlayer(), t);
+                    return;
+                }
+                if (t.gates.contains(k)) {
+                    e.setCancelled(true); // las puertas solo las abre la carrera
+                    return;
+                }
+            }
+        }
+
+        @EventHandler
+        public void onBreak(BlockBreakEvent e) {
+            String k = BlackjackTables.key(e.getBlock().getLocation());
+            for (Track t : tracks.values()) {
+                boolean isStation = t.station != null && k.equals(BlackjackTables.key(t.station));
+                if (isStation || t.built.containsKey(k)) {
+                    e.setCancelled(true);
+                    e.getPlayer().sendMessage(msg("cannot_break",
+                            "&cEs parte de la pista &f{track}&c. Quítala con &f/gdx station remove&c (mirando la mesa).",
+                            "track", t.name));
+                    return;
+                }
+            }
         }
 
         @EventHandler

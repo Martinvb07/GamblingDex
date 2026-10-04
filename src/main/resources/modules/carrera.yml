@@ -1,11 +1,17 @@
 # ======================
 # GamblingDex - Carrera de caballos
 # ======================
-# Admin: párate en la salida del carril 1, MIRANDO HACIA LA META, y usa:
+# Pista automática (recomendado):
+#   Mira un bloque y usa: /gdx station set carrera <distancia> <carriles> [nombre]
+#   Ese bloque queda como MESA de apuestas y detrás se construye la pista en la
+#   dirección en que miras: vallas entre carriles, puertas de salida y meta.
+#   Necesita terreno plano y despejado. Quitarla: /gdx station remove (mirando la mesa);
+#   los bloques vuelven a como estaban.
+#
+# Pista manual: párate en la salida del carril 1, MIRANDO HACIA LA META, y usa:
 #   /gdx carrera crear <nombre> [carriles] [largo]
-#   Los carriles van hacia tu derecha, separados por lane_spacing bloques.
 #   /gdx carrera borrar <nombre> | /gdx carrera lista | /gdx carrera iniciar <nombre>
-# Jugadores: /gdx carrera [nombre]  o  click derecho a un caballo.
+# Jugadores: click derecho a la mesa o a un caballo (o /gdx carrera [nombre]).
 #
 # Apuestas mutuas (como en el hipódromo): todo lo apostado forma un pozo; la
 # casa se queda con house_cut_percent y el resto se reparte entre quienes
@@ -25,11 +31,20 @@ result_seconds: 10
 race_speed: 1.0           # 1.0 = ~15 s para 30 bloques
 announce_radius: 40
 
+# Pista automática (/gdx station set carrera). default_lanes/default_length de arriba
+# se usan si no indicas carriles/distancia.
+station:
+  fence_material: OAK_FENCE
+  gate_material: OAK_FENCE_GATE
+  floor_material: COARSE_DIRT        # piso de los carriles ("" = no tocar el piso)
+  finish_materials: [WHITE_CONCRETE, BLACK_CONCRETE]   # meta a cuadros
+  holo_height: 1.2                   # holograma sobre la mesa
+
 horse_names: ["Relámpago", "Trueno", "Canela", "Tornado", "Pegaso", "Centella", "Bala", "Sombra"]
 
 messages:
   bet_placed: "&aApostaste &e{amount}&a al &f#{horse} {name}&a. &7Cuota actual: &fx{odds}"
-  countdown: "&6&lCarrera &8» &7¡Apuestas abiertas en &f{track}&7! Sale en &f{seconds}s &8| &e/gdx carrera"
+  countdown: "&6&lCarrera &8» &7¡Apuestas abiertas en &f{track}&7! Sale en &f{seconds}s"
   start: "&6&lCarrera &8» &a¡Y ARRANCAN! &7Pozo: &e{pot}"
   winner: "&6&lCarrera &8» &a&l¡Ganó el #{horse} {name}! &7Paga &fx{odds}"
   you_won: "&a&l¡GANASTE! &7Tu caballo #{horse} ganó → &e+{amount}"
@@ -46,3 +61,9 @@ messages:
   no_tracks: "&cNo hay pistas de carreras todavía."
   exists: "&cYa existe una pista con ese nombre."
   usage_admin: "&cUso: /gdx carrera <crear|borrar|lista|iniciar> [nombre] [carriles] [largo]"
+  station_usage: "&cUso: /gdx station set carrera <distancia> <carriles> [nombre]"
+  station_created: "&aPista &f{track}&a construida: &f{lanes}&a carriles de &f{length}&a bloques. &7Click derecho a la mesa para apostar."
+  station_removed: "&aPista &f{track}&a eliminada: se devolvieron las apuestas y se restauraron los bloques."
+  station_exists: "&eEse bloque ya es la mesa de la pista &f{track}&e."
+  station_blocked: "&cHay un bloque en el camino en &f{x} {y} {z}&c ({block}). Despeja el área o mira hacia otro lado."
+  cannot_break: "&cEs parte de la pista &f{track}&c. Quítala con &f/gdx station remove&c (mirando la mesa)."
