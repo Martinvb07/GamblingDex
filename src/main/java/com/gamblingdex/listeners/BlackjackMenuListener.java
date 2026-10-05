@@ -226,6 +226,14 @@ public class BlackjackMenuListener implements Listener {
         }
 
         Object holder = event.getInventory().getHolder();
+        if (holder instanceof BlackjackBetMenuHolder betHolder) {
+            // Cerró el menú de apuestas: si todos ya apostaron en todo, se reparte.
+            BlackjackTable t = plugin.getBlackjackManager() == null ? null
+                    : plugin.getBlackjackManager().getByKey(betHolder.getTableKey());
+            if (t != null)
+                t.onBetMenuClosed();
+            return;
+        }
         if (!(holder instanceof BlackjackActionMenuHolder actionHolder)) {
             return;
         }

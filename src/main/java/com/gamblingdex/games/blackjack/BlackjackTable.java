@@ -1020,7 +1020,7 @@ public class BlackjackTable {
                 "&7Saliste de la mesa."));
 
         updateHologramText();
-        checkAllBet(); // los que quedan quizá ya apostaron todos
+        checkAllBet(); // los que quedan quizá ya apostaron todos y cerraron el menú
         return true;
     }
 
@@ -1069,14 +1069,22 @@ public class BlackjackTable {
                         "amount", prettyUnits(amountUnits),
                         "total", prettyUnits(newBet))));
         updateHologramText();
-        checkAllBet();
         return true;
     }
 
     /**
+     * Alguien cerró el menú de apuestas. Se revisa en el siguiente tick: al poner
+     * una ficha el menú se vuelve a abrir (eso también dispara el cierre).
+     */
+    public void onBetMenuClosed() {
+        Bukkit.getScheduler().runTask(plugin, this::checkAllBet);
+    }
+
+    /**
      * Si todos los sentados ya apostaron en todo (principal y, si están activas,
-     * las dos laterales: 21+3 y pares), se reparte al instante sin esperar el
-     * contador. Si alguno no completó todo, el contador sigue normal.
+     * las dos laterales: 21+3 y pares) Y ya cerraron el menú de apuestas, se
+     * reparte al instante sin esperar el contador. Mientras alguien tenga el
+     * menú abierto puede seguir poniendo fichas.
      */
     private void checkAllBet() {
         if (state != State.BETTING || seated.isEmpty() || earlyDealScheduled)
@@ -1087,6 +1095,10 @@ public class BlackjackTable {
                 return;
             if (sides && (pairsBets.getOrDefault(id, 0L) <= 0 || plus3Bets.getOrDefault(id, 0L) <= 0))
                 return;
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && p.getOpenInventory().getTopInventory()
+                    .getHolder() instanceof com.gamblingdex.gui.BlackjackBetMenuHolder)
+                return; // todavía está apostando
         }
         earlyDealScheduled = true;
         broadcastToSeated(plugin.getMessages().getString(
