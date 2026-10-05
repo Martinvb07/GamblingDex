@@ -30,7 +30,7 @@ public class GdxTabCompleter implements TabCompleter {
             List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top", "history", "achievements"));
             if (admin)
                 out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
-                        "disable", "enable", "maintenance", "schedule", "inspect", "config"));
+                        "disable", "enable", "maintenance", "schedule", "inspect", "config", "sign"));
             if (mm != null)
                 for (GameModule m : mm.getModules()) {
                     if (mm.byCommand(m.id()) == null)
@@ -103,6 +103,20 @@ public class GdxTabCompleter implements TabCompleter {
                     return n == 3 ? hint(cur, "<amount>", "1", "16", "64") : List.of();
                 }
                 case "reload", "schedule" -> {
+                    return List.of();
+                }
+                case "sign", "signs" -> {
+                    if (n == 2)
+                        return filter(List.of("add", "remove", "list"), cur);
+                    if (!args[1].equalsIgnoreCase("add"))
+                        return List.of();
+                    if (n == 3)
+                        return filter(com.gamblingdex.stats.CasinoSigns.TYPES, cur);
+                    if (n == 4 && (args[2].equalsIgnoreCase("last_win") || args[2].toLowerCase(Locale.ROOT).startsWith("top")))
+                        return hint(cur, "<n>", "1", "2", "3", "4", "5");
+                    if (n == 5 && args[2].toLowerCase(Locale.ROOT).startsWith("top"))
+                        return filter(List.of("blackjack", "roulette", "slots", "baccarat", "crash", "mines", "plinko",
+                                "tower", "wheel", "race", "coinflip", "scratch", "bingo", "lottery"), cur);
                     return List.of();
                 }
                 case "config" -> {

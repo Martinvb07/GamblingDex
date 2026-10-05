@@ -20,12 +20,14 @@ jackpot:
   seed: 10000                 # con cuánto vuelve a empezar el pozo después de ganarse
   symbol: NETHER_STAR         # tiene que estar en symbol_weights
   broadcast: "&6&l★ JACKPOT TRAGAMONEDAS ★ &e{player} &7se llevó &6&l{amount} &7fichas!"
-  # Campana: cuando el pozo pasa de min_pot suena una campana y sale un aviso, SOLO para
-  # los que estén cerca de una estación de slots. Mientras siga alto, se repite cada repeat_minutes.
+  # Campana: cuando el pozo pasa de min_pot sale un aviso (y suena una campana) SOLO para
+  # los que estén cerca de una estación de slots. Mientras siga alto, el aviso se repite cada
+  # repeat_minutes; la campana suena como mucho max_sounds_per_day veces al día.
   bell:
     enabled: true
     min_pot: 300000           # el pozo tiene que llegar a esto para que suene
-    repeat_minutes: 30        # mientras siga alto, vuelve a sonar cada tanto (0 = solo una vez al pasar el mínimo)
+    repeat_minutes: 10        # cada cuánto se repite el AVISO mientras siga alto (0 = solo una vez)
+    max_sounds_per_day: 3     # veces al día que suena la CAMPANA (0 = sin límite)
     radius: 20                # bloques alrededor de cada estación de slots
     sound: block.bell.use
     volume: 1.0

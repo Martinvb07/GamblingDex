@@ -14,9 +14,10 @@ import java.util.function.Supplier;
 
 /**
  * Campana del jackpot: cuando el pozo de los slots o de la ruleta pasa de un
- * mínimo, suena una campana y sale un aviso, solo para los que estén cerca de
- * las estaciones de slots o de las mesas de ruleta. Mientras siga por encima,
- * vuelve a sonar cada {@code repeat_minutes}.
+ * mínimo, sale un aviso (y suena una campana) solo para los que estén cerca de
+ * las estaciones de slots o de las mesas de ruleta. Mientras siga por encima, el
+ * aviso se repite cada {@code repeat_minutes}; la campana suena como mucho
+ * {@code max_sounds_per_day} veces al día (se guarda en jackpot_bell.yml).
  *
  * Config: slots.yml → jackpot.bell, ruleta.yml → jackpot.bell.
  */
@@ -29,9 +30,19 @@ public final class JackpotBell {
     private final GamblingDexPlugin plugin;
     private final List<Pot> pots = new ArrayList<>();
     private final Map<String, Long> lastRing = new HashMap<>();
+    private final java.io.File file;
+    private String day = "";
+    private final Map<String, Integer> soundsToday = new HashMap<>();
 
     public JackpotBell(GamblingDexPlugin plugin) {
         this.plugin = plugin;
+        this.file = new java.io.File(plugin.getDataFolder(), "jackpot_bell.yml");
+        var y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        day = y.getString("day", "");
+        var sec = y.getConfigurationSection("sounds");
+        if (sec != null)
+            for (String k : sec.getKeys(false))
+                soundsToday.put(k, sec.getInt(k));
         pots.add(new Pot("games.slots.jackpot", true,
                 () -> plugin.getSlotsController() == null ? 0L : plugin.getSlotsController().getJackpot(),
                 () -> plugin.getStationManager() == null ? List.of() : plugin.getStationManager().locationsOf(GameItemType.SLOTS),
@@ -60,12 +71,36 @@ public final class JackpotBell {
                 continue;
             }
             Long last = lastRing.get(pot.base());
-            long repeat = Math.max(0, cfg.getLong(b + ".repeat_minutes", 30)) * 60_000L;
+            long repeat = Math.max(0, cfg.getLong(b + ".repeat_minutes", 10)) * 60_000L;
             if (last != null && (repeat == 0 || now - last < repeat))
                 continue;
             if (ring(cfg, b, amount, pot))
                 lastRing.put(pot.base(), now); // si no había nadie cerca, se intenta otra vez en 10 s
         }
+    }
+
+    /** ¿Puede sonar hoy? (máx. max_sounds_per_day veces al día por pozo; 0 = sin límite) */
+    private boolean takeSound(FileConfiguration cfg, String b, String pot) {
+        int max = cfg.getInt(b + ".max_sounds_per_day", 3);
+        var zone = plugin.getSchedule() != null ? plugin.getSchedule().zone() : java.time.ZoneId.of("America/Bogota");
+        String today = java.time.LocalDate.now(zone).toString();
+        if (!today.equals(day)) {
+            day = today;
+            soundsToday.clear();
+        }
+        int n = soundsToday.getOrDefault(pot.replace('.', '_'), 0);
+        if (max > 0 && n >= max)
+            return false;
+        soundsToday.put(pot.replace('.', '_'), n + 1);
+        var y = new org.bukkit.configuration.file.YamlConfiguration();
+        y.set("day", day);
+        for (Map.Entry<String, Integer> e : soundsToday.entrySet())
+            y.set("sounds." + e.getKey(), e.getValue());
+        try {
+            y.save(file);
+        } catch (java.io.IOException ignored) {
+        }
+        return true;
     }
 
     private boolean ring(FileConfiguration cfg, String b, long amount, Pot pot) {
@@ -86,7 +121,7 @@ public final class JackpotBell {
         int times = Math.max(1, Math.min(10, cfg.getInt(b + ".rings", 3)));
         for (Player p : near)
             p.sendMessage(msg);
-        if (sound == null || sound.isBlank())
+        if (sound == null || sound.isBlank() || !takeSound(cfg, b, pot.base()))
             return true;
         for (int i = 0; i < times; i++) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {

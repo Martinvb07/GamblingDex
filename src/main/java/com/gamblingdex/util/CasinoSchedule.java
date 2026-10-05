@@ -90,7 +90,8 @@ public final class CasinoSchedule implements Listener {
         return cfg.getBoolean("admin_bypass", false);
     }
 
-    private ZoneId zone() {
+    /** Zona horaria del casino (schedule.yml → timezone, Colombia por defecto). */
+    public ZoneId zone() {
         try {
             return ZoneId.of(cfg.getString("timezone", "America/Bogota"));
         } catch (Exception e) {

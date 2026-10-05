@@ -139,3 +139,26 @@ gui:
   exchange:
     # Menú de cambio: pestañas Comprar/Vender, fichas, cantidad y confirmar (todo en uno).
     title: "&8&l✦ &e&lCAMBIO &8&l✦"
+
+# ======================
+# CARTELES DEL CASINO
+# ======================
+# Carteles que se actualizan solos (no necesitan PlaceholderAPI ni otro plugin).
+# Mira un cartel y usa: /gdx sign add <tipo> [n] [juego]
+#   last_win [1-10]          -> último ganador (1 = el más reciente)
+#   record                   -> el premio más grande de la historia
+#   jackpot_slots            -> pozo del jackpot de los slots
+#   jackpot_roulette         -> pozo del jackpot de la ruleta
+#   top [1-10] [juego]       -> top de ganancias (de siempre); juego opcional (blackjack, slots...)
+#   top_week [1-10] [juego]  -> top de ganancias de la semana
+# Quitar: /gdx sign remove (mirando el cartel) o romperlo siendo admin. Lista: /gdx sign list
+# Cada cartel tiene 4 líneas de ~15 letras. Placeholders: {n} {name} {amount} {game}
+signs:
+  update_seconds: 10
+  formats:
+    last_win: ["&6&lGANADOR #{n}", "{name}", "&2+{amount}", "&8{game}"]
+    record: ["&6&l★ RÉCORD ★", "{name}", "&2+{amount}", "&8{game}"]
+    jackpot_slots: ["&5&lJACKPOT", "&5SLOTS", "&6&l{amount}", "&8¡Llévatelo!"]
+    jackpot_roulette: ["&4&lJACKPOT", "&4RULETA", "&6&l{amount}", "&8¡Llévatelo!"]
+    top: ["&1&lTOP #{n}", "{name}", "&2{amount}", "&8{game}"]
+    top_week: ["&1&lTOP SEMANA #{n}", "{name}", "&2{amount}", "&8{game}"]

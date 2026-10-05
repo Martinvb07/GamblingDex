@@ -66,6 +66,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     private com.gamblingdex.util.Maintenance maintenance;
     private com.gamblingdex.util.CasinoSchedule schedule;
     private com.gamblingdex.gui.InspectMenu inspectMenu;
+    private com.gamblingdex.stats.CasinoSigns casinoSigns;
     private com.gamblingdex.economy.BonusLock bonusLock;
 
     private Messages messages;
@@ -243,6 +244,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         registerCommands();
         registerListeners();
         new com.gamblingdex.games.JackpotBell(this).start();
+        this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
         // Minijuegos (cada uno en com.gamblingdex.modules.<juego>, se detectan solos).
         this.moduleManager = new com.gamblingdex.modules.ModuleManager(this);
@@ -483,6 +485,10 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public com.gamblingdex.economy.BonusLock getBonusLock() {
         return bonusLock;
+    }
+
+    public com.gamblingdex.stats.CasinoSigns getCasinoSigns() {
+        return casinoSigns;
     }
 
     public com.gamblingdex.gui.InspectMenu getInspectMenu() {
