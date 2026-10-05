@@ -613,6 +613,25 @@ public class BlackjackTable {
         });
     }
 
+    /**
+     * Click derecho al dealer o a la mesa: vuelve a abrir el menú del jugador
+     * (el de jugada si es su turno, el de apuestas si están abiertas).
+     * true si abrió algo.
+     */
+    public boolean reopenMenu(Player p) {
+        if (p == null || !seated.contains(p.getUniqueId()))
+            return false;
+        if (state == State.PLAYING && Objects.equals(currentTurn, p.getUniqueId())) {
+            openActionMenuNow(p.getUniqueId());
+            return true;
+        }
+        if (state == State.BETTING) {
+            new com.gamblingdex.gui.BlackjackBetMenu(plugin).open(p, this);
+            return true;
+        }
+        return false;
+    }
+
     public void requestActionMenuOpen(UUID playerId) {
         if (playerId == null)
             return;

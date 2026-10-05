@@ -24,12 +24,27 @@ public class BlackjackInteractListener implements Listener {
         if (plugin.getBlackjackManager() == null)
             return;
 
-        // El dealer (villager) es decorativo: NO se puede interactuar.
+        // El dealer (villager) no se puede usar como aldeano; click derecho = reabrir tu menú.
         BlackjackTable table = plugin.getBlackjackManager().getByDealer(event.getRightClicked().getUniqueId());
         if (table == null)
             return;
 
         event.setCancelled(true);
+        table.reopenMenu(event.getPlayer());
+    }
+
+    /** Click derecho a la mesa (bloque central): también reabre el menú. */
+    @EventHandler
+    public void onInteractTable(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND
+                || event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
+                || plugin.getBlackjackManager() == null)
+            return;
+        BlackjackTable table = plugin.getBlackjackManager().getByBlock(event.getClickedBlock());
+        if (table == null || !table.isSeated(event.getPlayer().getUniqueId()))
+            return;
+        if (table.reopenMenu(event.getPlayer()))
+            event.setCancelled(true);
     }
 
     @EventHandler

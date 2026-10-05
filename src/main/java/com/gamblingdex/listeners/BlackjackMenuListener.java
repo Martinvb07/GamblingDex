@@ -255,6 +255,9 @@ public class BlackjackMenuListener implements Listener {
             return;
         }
 
+        player.sendMessage(plugin.getMessages().getString("blackjack.menu_reopen_hint",
+                "&7Cerraste el menú. &fClick derecho al dealer&7 para abrirlo de nuevo."));
+
         // Re-open using the table's configured delay (run next tick to avoid fighting
         // the close event).
         plugin.getServer().getScheduler().runTask(plugin, () -> {
