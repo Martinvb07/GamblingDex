@@ -76,6 +76,7 @@ public class BlackjackTable {
 
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
+    private boolean earlyDealScheduled; // ya se programó el reparto porque todos apostaron
     private UUID currentTurn;
     private Float dealerYaw;
     private long minBet; // apuesta principal mínima de esta mesa (0 = la de blackjack.yml)
@@ -978,6 +979,19 @@ public class BlackjackTable {
         return null;
     }
 
+    /** Saca de la mesa a quien ya no está sentado (al abrir las apuestas, sin apuestas en juego). */
+    private void removeFromTable(UUID id, Player p) {
+        if (p != null) {
+            leave(p, false);
+            return;
+        }
+        seated.remove(id);
+        selectedSpot.remove(id);
+        hands.remove(id);
+        activeHand.remove(id);
+        assignedSeatByPlayer.remove(id);
+    }
+
     public boolean leave(Player player, boolean refundBetIfAny) {
         if (player == null)
             return false;
@@ -1006,6 +1020,7 @@ public class BlackjackTable {
                 "&7Saliste de la mesa."));
 
         updateHologramText();
+        checkAllBet(); // los que quedan quizá ya apostaron todos
         return true;
     }
 
@@ -1054,7 +1069,36 @@ public class BlackjackTable {
                         "amount", prettyUnits(amountUnits),
                         "total", prettyUnits(newBet))));
         updateHologramText();
+        checkAllBet();
         return true;
+    }
+
+    /**
+     * Si todos los sentados ya apostaron en todo (principal y, si están activas,
+     * las dos laterales: 21+3 y pares), se reparte al instante sin esperar el
+     * contador. Si alguno no completó todo, el contador sigue normal.
+     */
+    private void checkAllBet() {
+        if (state != State.BETTING || seated.isEmpty() || earlyDealScheduled)
+            return;
+        boolean sides = sideBetsEnabled();
+        for (UUID id : seated) {
+            if (bets.getOrDefault(id, 0L) <= 0)
+                return;
+            if (sides && (pairsBets.getOrDefault(id, 0L) <= 0 || plus3Bets.getOrDefault(id, 0L) <= 0))
+                return;
+        }
+        earlyDealScheduled = true;
+        broadcastToSeated(plugin.getMessages().getString(
+                "blackjack.all_bet", "&a¡Todos apostaron! &7Repartiendo..."));
+        // En el siguiente tick (ahora mismo se está procesando un click del menú)
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            earlyDealScheduled = false;
+            if (state == State.BETTING) {
+                stopBettingTask();
+                startRound();
+            }
+        });
     }
 
     /** Total de la última apuesta del jugador (0 si no jugó todavía). */
@@ -1533,13 +1577,23 @@ public class BlackjackTable {
         ensureDealerEntity();
         removePlayerHandDisplays();
 
+        // Durante la ronda nadie sale de la mesa aunque se baje de la silla (para no
+        // romper su mano). Antes de abrir las apuestas se saca a quien ya no está sentado.
+        if (plugin.getConfig().getBoolean("blackjack.seating.enabled", true)) {
+            for (UUID id : new ArrayList<>(seated)) {
+                Player p = Bukkit.getPlayer(id);
+                if (p == null || !isStandingOnSeatPad(p))
+                    removeFromTable(id, p);
+            }
+        }
+
         broadcastToSeated(plugin.getMessages().format(
                 "blackjack.betting_started",
                 "&eApuestas abiertas por &f{seconds}&e segundos. Abre el menú para apostar.",
                 Map.of("seconds", String.valueOf(bettingSecondsLeft))));
 
         // Open GUI for everyone seated.
-        for (UUID id : seated) {
+        for (UUID id : new ArrayList<>(seated)) {
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
                 new BlackjackBetMenu(plugin).open(p, this);
