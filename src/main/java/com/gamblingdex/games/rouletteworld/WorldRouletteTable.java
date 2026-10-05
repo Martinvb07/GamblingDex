@@ -128,8 +128,116 @@ public class WorldRouletteTable {
         this.segmentKeyToNumber = segmentKeyToNumber;
         this.numberToBlockLocation = numberToBlockLocation;
         this.originals = (originals == null ? new HashMap<>() : originals);
-        this.numberDisplayIds = numberDisplayIds;
-        this.holoDisplayIds = holoDisplayIds;
+        this.numberDisplayIds = new ArrayList<>(numberDisplayIds == null ? List.of() : numberDisplayIds);
+        this.holoDisplayIds = new ArrayList<>(holoDisplayIds == null ? List.of() : holoDisplayIds);
+    }
+
+    /** Marca de los hologramas de la ruleta (para encontrarlos y no duplicarlos). */
+    public static final String TAG = "gdx_roulette";
+
+    public List<UUID> getNumberDisplayIds() {
+        return numberDisplayIds;
+    }
+
+    public List<UUID> getHoloDisplayIds() {
+        return holoDisplayIds;
+    }
+
+    /** Historial guardado en roulette_tables.yml (el más reciente primero). */
+    public void loadRecentNumbers(List<Integer> list) {
+        recentNumbers.clear();
+        if (list != null)
+            for (Integer n : list)
+                if (n != null && recentNumbers.size() < 10)
+                    recentNumbers.addLast(n);
+    }
+
+    private static boolean entitiesLoaded(Location l) {
+        World w = l.getWorld();
+        return w != null && w.isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4)
+                && w.getChunkAt(l.getBlockX() >> 4, l.getBlockZ() >> 4).isEntitiesLoaded();
+    }
+
+    /** Quita TextDisplay sueltos justo en {@code l} (copias viejas) menos los de {@code keep}. */
+    private static void removeStrays(Location l, Collection<UUID> keep) {
+        for (Entity e : l.getWorld().getNearbyEntities(l, 0.3, 0.3, 0.3))
+            if (e instanceof TextDisplay && !keep.contains(e.getUniqueId()))
+                e.remove();
+    }
+
+    private TextDisplay spawnText(Location l, String text) {
+        TextDisplay td = l.getWorld().spawn(l, TextDisplay.class);
+        td.addScoreboardTag(TAG);
+        td.setBillboard(Display.Billboard.CENTER);
+        td.setSeeThrough(true);
+        td.setDefaultBackground(false);
+        td.setShadowed(true);
+        td.setText(text);
+        return td;
+    }
+
+    /**
+     * Vuelve a crear los hologramas de la ruleta que falten (el número de cada
+     * casilla y el cartel de arriba). Solo con los chunks y sus entidades
+     * cargados, para no duplicarlos. true si cambió algo (hay que guardar los ids).
+     */
+    public boolean repairDisplays() {
+        World w = center.getWorld();
+        if (w == null || !entitiesLoaded(center))
+            return false;
+        for (Location l : numberToBlockLocation.values())
+            if (!entitiesLoaded(l))
+                return false;
+        boolean changed = false;
+
+        double holoHeight = plugin.getConfig().getDouble("roulette_world.holo_height", 2.3);
+        Location holoBase = center.clone().add(0.5, holoHeight, 0.5);
+        List<String> lines = plugin.getConfig().getStringList("roulette_world.holo_lines");
+        if (lines == null || lines.isEmpty())
+            lines = List.of("§6§lRULETA", "§7Click derecho con tokens para apostar", "§eEsperando jugadores...");
+        int want = Math.min(3, lines.size());
+        for (int i = 0; i < want; i++) {
+            Entity e = i < holoDisplayIds.size() ? w.getEntity(holoDisplayIds.get(i)) : null;
+            if (e instanceof TextDisplay) {
+                e.addScoreboardTag(TAG);
+                continue;
+            }
+            Location l = holoBase.clone().add(0, -0.25 * i, 0);
+            removeStrays(l, holoDisplayIds);
+            TextDisplay td = spawnText(l, plugin.color(lines.get(i)));
+            if (i < holoDisplayIds.size())
+                holoDisplayIds.set(i, td.getUniqueId());
+            else
+                holoDisplayIds.add(td.getUniqueId());
+            changed = true;
+        }
+
+        int alive = 0;
+        for (UUID id : numberDisplayIds) {
+            Entity e = w.getEntity(id);
+            if (e instanceof TextDisplay) {
+                e.addScoreboardTag(TAG);
+                alive++;
+            }
+        }
+        if (alive < numberToBlockLocation.size()) {
+            for (UUID id : numberDisplayIds) {
+                Entity e = w.getEntity(id);
+                if (e != null)
+                    e.remove();
+            }
+            numberDisplayIds.clear();
+            for (Map.Entry<Integer, Location> en : numberToBlockLocation.entrySet()) {
+                int number = en.getKey();
+                Location l = en.getValue().clone().add(0.5, 1.15, 0.5);
+                removeStrays(l, Set.of());
+                String color = WorldRouletteTables.isZero(number) ? "§a"
+                        : (WorldRouletteTables.isRed(number) ? "§c" : "§8");
+                numberDisplayIds.add(spawnText(l, color + "§l" + WorldRouletteTables.formatNumber(number)).getUniqueId());
+            }
+            changed = true;
+        }
+        return changed;
     }
 
     public Map<String, OriginalBlock> getOriginals() {
@@ -150,6 +258,20 @@ public class WorldRouletteTable {
 
     public State getState() {
         return state;
+    }
+
+    /** Segundos que quedan para apostar (mientras la ronda está abierta). */
+    public int getCountdownSeconds() {
+        return countdownSeconds;
+    }
+
+    /** Fichas que el jugador tiene puestas en un número en esta ronda. */
+    public long betOnNumber(UUID playerId, int number) {
+        Map<String, WorldRouletteBet> m = bets.get(playerId);
+        if (m == null)
+            return 0L;
+        WorldRouletteBet b = m.get(betKey(WorldRouletteBetType.NUMBER, number));
+        return b == null ? 0L : b.getAmount();
     }
 
     public Integer getNumberForBlock(Block block) {
@@ -720,6 +842,8 @@ public class WorldRouletteTable {
         recentNumbers.addFirst(winningNumber);
         while (recentNumbers.size() > 10)
             recentNumbers.removeLast();
+        if (plugin.getWorldRouletteManager() != null)
+            plugin.getWorldRouletteManager().saveRecent(tableKey, getRecentNumbers());
         updateHologramLine(2, "§aGanó el número: §f" + WorldRouletteTables.formatNumber(winningNumber));
 
         boolean isRed = WorldRouletteTables.isRed(winningNumber);

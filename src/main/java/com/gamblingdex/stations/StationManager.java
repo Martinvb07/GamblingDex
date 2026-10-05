@@ -13,23 +13,52 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class StationManager {
+    /** Marca de los hologramas de estaciones (slots/cambio). */
+    public static final String TAG = "gdx_station";
+
     /**
-     * Borra todos los hologramas que no tienen estación válida asociada
-     * (huérfanos).
+     * Borra los hologramas de estaciones (slots/cambio) que quedaron sin estación
+     * (duplicados o de estaciones borradas). Solo toca los suyos: los marcados con
+     * {@link #TAG} o, los viejos sin marca, los que están justo donde va el cartel
+     * de una estación. Antes borraba TODOS los TextDisplay del mundo (la ruleta,
+     * las mesas...), y la ruleta se quedaba sin hologramas tras /gdx reload.
      * Devuelve la cantidad de hologramas eliminados.
      */
     public int cleanOrphanHolograms() {
         int removed = 0;
+        double h = plugin.getConfig().getDouble("stations.holo_height", 1.2);
+        List<Location> spots = new ArrayList<>();
+        if (stations != null && stations.isConfigurationSection("stations"))
+            for (String k : stations.getConfigurationSection("stations").getKeys(false)) {
+                Location l = parseKey(k);
+                if (l != null && getStationType(l) != GameItemType.ROULETTE)
+                    spots.add(l.clone().add(0.5, h, 0.5));
+            }
         for (World world : plugin.getServer().getWorlds()) {
             for (Entity entity : world.getEntitiesByClass(TextDisplay.class)) {
                 UUID id = entity.getUniqueId();
-                if (!hologramToStation.containsKey(id)) {
+                if (hologramToStation.containsKey(id))
+                    continue;
+                Set<String> tags = entity.getScoreboardTags();
+                boolean ours = tags.contains(TAG);
+                if (!ours && tags.isEmpty()) {
+                    Location el = entity.getLocation();
+                    for (Location s : spots)
+                        if (s.getWorld() == el.getWorld() && s.distanceSquared(el) < 0.36) {
+                            ours = true;
+                            break;
+                        }
+                }
+                if (ours) {
                     entity.remove();
                     removed++;
                 }
@@ -130,7 +159,11 @@ public class StationManager {
                     td = (TextDisplay) e;
             }
 
-            // If missing, recreate hologram and persist it.
+            // If missing, recreate hologram and persist it (solo con el chunk y sus
+            // entidades cargados; si no, aún no se sabe si existe y saldría duplicado).
+            if (td == null && (!w.isChunkLoaded(stationLoc.getBlockX() >> 4, stationLoc.getBlockZ() >> 4)
+                    || !w.getChunkAt(stationLoc).isEntitiesLoaded()))
+                continue;
             if (td == null) {
                 UUID newId = ensureHologram(stationLoc, type);
                 if (newId != null) {
@@ -384,6 +417,7 @@ public class StationManager {
 
         Location holoLoc = location.clone().add(0.5, plugin.getConfig().getDouble("stations.holo_height", 1.2), 0.5);
         TextDisplay td = w.spawn(holoLoc, TextDisplay.class);
+        td.addScoreboardTag(TAG);
         td.setBillboard(Display.Billboard.CENTER);
         td.setSeeThrough(true);
         td.setDefaultBackground(false);

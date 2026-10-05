@@ -157,10 +157,47 @@ public class WorldRouletteManager {
                     originals,
                     numberDisplays,
                     holoDisplays);
+            table.loadRecentNumbers(tables.getIntegerList(base + "recent"));
             table.refreshHologramFromConfig();
             table.ensureAutoCycleStarted();
             tablesByCenter.put(centerKey, table);
         }
+        startRepairTask();
+    }
+
+    private org.bukkit.scheduler.BukkitTask repairTask;
+
+    /**
+     * Cada 5 s revisa que cada mesa tenga sus hologramas (números y cartel) y crea
+     * los que falten: tras /gdx reload, cambiar el .jar o si alguien los borró, la
+     * ruleta se arregla sola en vez de tener que volver a construirla.
+     */
+    private void startRepairTask() {
+        if (repairTask != null)
+            return;
+        repairTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (WorldRouletteTable t : new ArrayList<>(tablesByCenter.values())) {
+                try {
+                    if (t.repairDisplays()) {
+                        String base = "tables." + t.getTableKey() + ".";
+                        tables.set(base + "displays.numbers", toStringList(t.getNumberDisplayIds()));
+                        tables.set(base + "displays.holo", toStringList(t.getHoloDisplayIds()));
+                        save();
+                        t.refreshHologramFromConfig();
+                    }
+                } catch (Throwable ex) {
+                    plugin.getLogger().warning("[Ruleta] No se pudieron reparar los hologramas: " + ex);
+                }
+            }
+        }, 40L, 100L);
+    }
+
+    /** Guarda los últimos números de una mesa (sobreviven a reinicios y /gdx reload). */
+    public void saveRecent(String centerKey, List<Integer> numbers) {
+        if (tables == null || centerKey == null || !tables.isConfigurationSection("tables." + centerKey))
+            return;
+        tables.set("tables." + centerKey + ".recent", new ArrayList<>(numbers));
+        save();
     }
 
     public WorldRouletteTable getByCenter(Block centerBlock) {
@@ -300,6 +337,7 @@ public class WorldRouletteManager {
             int number = e.getKey();
             Location loc = e.getValue().clone().add(0.5, 1.15, 0.5);
             TextDisplay td = w.spawn(loc, TextDisplay.class);
+            td.addScoreboardTag(WorldRouletteTable.TAG);
             td.setBillboard(Display.Billboard.CENTER);
             td.setSeeThrough(true);
             td.setDefaultBackground(false);
@@ -324,6 +362,7 @@ public class WorldRouletteManager {
         for (int i = 0; i < Math.min(3, lines.size()); i++) {
             Location l = holoBase.clone().add(0, -0.25 * i, 0);
             TextDisplay td = w.spawn(l, TextDisplay.class);
+            td.addScoreboardTag(WorldRouletteTable.TAG);
             td.setBillboard(Display.Billboard.CENTER);
             td.setSeeThrough(true);
             td.setDefaultBackground(false);

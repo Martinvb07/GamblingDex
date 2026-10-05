@@ -1458,8 +1458,6 @@ public class BlackjackTable {
         other.setFromSplit(true);
         hand.setSplitAces(aces);
         other.setSplitAces(aces);
-        hand.add(draw());
-        other.add(draw());
 
         List<Hand> list = hands.get(id);
         int idx = activeHand.getOrDefault(id, 0);
@@ -1475,16 +1473,51 @@ public class BlackjackTable {
                 Map.of("player", player.getName())));
         dealerSay("player_split", player.getName());
 
-        if (aces) {
-            // Ases divididos: una carta para cada uno y se plantan.
-            hand.setDone(true);
-            other.setDone(true);
-            player.sendMessage(plugin.getMessages().getString(
-                    "blackjack.split_aces",
-                    "&7Ases divididos: recibes una carta en cada uno y te plantas."));
+        // Como en la mesa real: una carta a la primera mano, pausa, otra a la segunda
+        // (cada una con su sonido). Mientras tanto no se puede actuar.
+        Runnable finish = () -> {
+            if (aces) {
+                // Ases divididos: una carta para cada uno y se plantan.
+                hand.setDone(true);
+                other.setDone(true);
+                player.sendMessage(plugin.getMessages().getString(
+                        "blackjack.split_aces",
+                        "&7Ases divididos: recibes una carta en cada uno y te plantas."));
+            }
+            resetTurnTimeout();
+            continueOrAdvance(id);
+            updateHologramText();
+        };
+        int interval = Math.max(0, Math.min(100, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
+        if (interval == 0) {
+            hand.add(draw());
+            other.add(draw());
+            finish.run();
+            return;
         }
-        continueOrAdvance(id);
+        dealing = true;
         updateHologramText();
+        final Hand[] order = { hand, other };
+        final int[] step = { 0 };
+        dealTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.PLAYING) {
+                if (dealTask != null)
+                    dealTask.cancel();
+                dealTask = null;
+                dealing = false;
+                return;
+            }
+            if (step[0] < order.length) {
+                order[step[0]++].add(draw());
+                updateHologramText();
+                return;
+            }
+            if (dealTask != null)
+                dealTask.cancel();
+            dealTask = null;
+            dealing = false;
+            finish.run();
+        }, interval, interval);
     }
 
     public void hit(Player player) {
@@ -1587,6 +1620,12 @@ public class BlackjackTable {
             player.sendMessage(plugin.getMessages().getString(
                     "blackjack.not_your_turn",
                     "&cNo es tu turno."));
+            return false;
+        }
+        if (dealing) {
+            player.sendMessage(plugin.getMessages().getString(
+                    "blackjack.wait_dealing",
+                    "&7Espera, se están repartiendo las cartas."));
             return false;
         }
         return true;
@@ -2000,6 +2039,8 @@ public class BlackjackTable {
                 startDealerTurn();
                 return;
             }
+            if (dealing)
+                return; // repartiendo las cartas de un split: el tiempo no corre
 
             turnSecondsLeft--;
             if (turnSecondsLeft <= 0) {

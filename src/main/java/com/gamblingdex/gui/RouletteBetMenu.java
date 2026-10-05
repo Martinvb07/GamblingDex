@@ -78,8 +78,9 @@ public class RouletteBetMenu {
 
         // Pleno (paga 35 a 1): 0, elegir número, 00
         inv.setItem(38, numberButton(0));
-        inv.setItem(40, actionButton("open", "numbers", Material.PAPER, "§e§lElegir número (1-36)",
-                List.of("§7Paga §f35 a 1 §8(36x)", "", "§eClick para ver los números")));
+        inv.setItem(40, actionButton("open", "numbers", Material.COMPASS, "§e§lApostar a números (rueda)",
+                List.of("§7Los 38 números como en la rueda,", "§7con tus fichas abajo: eliges una", "§7y la echas en los números que quieras.",
+                        "", "§7Pleno paga §f35 a 1 §8(36x)", "", "§eClick para abrir la rueda")));
         inv.setItem(42, numberButton(WorldRouletteTables.DOUBLE_ZERO));
 
         // Abajo: tus apuestas, repetir, cerrar, fichas

@@ -51,6 +51,16 @@ free_seat_holo_scale: 0.6
 turn_marker:
   enabled: true
   particle: END_ROD
+# Reparto como en la mesa real: una carta a cada jugador desde la ciega chica (cada uno
+# solo ve las suyas), otra vuelta, y las de la mesa (flop, turn, river) también de una en una.
+# 20 ticks = 1 segundo (máximo 100). 0 = todas de golpe.
+deal_interval_ticks: 8        # entre cada carta de los jugadores
+board_interval_ticks: 12      # entre cada carta de la mesa
+# Sonidos de la mesa (los escuchan los que están cerca). Vacío ("") = sin sonido.
+sounds:
+  enabled: true
+  volume: 0.9
+  card: item.book.page_turn   # cada carta que se reparte
 # Registrar cada mano en la consola
 log_hands: true
 # Propinas: en el menú de la mesa (click derecho estando sentado) hay un botón "Dar propina".
