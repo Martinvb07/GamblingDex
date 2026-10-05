@@ -26,7 +26,7 @@ import java.util.*;
 public final class ConfigUpdater {
 
     /** Secciones cuyas claves son entradas del admin (mesas, logros, símbolos...). */
-    private static final Set<String> USER_MAPS = Set.of("table_names", "symbol_weights", "payouts", "multipliers",
+    private static final Set<String> USER_MAPS = Set.of("table_names", "symbol_weights", "symbol_names", "themes", "payouts", "multipliers",
             "tiers", "rewards", "difficulties", "achievements");
 
     /** Entradas nuevas de la 1.2.0 que se añaden aunque no haya registro todavía. */

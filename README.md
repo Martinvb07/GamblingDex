@@ -129,7 +129,8 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx help` | Muestra la ayuda |
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
-| `/gdx top [week] [n]` | Ranking de ganancias (todos los juegos) |
+| `/gdx top` | **Ranking en un menú**: podio con las cabezas de los 3 primeros, del 4° al 10°, siempre o esta semana, por ganancias, mayor premio, más apostado o póker, y por juego (`/gdx top week` lo muestra en el chat) |
+| `/gdx profile` | **Tu perfil**: fichas, bono, ganancias y puesto en el ranking, juego favorito, póker, logros y últimas apuestas |
 | `/gdx history` | Tus últimas 10 apuestas |
 | `/gdx achievements` | Tus logros del casino (menú) |
 | `/gdx coinflip` · `create <amount> [cara\|sello]` · `cancel` | Coinflip |
@@ -149,6 +150,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx station set wheel` | Construir la rueda física (mirando un faro) |
 | `/gdx station set mines` | Estación de Mines con menú (mirando cualquier bloque) |
 | `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
+| `/gdx station set slots <theme>` | Slots con **tema** (cada máquina con sus símbolos y pagos, `slots.yml` → `themes`: `nether`, `oceano`...) |
 | `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
 | `/gdx station set tower` | Estación de Tower con menú (mirando cualquier bloque) |
 | `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |

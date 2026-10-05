@@ -194,6 +194,12 @@ public class GamblingDexCommand implements CommandExecutor {
                 return true;
             }
 
+            if (sub.equals("profile") || sub.equals("perfil")) {
+                if (GamblingDexPlugin.getInstance().getInspectMenu() != null)
+                    GamblingDexPlugin.getInstance().getInspectMenu().openProfile(player);
+                return true;
+            }
+
             if (sub.equals("history") || sub.equals("historial")) {
                 sendHistory(player);
                 return true;
@@ -484,7 +490,11 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
-                // /gdx top [week] [n] — ganancia neta en TODOS los juegos.
+                // /gdx top (sin nada) = menú con el podio; /gdx top [week] [n] = en el chat.
+                if (args.length == 1 && GamblingDexPlugin.getInstance().getTopMenu() != null) {
+                    GamblingDexPlugin.getInstance().getTopMenu().open(player);
+                    return true;
+                }
                 int limit = 10;
                 boolean week = false;
                 for (int ai = 1; ai < args.length; ai++) {
@@ -704,7 +714,25 @@ public class GamblingDexCommand implements CommandExecutor {
                         return true;
                     }
 
+                    // Slots con tema: /gdx station set slots <tema>
+                    String theme = null;
+                    if (type == GameItemType.SLOTS && args.length >= 4) {
+                        var sc = GamblingDexPlugin.getInstance().getSlotsController();
+                        String wanted = args[3].toLowerCase(Locale.ROOT);
+                        if (sc == null || !sc.themeExists(wanted)) {
+                            player.sendMessage(GamblingDexPlugin.getInstance().color("&cEse tema no existe. Temas: &f"
+                                    + (sc == null || sc.themes().isEmpty() ? "-" : String.join(", ", sc.themes()))
+                                    + " &7(slots.yml → themes)"));
+                            return true;
+                        }
+                        theme = wanted;
+                    }
                     GamblingDexPlugin.getInstance().getStationManager().setStation(target.getLocation(), type, true);
+                    if (type == GameItemType.SLOTS)
+                        GamblingDexPlugin.getInstance().getStationManager().setTheme(target.getLocation(), theme);
+                    if (theme != null)
+                        player.sendMessage(GamblingDexPlugin.getInstance().color("&7Tema de la máquina: &f"
+                                + GamblingDexPlugin.getInstance().getSlotsController().themeName(theme)));
                     player.sendMessage(applyPlaceholders(
                             cfg("messages.admin.station.set.success",
                                     "&aMesa colocada: &f{type} &7(Click derecho en el bloque)"),

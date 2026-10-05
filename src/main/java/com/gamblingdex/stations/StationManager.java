@@ -174,8 +174,7 @@ public class StationManager {
                 continue;
             }
 
-            String title = plugin.color(plugin.getConfig().getString("stations.holograms." + type.getId(),
-                    defaultHolo(type)));
+            String title = holoTitle(stationLoc, type);
             td.setText(title);
             td.setBillboard(Display.Billboard.CENTER);
             td.setSeeThrough(true);
@@ -407,13 +406,37 @@ public class StationManager {
                 + newFormat + " holo=" + holo;
     }
 
+    /** Tema de una estación de slots (null = clásico). */
+    public String getTheme(Location location) {
+        if (location == null)
+            return null;
+        String t = stations.getString("stations." + key(location) + ".theme");
+        return t == null || t.isBlank() ? null : t;
+    }
+
+    /** Cambia el tema de una estación de slots y rehace su holograma. */
+    public void setTheme(Location location, String theme) {
+        String base = "stations." + key(location) + ".";
+        stations.set(base + "theme", theme);
+        save();
+        setStation(location, GameItemType.SLOTS, true);
+    }
+
+    /** Texto del holograma: el del tema (slots.yml → themes.&lt;tema&gt;.holo) o el de siempre. */
+    private String holoTitle(Location location, GameItemType type) {
+        String theme = type == GameItemType.SLOTS ? getTheme(location) : null;
+        String text = theme == null ? null : plugin.getConfig().getString("games.slots.themes." + theme + ".holo");
+        if (text == null)
+            text = plugin.getConfig().getString("stations.holograms." + type.getId(), defaultHolo(type));
+        return plugin.color(text);
+    }
+
     private UUID ensureHologram(Location location, GameItemType type) {
         World w = location.getWorld();
         if (w == null)
             return null;
 
-        String title = plugin.color(plugin.getConfig().getString("stations.holograms." + type.getId(),
-                defaultHolo(type)));
+        String title = holoTitle(location, type);
 
         Location holoLoc = location.clone().add(0.5, plugin.getConfig().getDouble("stations.holo_height", 1.2), 0.5);
         TextDisplay td = w.spawn(holoLoc, TextDisplay.class);

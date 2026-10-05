@@ -130,10 +130,11 @@ public final class HelpMenu {
 
     private static void playerLines(Player p) {
         line(p, "/gdx balance", "Tus fichas");
+        line(p, "/gdx profile", "Tu perfil: ganancias, juego favorito, logros y últimas apuestas");
         line(p, "/gdx stats", "Tus estadísticas");
         if (p.hasPermission("gamblingdex.stats.others"))
             line(p, "/gdx stats <player>", "Estadísticas de otro jugador");
-        line(p, "/gdx top", "Ranking de ganancias (todos los juegos)");
+        line(p, "/gdx top", "Ranking en un menú (podio, semana, por juego, póker)");
         line(p, "/gdx top week", "Ranking de esta semana");
         line(p, "/gdx history", "Tus últimas 10 apuestas");
         line(p, "/gdx achievements", "Tus logros del casino");
@@ -142,10 +143,11 @@ public final class HelpMenu {
     private static void player(Player p) {
         header(p, "Jugador");
         line(p, "/gdx balance", "Tus fichas");
+        line(p, "/gdx profile", "Tu perfil: ganancias, juego favorito, logros y últimas apuestas");
         line(p, "/gdx stats", "Tus estadísticas");
         if (p.hasPermission("gamblingdex.stats.others"))
             line(p, "/gdx stats <player>", "Estadísticas de otro jugador");
-        line(p, "/gdx top", "Ranking de ganancias (todos los juegos)");
+        line(p, "/gdx top", "Ranking en un menú (podio, semana, por juego, póker)");
         line(p, "/gdx top week", "Ranking de esta semana");
         line(p, "/gdx history", "Tus últimas 10 apuestas");
         line(p, "/gdx achievements", "Tus logros del casino");
@@ -203,6 +205,7 @@ public final class HelpMenu {
         line(p, "/gdx reload", "Recargar configuración y mensajes");
         line(p, "/gdx config check", "Revisar la config: materiales, sonidos, pesos, horario...");
         line(p, "/gdx station set <type>", "Crear una mesa/estación (mirando el bloque)");
+        line(p, "/gdx station set slots <theme>", "Slots con tema (slots.yml → themes)");
         line(p, "/gdx station remove", "Quitar la mesa que miras (restaura los bloques)");
         line(p, "/gdx station list", "Mesas registradas");
         line(p, "/gdx disable <game>", "Cerrar un juego por mantenimiento (devuelve apuestas)");
@@ -360,7 +363,7 @@ public final class HelpMenu {
                 "&8• &6Jackpot progresivo&7: 3 estrellas del Nether se llevan todo el pozo",
                 "&8• &7Cuando el pozo está alto suena una &fcampana&7 cerca de los slots"));
         if (admin)
-            l.add("&8• &e/gdx station set slots &7- Registrar estación (mirando el bloque)");
+            l.add("&8• &e/gdx station set slots [theme] &7- Registrar estación (tema opcional: nether, oceano...)");
         return l;
     }
 

@@ -54,11 +54,21 @@ public final class InspectMenu implements Listener {
     }
 
     public void open(Player viewer, UUID target, String name) {
+        open(viewer, target, name, false);
+    }
+
+    /** /gdx profile: el mismo menú, pero de uno mismo. */
+    public void openProfile(Player p) {
+        open(p, p.getUniqueId(), p.getName(), true);
+    }
+
+    private void open(Player viewer, UUID target, String name, boolean self) {
         GameStats stats = plugin.getGameStats();
         if (stats == null)
             return;
         Holder h = new Holder();
-        h.inv = Bukkit.createInventory(h, 54, plugin.color("&8&l✦ &6&lINSPECCIONAR &8» &f" + name));
+        h.inv = Bukkit.createInventory(h, 54, plugin.color(self ? "&8&l✦ &6&lTU PERFIL &8&l✦"
+                : "&8&l✦ &6&lINSPECCIONAR &8» &f" + name));
         Inventory inv = h.inv;
         Player online = Bukkit.getPlayer(target);
 
@@ -76,8 +86,10 @@ public final class InspectMenu implements Listener {
         } else {
             head.add("&7Fichas de bono bloqueadas: &a0");
         }
-        head.add("");
-        head.add("&8" + target);
+        if (!self) {
+            head.add("");
+            head.add("&8" + target);
+        }
         ItemStack skull = Icons.of(Material.PLAYER_HEAD, 1, "&6&l" + name, head, false);
         if (skull.getItemMeta() instanceof SkullMeta sm) {
             OfflinePlayer op = Bukkit.getOfflinePlayer(target);
@@ -86,9 +98,13 @@ public final class InspectMenu implements Listener {
         }
         inv.setItem(4, skull);
 
-        // Totales
-        inv.setItem(19, entryIcon(Material.BOOK, "&e&lDesde siempre", stats.get(target, false)));
-        inv.setItem(21, entryIcon(Material.CLOCK, "&b&lEsta semana", stats.get(target, true)));
+        // Totales (con el puesto en el ranking)
+        ItemStack all = entryIcon(Material.BOOK, "&e&lDesde siempre", stats.get(target, false));
+        ItemStack week = entryIcon(Material.CLOCK, "&b&lEsta semana", stats.get(target, true));
+        addRank(all, stats.rank(target, GameStats.Metric.PROFIT, false));
+        addRank(week, stats.rank(target, GameStats.Metric.PROFIT, true));
+        inv.setItem(19, all);
+        inv.setItem(21, week);
 
         // Juegos (de más a menos jugado)
         List<String[]> rows = new ArrayList<>();
@@ -143,8 +159,20 @@ public final class InspectMenu implements Listener {
         }
 
         inv.setItem(49, Icons.of(Material.BARRIER, "&cCerrar", null));
+        if (self)
+            inv.setItem(47, Icons.of(Material.GOLDEN_HELMET, 1, "&6&lVer el ranking", List.of("&7Click para abrir &f/gdx top"), true));
         Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
         viewer.openInventory(inv);
+    }
+
+    private void addRank(ItemStack it, int rank) {
+        var meta = it.getItemMeta();
+        if (meta == null)
+            return;
+        List<String> lore = meta.getLore() == null ? new ArrayList<>() : new ArrayList<>(meta.getLore());
+        lore.add(plugin.color(rank > 0 ? "&7Puesto en el ranking: &6#" + rank : "&7Puesto en el ranking: &8-"));
+        meta.setLore(lore);
+        it.setItemMeta(meta);
     }
 
     private ItemStack entryIcon(Material m, String title, GameStats.Entry e) {
@@ -161,8 +189,13 @@ public final class InspectMenu implements Listener {
         if (!(e.getInventory().getHolder() instanceof Holder))
             return;
         e.setCancelled(true);
-        if (e.getRawSlot() == 49 && e.getWhoClicked() instanceof Player p)
+        if (!(e.getWhoClicked() instanceof Player p))
+            return;
+        if (e.getRawSlot() == 49)
             p.closeInventory();
+        else if (e.getRawSlot() == 47 && e.getCurrentItem() != null
+                && e.getCurrentItem().getType() == Material.GOLDEN_HELMET && plugin.getTopMenu() != null)
+            plugin.getTopMenu().open(p);
     }
 
     @EventHandler

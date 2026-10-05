@@ -66,6 +66,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     private com.gamblingdex.util.Maintenance maintenance;
     private com.gamblingdex.util.CasinoSchedule schedule;
     private com.gamblingdex.gui.InspectMenu inspectMenu;
+    private com.gamblingdex.gui.TopMenu topMenu;
     private com.gamblingdex.stats.CasinoSigns casinoSigns;
     private com.gamblingdex.economy.BonusLock bonusLock;
 
@@ -377,6 +378,8 @@ public class GamblingDexPlugin extends JavaPlugin {
         pm.registerEvents(new com.gamblingdex.listeners.PlayerJoinListener(this), this);
         this.inspectMenu = new com.gamblingdex.gui.InspectMenu(this);
         pm.registerEvents(inspectMenu, this);
+        this.topMenu = new com.gamblingdex.gui.TopMenu(this);
+        pm.registerEvents(topMenu, this);
         pm.registerEvents(new TokenRedeemListener(this), this);
         pm.registerEvents(new GameItemInteractListener(this), this);
         pm.registerEvents(new StationInteractListener(this), this);
@@ -489,6 +492,10 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public com.gamblingdex.stats.CasinoSigns getCasinoSigns() {
         return casinoSigns;
+    }
+
+    public com.gamblingdex.gui.TopMenu getTopMenu() {
+        return topMenu;
     }
 
     public com.gamblingdex.gui.InspectMenu getInspectMenu() {
