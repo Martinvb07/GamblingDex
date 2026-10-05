@@ -50,7 +50,7 @@ turn_timeout_seconds: 20
 action_menu_delay_seconds: 5
 # Marcador visual de turno (se dibuja una “flecha” con partículas sobre el jugador actual)
 turn_marker:
-  enabled: true   # flecha de partículas encima del jugador de turno
+  enabled: false  # flecha de partículas encima del jugador de turno
   particle: END_ROD
   count: 1
   glow: true      # el jugador de turno brilla (contorno) mientras dura su turno

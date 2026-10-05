@@ -2018,7 +2018,7 @@ public class BlackjackTable {
         if (plugin.getConfig().getBoolean("blackjack.turn_marker.glow", true))
             p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.GLOWING,
                     12, 0, true, false, false));
-        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", true))
+        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", false))
             return;
 
         Particle particle = Particle.END_ROD;
