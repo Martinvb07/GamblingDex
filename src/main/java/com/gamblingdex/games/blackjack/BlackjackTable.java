@@ -76,6 +76,7 @@ public class BlackjackTable {
 
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
+    private boolean earlyDealScheduled; // ya se programó el reparto porque todos apostaron
     private UUID currentTurn;
     private Float dealerYaw;
     private long minBet; // apuesta principal mínima de esta mesa (0 = la de blackjack.yml)
@@ -1068,41 +1069,36 @@ public class BlackjackTable {
                         "amount", prettyUnits(amountUnits),
                         "total", prettyUnits(newBet))));
         updateHologramText();
-        if (spot == BetSpot.MAIN)
-            checkAllBet();
+        checkAllBet();
         return true;
     }
 
     /**
-     * Si todos los sentados ya pusieron su apuesta principal, el reparto se
-     * adelanta: el contador baja a blackjack.all_bet_countdown_seconds (3 por
-     * defecto, para alcanzar a subir la apuesta o poner laterales; 0 = ya).
+     * Si todos los sentados ya apostaron en todo (principal y, si están activas,
+     * las dos laterales: 21+3 y pares), se reparte al instante sin esperar el
+     * contador. Si alguno no completó todo, el contador sigue normal.
      */
     private void checkAllBet() {
-        if (state != State.BETTING || seated.isEmpty())
+        if (state != State.BETTING || seated.isEmpty() || earlyDealScheduled)
             return;
-        for (UUID id : seated)
+        boolean sides = sideBetsEnabled();
+        for (UUID id : seated) {
             if (bets.getOrDefault(id, 0L) <= 0)
                 return;
-        int left = Math.max(0, plugin.getConfig().getInt("blackjack.all_bet_countdown_seconds", 3));
-        if (bettingSecondsLeft <= left)
-            return;
-        if (left == 0) {
-            // En el siguiente tick (ahora mismo se está procesando un click del menú)
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (state == State.BETTING) {
-                    stopBettingTask();
-                    startRound();
-                }
-            });
-            return;
+            if (sides && (pairsBets.getOrDefault(id, 0L) <= 0 || plus3Bets.getOrDefault(id, 0L) <= 0))
+                return;
         }
-        bettingSecondsLeft = left;
-        broadcastToSeated(plugin.getMessages().format(
-                "blackjack.all_bet",
-                "&a¡Todos apostaron! &7Repartiendo en &f{seconds}s&7...",
-                Map.of("seconds", String.valueOf(left))));
-        updateHologramText();
+        earlyDealScheduled = true;
+        broadcastToSeated(plugin.getMessages().getString(
+                "blackjack.all_bet", "&a¡Todos apostaron! &7Repartiendo..."));
+        // En el siguiente tick (ahora mismo se está procesando un click del menú)
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            earlyDealScheduled = false;
+            if (state == State.BETTING) {
+                stopBettingTask();
+                startRound();
+            }
+        });
     }
 
     /** Total de la última apuesta del jugador (0 si no jugó todavía). */
