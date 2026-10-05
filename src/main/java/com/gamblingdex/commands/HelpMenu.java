@@ -197,6 +197,7 @@ public final class HelpMenu {
     private static void admin(Player p) {
         header(p, "Admin");
         line(p, "/gdx reload", "Recargar configuración y mensajes");
+        line(p, "/gdx config check", "Revisar la config: materiales, sonidos, pesos, horario...");
         line(p, "/gdx station set <type>", "Crear una mesa/estación (mirando el bloque)");
         line(p, "/gdx station remove", "Quitar la mesa que miras (restaura los bloques)");
         line(p, "/gdx station list", "Mesas registradas");

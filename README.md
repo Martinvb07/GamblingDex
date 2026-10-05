@@ -176,6 +176,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx disable <game>` | **Mantenimiento**: cierra un juego al instante y devuelve las apuestas en curso |
 | `/gdx enable <game>` | Vuelve a abrir el juego |
 | `/gdx maintenance` | Juegos en mantenimiento |
+| `/gdx config check` | Revisa los valores de la config: materiales o sonidos que no existen, símbolo del jackpot que no está en `symbol_weights`, pesos en 0, mínima mayor que la máxima, horario mal escrito... |
 | `/gdx schedule` | **Horario del casino** en un menú: activar, hora de apertura y cierre, días |
 | `/gdx inspect <player>` | Menú con las fichas, bono, ganancias y últimas apuestas de un jugador |
 

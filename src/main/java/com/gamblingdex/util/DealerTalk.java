@@ -43,7 +43,8 @@ public final class DealerTalk {
      * @param base     ruta de la config (ej. "blackjack.dealer_talk")
      * @param key      id de la mesa (para el tiempo entre frases)
      * @param center   dónde está la mesa (los de cerca leen la frase)
-     * @param bubbleAt pies del crupier (o la mesa): el globo sale bubble_height más arriba (null = solo chat)
+     * @param bubbleAt parte de arriba de los hologramas de la mesa: el globo sale bubble_height más arriba,
+     *                 así nunca se encima con ellos (null = solo chat)
      * @param event    tipo de frase (round_start, player_blackjack, tip...)
      * @param dealerName nombre que sale en el chat
      * @param force    ignora la probabilidad y el tiempo entre frases (propinas)
@@ -87,7 +88,7 @@ public final class DealerTalk {
 
         if (bubbleAt != null && bubbleAt.getWorld() != null && cfg.getBoolean(base + ".bubble", true))
             bubble(plugin, key, bubbleAt, plugin.color(cfg.getString(base + ".bubble_format", "&f{message}").replace("{message}", msg)),
-                    cfg.getDouble(base + ".bubble_height", 3.3), Math.max(20, cfg.getInt(base + ".bubble_ticks", 60)));
+                    cfg.getDouble(base + ".bubble_height", 0.5), Math.max(20, cfg.getInt(base + ".bubble_ticks", 60)));
     }
 
     private static final Map<String, UUID> bubbles = new HashMap<>(); // mesa → globo

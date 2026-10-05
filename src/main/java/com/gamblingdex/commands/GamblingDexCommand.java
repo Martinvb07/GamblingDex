@@ -140,6 +140,32 @@ public class GamblingDexCommand implements CommandExecutor {
                 }
                 plugin.reloadAll();
                 sender.sendMessage(cfg("messages.admin.reload.success", "&aGamblingDex recargado."));
+                int warnings = new com.gamblingdex.config.ConfigCheck(plugin).run().size();
+                if (warnings > 0)
+                    sender.sendMessage(plugin.color("&e⚠ Hay &f" + warnings
+                            + "&e valor(es) raros en la config. Míralos con &f/gdx config check&e."));
+                return true;
+            }
+            if (sub.equals("config")) {
+                if (!sender.hasPermission("gamblingdex.admin")) {
+                    sender.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+                if (args.length < 2 || !args[1].equalsIgnoreCase("check")) {
+                    sender.sendMessage(plugin.color("&7Uso: &f/gdx config check"));
+                    return true;
+                }
+                java.util.List<String> problems = new com.gamblingdex.config.ConfigCheck(plugin).run();
+                sender.sendMessage(plugin.color("&8&m        &r &6&lRevisión de la config &8&m        "));
+                if (problems.isEmpty()) {
+                    sender.sendMessage(plugin.color("&a✔ Todo bien: no encontré valores raros en los archivos."));
+                    return true;
+                }
+                for (String pr : problems)
+                    sender.sendMessage(plugin.color("&c✖ &e" + pr));
+                sender.sendMessage(plugin.color("&7" + problems.size()
+                        + " problema(s). Corrígelos y usa &f/gdx reload&7."));
                 return true;
             }
         }

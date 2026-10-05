@@ -20,7 +20,7 @@ public class GdxTabCompleter implements TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!(sender instanceof Player p))
-            return args.length == 1 ? filter(List.of("reload"), args[0]) : List.of();
+            return args.length == 1 ? filter(List.of("reload", "config"), args[0]) : List.of();
         boolean admin = p.hasPermission("gamblingdex.admin");
         GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
         var mm = plugin.getModuleManager();
@@ -30,7 +30,7 @@ public class GdxTabCompleter implements TabCompleter {
             List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top", "history", "achievements"));
             if (admin)
                 out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
-                        "disable", "enable", "maintenance", "schedule", "inspect"));
+                        "disable", "enable", "maintenance", "schedule", "inspect", "config"));
             if (mm != null)
                 for (GameModule m : mm.getModules()) {
                     if (mm.byCommand(m.id()) == null)
@@ -104,6 +104,9 @@ public class GdxTabCompleter implements TabCompleter {
                 }
                 case "reload", "schedule" -> {
                     return List.of();
+                }
+                case "config" -> {
+                    return n == 2 ? filter(List.of("check"), cur) : List.of();
                 }
                 case "inspect" -> {
                     if (n != 2)

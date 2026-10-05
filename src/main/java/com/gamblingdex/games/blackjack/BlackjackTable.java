@@ -2465,7 +2465,10 @@ public class BlackjackTable {
         World w = center.getWorld();
         Entity dealer = w == null || dealerId == null ? null : w.getEntity(dealerId);
         com.gamblingdex.util.DealerTalk.say(plugin, "blackjack.dealer_talk", "bj:" + System.identityHashCode(this),
-                center.clone().add(0.5, 1.0, 0.5), dealer == null || dealer.isDead() ? null : dealer.getLocation(), event, null,
+                center.clone().add(0.5, 1.0, 0.5), dealer == null || dealer.isDead() ? null
+                        // Arriba del todo: la línea más alta del holograma de la mesa está en holo_height + 0.6
+                        : dealer.getLocation().add(0, plugin.getConfig().getDouble("blackjack.holo_height", 2.3) + 0.6, 0),
+                event, null,
                 player == null ? Map.of() : Map.of("player", player), false);
     }
 

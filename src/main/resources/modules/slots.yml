@@ -24,8 +24,8 @@ jackpot:
   # los que estén cerca de una estación de slots. Mientras siga alto, se repite cada repeat_minutes.
   bell:
     enabled: true
-    min_pot: 50000            # el pozo tiene que llegar a esto para que suene
-    repeat_minutes: 10        # 0 = solo una vez cada vez que pasa el mínimo
+    min_pot: 300000           # el pozo tiene que llegar a esto para que suene
+    repeat_minutes: 30        # mientras siga alto, vuelve a sonar cada tanto (0 = solo una vez al pasar el mínimo)
     radius: 20                # bloques alrededor de cada estación de slots
     sound: block.bell.use
     volume: 1.0

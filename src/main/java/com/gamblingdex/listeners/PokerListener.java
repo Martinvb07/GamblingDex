@@ -205,7 +205,7 @@ public class PokerListener implements Listener {
                         org.bukkit.Location c = table.getCenter();
                         com.gamblingdex.util.DealerTalk.say(plugin, "poker.dealer_talk", "pk:" + table.getTableKey(),
                                 c == null ? player.getLocation() : c.clone().add(0.5, 1.0, 0.5),
-                                c == null ? null : c.clone().add(0.5, 0, 0.5), "tip", null,
+                                c == null ? null : c.clone().add(0.5, cfg.getDouble("poker.holo_height", 1.0), 0.5), "tip", null,
                                 java.util.Map.of("player", player.getName(), "amount", PokerTable.units(amount)), true);
                         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
                         plugin.getLogger().info("[Póker] " + player.getName() + " dio " + amount + " de propina en " + table.getName());

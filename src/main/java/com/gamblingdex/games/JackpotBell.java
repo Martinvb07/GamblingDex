@@ -54,13 +54,13 @@ public final class JackpotBell {
             if (!cfg.getBoolean(pot.base() + ".enabled", pot.enabledByDefault()) || !cfg.getBoolean(b + ".enabled", true))
                 continue;
             long amount = pot.amount().getAsLong();
-            long min = Math.max(1, cfg.getLong(b + ".min_pot", 50000));
+            long min = Math.max(1, cfg.getLong(b + ".min_pot", 300000));
             if (amount < min) {
                 lastRing.remove(pot.base()); // bajó (se lo ganaron): vuelve a sonar al pasar el mínimo
                 continue;
             }
             Long last = lastRing.get(pot.base());
-            long repeat = Math.max(0, cfg.getLong(b + ".repeat_minutes", 10)) * 60_000L;
+            long repeat = Math.max(0, cfg.getLong(b + ".repeat_minutes", 30)) * 60_000L;
             if (last != null && (repeat == 0 || now - last < repeat))
                 continue;
             if (ring(cfg, b, amount, pot))

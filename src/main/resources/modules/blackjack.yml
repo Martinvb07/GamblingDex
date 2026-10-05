@@ -94,7 +94,7 @@ dealer_talk:
   radius: 10                            # bloques: quién lee las frases en el chat
   bubble: true                          # globo de texto sobre el crupier
   bubble_format: "&f{message}"
-  bubble_height: 3.3                    # altura del globo sobre los pies del crupier
+  bubble_height: 0.5                    # bloques POR ENCIMA del holograma de la mesa (nunca se encima con él)
   bubble_ticks: 60                      # cuánto dura el globo (20 = 1 s)
   phrases:
     round_start:

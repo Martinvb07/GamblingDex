@@ -68,7 +68,7 @@ dealer_talk:
   radius: 10
   bubble: true
   bubble_format: "&f{message}"
-  bubble_height: 2.2        # sobre el bloque centro de la mesa
+  bubble_height: 2.0        # bloques por encima del inicio del cartel de la mesa (cartas y bote)
   bubble_ticks: 60
   phrases:
     tip:
