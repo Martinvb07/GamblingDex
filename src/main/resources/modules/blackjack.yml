@@ -122,9 +122,12 @@ dealer_talk:
     player_win:                         # el que más ganó en la ronda
       - "Buena mano, {player}."
       - "Bien jugado, {player}."
-    house_wins:                         # nadie ganó
+    house_wins:                         # nadie ganó y alguien perdió (mano o laterales)
       - "La casa gana esta vez."
       - "Esta ronda es para la casa."
+    push:                               # todos empataron
+      - "Empate. Nadie pierde esta vez."
+      - "Empatamos. ¡Otra ronda!"
 # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
 dealer_draw_interval_ticks: 40
 # Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda

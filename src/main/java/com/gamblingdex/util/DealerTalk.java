@@ -32,6 +32,7 @@ public final class DealerTalk {
             Map.entry("player_split", List.of("{player} divide. Veamos qué sale.", "Dos manos para {player}.")),
             Map.entry("player_win", List.of("Buena mano, {player}.", "Bien jugado, {player}.")),
             Map.entry("house_wins", List.of("La casa gana esta vez.", "Esta ronda es para la casa.")),
+            Map.entry("push", List.of("Empate. Nadie pierde esta vez.", "Empatamos. ¡Otra ronda!")),
             Map.entry("tip", List.of("¡Gracias por la propina, {player}!", "Muy amable, {player}. ¡Suerte en la mesa!")));
 
     private static final Map<String, Long> lastSay = new HashMap<>();

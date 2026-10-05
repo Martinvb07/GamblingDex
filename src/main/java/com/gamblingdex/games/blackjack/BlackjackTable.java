@@ -2223,6 +2223,7 @@ public class BlackjackTable {
         String bestWinner = null;
         long bestNet = 0L;
         boolean anyPlayed = false;
+        boolean anyLost = false;
         for (UUID id : new ArrayList<>(hands.keySet())) {
             Player p = Bukkit.getPlayer(id);
             List<Hand> list = handsOf(id);
@@ -2311,6 +2312,8 @@ public class BlackjackTable {
             long net = totalPayout - totalBet + early;
             roundNet.put(id, net);
             anyPlayed = true;
+            if (net < 0)
+                anyLost = true;
             if (net > bestNet) {
                 bestNet = net;
                 bestWinner = p.getName();
@@ -2346,8 +2349,10 @@ public class BlackjackTable {
             dealerSay("dealer_bust", null);
         else if (bestWinner != null)
             dealerSay("player_win", bestWinner);
-        else if (anyPlayed && !dealerBj)
+        else if (anyLost && !dealerBj)
             dealerSay("house_wins", null);
+        else if (anyPlayed && !dealerBj)
+            dealerSay("push", null); // todos empataron: nadie ganó ni perdió
 
         // Mantener cartas y resultados en pantalla antes de limpiar la mesa.
         resultSecondsLeft = resultDisplaySeconds();
