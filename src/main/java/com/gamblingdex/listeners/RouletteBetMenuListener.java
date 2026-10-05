@@ -88,6 +88,26 @@ public class RouletteBetMenuListener implements Listener {
                     new RouletteNumberMenu(plugin).open(player, table);
                 }
             }
+            case "wheel" -> {
+                Integer number = pdc.get(kValue, PersistentDataType.INTEGER);
+                if (number == null)
+                    return;
+                int chip = RouletteNumberMenu.selectedChip(player);
+                long amount = (long) chip * (event.isShiftClick() ? 5 : 1);
+                if (table.placeBetFromWallet(player, WorldRouletteBetType.NUMBER, number, amount))
+                    player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_CHAIN_PLACE, 0.7f, 1.6f);
+                else
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+                new RouletteNumberMenu(plugin).refresh(player, table);
+            }
+            case "chip" -> {
+                Integer value = pdc.get(kValue, PersistentDataType.INTEGER);
+                if (value == null)
+                    return;
+                RouletteNumberMenu.selectChip(player, value);
+                player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
+                new RouletteNumberMenu(plugin).refresh(player, table);
+            }
             case "number" -> {
                 Integer number = pdc.get(kValue, PersistentDataType.INTEGER);
                 if (number == null)

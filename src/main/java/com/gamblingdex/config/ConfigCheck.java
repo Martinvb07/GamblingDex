@@ -175,6 +175,23 @@ public final class ConfigCheck {
                     if (!found)
                         add("jackpot.symbol", "el símbolo &c" + sym + "&7 no está en symbol_weights (o tiene peso 0): el jackpot nunca saldría");
                 }
+                ConfigurationSection themes = y.getConfigurationSection("themes");
+                if (themes != null && y.getBoolean("jackpot.enabled", true))
+                    for (String t : themes.getKeys(false)) {
+                        String tsym = themes.getString(t + ".jackpot.symbol", sym);
+                        ConfigurationSection tw = themes.getConfigurationSection(t + ".symbol_weights");
+                        if (tw == null)
+                            tw = w;
+                        if (tw == null || tw.getKeys(false).isEmpty())
+                            continue;
+                        boolean ok = false;
+                        for (String k : tw.getKeys(false))
+                            if (k.equalsIgnoreCase(tsym) && tw.getDouble(k) > 0)
+                                ok = true;
+                        if (!ok)
+                            add("themes." + t + ".jackpot.symbol", "el símbolo &c" + tsym
+                                    + "&7 no está en los symbol_weights del tema: en esa máquina el jackpot nunca saldría");
+                    }
                 double pct = y.getDouble("jackpot.contribution_percent", 2.0);
                 if (pct < 0 || pct > 50)
                     add("jackpot.contribution_percent", "tiene que estar entre 0 y 50");

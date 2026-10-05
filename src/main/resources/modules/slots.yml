@@ -48,6 +48,62 @@ symbol_weights:
   IRON_INGOT: 10
   AMETHYST_SHARD: 10
   NETHER_STAR: 10
+# Nombres de los símbolos en el menú (opcional). Ej.: DIAMOND: "Diamante"
+symbol_names: {}
+
+# Temas: cada estación de slots puede ser una máquina distinta con sus propios
+# símbolos, pesos y pagos. Crear: mira el bloque y usa /gdx station set slots <tema>
+# (sin tema = la máquina clásica de arriba). Lo que no pongas en el tema se toma de
+# arriba. El jackpot progresivo es el MISMO pozo para todas las máquinas; cada tema
+# elige qué símbolo lo gana (jackpot.symbol, tiene que estar en sus symbol_weights).
+themes:
+  nether:
+    name: "&c&lSLOTS DEL NETHER"
+    holo: "&c&lSLOTS DEL NETHER\n&7Click para jugar"
+    title: "&8&l✦ &c&lSLOTS DEL NETHER &8&l✦"
+    symbol_weights:
+      NETHERITE_INGOT: 5
+      BLAZE_ROD: 10
+      MAGMA_CREAM: 12
+      QUARTZ: 12
+      GOLD_NUGGET: 12
+      NETHER_STAR: 5
+    symbol_names:
+      NETHERITE_INGOT: "Netherita"
+      BLAZE_ROD: "Vara de blaze"
+      MAGMA_CREAM: "Magma"
+      QUARTZ: "Cuarzo"
+      GOLD_NUGGET: "Pepita"
+      NETHER_STAR: "Estrella"
+    payout:
+      triple_multiplier: 6
+      double_multiplier: 2
+    jackpot:
+      symbol: NETHER_STAR
+  oceano:
+    name: "&b&lSLOTS DEL OCÉANO"
+    holo: "&b&lSLOTS DEL OCÉANO\n&7Click para jugar"
+    title: "&8&l✦ &b&lSLOTS DEL OCÉANO &8&l✦"
+    symbol_weights:
+      HEART_OF_THE_SEA: 5
+      TRIDENT: 8
+      PRISMARINE_CRYSTALS: 12
+      NAUTILUS_SHELL: 12
+      TROPICAL_FISH: 12
+      NETHER_STAR: 5
+    symbol_names:
+      HEART_OF_THE_SEA: "Corazón del mar"
+      TRIDENT: "Tridente"
+      PRISMARINE_CRYSTALS: "Prismarina"
+      NAUTILUS_SHELL: "Caracola"
+      TROPICAL_FISH: "Pez tropical"
+      NETHER_STAR: "Estrella"
+    payout:
+      triple_multiplier: 5
+      double_multiplier: 2
+    jackpot:
+      symbol: NETHER_STAR
+
 log_big_wins:
   # Si es >0, loggea premios >= threshold_units
   threshold_units: 0

@@ -27,7 +27,7 @@ public class GdxTabCompleter implements TabCompleter {
         String a0 = args[0].toLowerCase(Locale.ROOT);
 
         if (args.length == 1) {
-            List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top", "history", "achievements"));
+            List<String> out = new ArrayList<>(List.of("help", "balance", "profile", "stats", "top", "history", "achievements"));
             if (admin)
                 out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
                         "disable", "enable", "maintenance", "schedule", "inspect", "config", "sign"));
@@ -176,6 +176,10 @@ public class GdxTabCompleter implements TabCompleter {
                     if (mm.byCommand(m.id()) != null && !m.stationTypes().isEmpty())
                         types.add(m.stationTypes().get(0));
             return filter(types, cur);
+        }
+        if (n == 4 && args[2].equalsIgnoreCase("slots")) {
+            var sc = GamblingDexPlugin.getInstance().getSlotsController();
+            return sc == null ? List.of() : filter(sc.themes(), cur);
         }
         GameModule m = mm == null ? null : mm.byStationType(args[2]);
         if (m == null)

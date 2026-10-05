@@ -68,8 +68,8 @@ public class SlotsController {
         return Math.max(0, plugin.getConfig().getLong("games.slots.jackpot.seed", 10000));
     }
 
-    private Material jackpotSymbol() {
-        Material m = Material.matchMaterial(plugin.getConfig().getString("games.slots.jackpot.symbol", "NETHER_STAR"));
+    private Material jackpotSymbol(SlotsState s) {
+        Material m = Material.matchMaterial(plugin.getConfig().getString(tp(s, "jackpot.symbol"), "NETHER_STAR"));
         return m == null ? Material.NETHER_STAR : m;
     }
 
@@ -90,6 +90,7 @@ public class SlotsController {
     }
 
     private static final class SlotsState {
+        String theme; // tema de la estación (null = el clásico)
         long bet;
         boolean spinning;
         long lastSpinAtMs;
@@ -105,6 +106,36 @@ public class SlotsController {
     // Config
     // ------------------------------------------------------------------
 
+    /**
+     * Ruta de una opción para el tema de la estación: si slots.yml →
+     * themes.&lt;tema&gt;.&lt;opción&gt; existe se usa esa; si no, la de siempre.
+     */
+    private String tp(SlotsState s, String key) {
+        if (s != null && s.theme != null) {
+            String t = "games.slots.themes." + s.theme + "." + key;
+            if (plugin.getConfig().contains(t))
+                return t;
+        }
+        return "games.slots." + key;
+    }
+
+    /** Temas que hay en slots.yml → themes. */
+    public List<String> themes() {
+        ConfigurationSection sec = plugin.getConfig().getConfigurationSection("games.slots.themes");
+        return sec == null ? List.of() : new ArrayList<>(sec.getKeys(false));
+    }
+
+    public boolean themeExists(String theme) {
+        return theme != null && plugin.getConfig().isConfigurationSection("games.slots.themes." + theme);
+    }
+
+    /** Nombre bonito del tema (para el holograma y el menú). */
+    public String themeName(String theme) {
+        if (!themeExists(theme))
+            return null;
+        return plugin.getConfig().getString("games.slots.themes." + theme + ".name", theme);
+    }
+
     private long min() {
         return Math.max(1, plugin.getConfig().getLong("games.slots.min_bet", 10));
     }
@@ -113,26 +144,41 @@ public class SlotsController {
         return Math.max(0, plugin.getConfig().getLong("games.slots.max_bet", 0));
     }
 
-    private long tripleMult() {
-        return Math.max(1L, plugin.getConfig().getLong("games.slots.payout.triple_multiplier", 5L));
+    private long tripleMult(SlotsState s) {
+        return Math.max(1L, plugin.getConfig().getLong(tp(s, "payout.triple_multiplier"), 5L));
     }
 
-    private long doubleMult() {
-        return Math.max(1L, plugin.getConfig().getLong("games.slots.payout.double_multiplier", 2L));
+    private long doubleMult(SlotsState s) {
+        return Math.max(1L, plugin.getConfig().getLong(tp(s, "payout.double_multiplier"), 2L));
     }
 
     // ------------------------------------------------------------------
 
     public void open(Player player) {
+        SlotsState s = states.get(player.getUniqueId());
+        open(player, s == null ? null : s.theme);
+    }
+
+    /** Abre las slots con el tema de la estación (null = clásico). */
+    public void open(Player player, String theme) {
         SlotsState s = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
+        if (s.spinning)
+            theme = s.theme; // no cambiar de máquina a mitad de un giro
+        String t = themeExists(theme) ? theme : null;
+        if (!Objects.equals(t, s.theme)) {
+            s.theme = t;
+            s.reels = new Material[3][3]; // otros símbolos
+        }
         if (s.bet <= 0)
             s.bet = min();
         if (s.reels[0][0] == null)
             for (int r = 0; r < 3; r++)
                 for (int y = 0; y < 3; y++)
-                    s.reels[r][y] = randomSymbolWeighted();
+                    s.reels[r][y] = randomSymbolWeighted(s);
         SlotsHolder holder = new SlotsHolder(player.getUniqueId());
-        String raw = plugin.getConfig().getString("gui.slots.title", "&8&l✦ &d&lTRAGAMONEDAS &8&l✦");
+        String raw = s.theme != null && plugin.getConfig().isString(tp(s, "title"))
+                ? plugin.getConfig().getString(tp(s, "title"))
+                : plugin.getConfig().getString("gui.slots.title", "&8&l✦ &d&lTRAGAMONEDAS &8&l✦");
         if (raw == null || raw.equals("&dTragamonedas")) // título de la versión anterior
             raw = "&8&l✦ &d&lTRAGAMONEDAS &8&l✦";
         String title = plugin.color(raw);
@@ -160,13 +206,13 @@ public class SlotsController {
             inv.setItem(36 + i, Icons.of(light, " ", null));
         }
         if (jackpotEnabled())
-            inv.setItem(4, Icons.of(jackpotSymbol(), 1, "&6&l★ JACKPOT: &e&l" + fmt(jackpot) + " &6&l★", List.of(
-                    "&73 &f" + symbolName(jackpotSymbol()) + "&7 en la línea se llevan",
+            inv.setItem(4, Icons.of(jackpotSymbol(s), 1, "&6&l★ JACKPOT: &e&l" + fmt(jackpot) + " &6&l★", List.of(
+                    "&73 &f" + name(s, jackpotSymbol(s)) + "&7 en la línea se llevan",
                     "&7todo el pozo (además del triple).",
                     "&8Cada tirada suma al pozo."), true));
         else
-            inv.setItem(4, Icons.of(Material.NETHER_STAR, 1, "&d&lTRAGAMONEDAS",
-                    List.of("&7Tres iguales en la línea: &ax" + tripleMult(), "&7Dos iguales: &ax" + doubleMult()), true));
+            inv.setItem(4, Icons.of(Material.NETHER_STAR, 1, s.theme != null ? themeName(s.theme) : "&d&lTRAGAMONEDAS",
+                    List.of("&7Tres iguales en la línea: &ax" + tripleMult(s), "&7Dos iguales: &ax" + doubleMult(s)), true));
 
         // Marco de los rodillos
         for (int row = 1; row <= 3; row++)
@@ -180,7 +226,7 @@ public class SlotsController {
                 boolean line = y == 1;
                 boolean winning = line && !s.spinning && s.lastPay > 0 && s.result != null && isWinning(s.result, r);
                 inv.setItem(REEL_SLOTS[r][y], Icons.of(m == null ? Material.BARRIER : m, 1,
-                        (line ? "&f&l" : "&7") + symbolName(m), null, winning));
+                        (line ? "&f&l" : "&7") + name(s, m), null, winning));
             }
         }
         // Flechas de la línea de pago
@@ -190,14 +236,14 @@ public class SlotsController {
 
         // Lado izquierdo / derecho
         List<String> pay = new ArrayList<>();
-        pay.add("&7Tres iguales: &a&lx" + tripleMult());
-        pay.add("&7Dos iguales: &ax" + doubleMult());
+        pay.add("&7Tres iguales: &a&lx" + tripleMult(s));
+        pay.add("&7Dos iguales: &ax" + doubleMult(s));
         if (jackpotEnabled())
-            pay.add("&63 " + symbolName(jackpotSymbol()) + ": &6&lJACKPOT &e" + fmt(jackpot));
+            pay.add("&63 " + name(s, jackpotSymbol(s)) + ": &6&lJACKPOT &e" + fmt(jackpot));
         pay.add("");
         pay.add("&7Símbolos:");
-        for (Material m : symbols())
-            pay.add("&8• &f" + symbolName(m));
+        for (Material m : symbols(s))
+            pay.add("&8• &f" + name(s, m));
         inv.setItem(S_PAYTABLE, Icons.of(Material.BOOK, 1, "&e&lTabla de pagos", pay, false));
         inv.setItem(S_BALANCE, Icons.of(Material.SUNFLOWER, "&7Tus fichas: &e" + fmt(TokenWallet.balance(p)), null));
         if (s.lastPay < 0)
@@ -228,8 +274,8 @@ public class SlotsController {
             inv.setItem(S_DOUBLE, Icons.of(Material.LIME_STAINED_GLASS_PANE, "&ax2", List.of("&7Doble de la apuesta")));
             inv.setItem(S_MAX, Icons.of(Material.GOLD_BLOCK, "&6Máximo", List.of("&7Todas tus fichas" + (max() > 0 ? " (hasta " + fmt(max()) + ")" : ""))));
             inv.setItem(S_SPIN, Icons.of(Material.LEVER, 1, "&a&lGIRAR &8» &e" + u, List.of(
-                    "&7Tres iguales: &a" + fmt(s.bet * tripleMult()),
-                    "&7Dos iguales: &a" + fmt(s.bet * doubleMult())), true));
+                    "&7Tres iguales: &a" + fmt(s.bet * tripleMult(s)),
+                    "&7Dos iguales: &a" + fmt(s.bet * doubleMult(s))), true));
         }
         Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
@@ -298,7 +344,7 @@ public class SlotsController {
         s.lastSpinAtMs = now;
         s.spinBet = s.bet;
         s.frame = 0;
-        s.result = new Material[] { randomSymbolWeighted(), randomSymbolWeighted(), randomSymbolWeighted() };
+        s.result = new Material[] { randomSymbolWeighted(s), randomSymbolWeighted(s), randomSymbolWeighted(s) };
         if (jackpotEnabled()) {
             double pct = Math.max(0, Math.min(50, plugin.getConfig().getDouble("games.slots.jackpot.contribution_percent", 2.0)));
             jackpot += (long) Math.floor(s.spinBet * pct / 100.0);
@@ -320,11 +366,11 @@ public class SlotsController {
                 // baja una posición
                 s.reels[r][2] = s.reels[r][1];
                 s.reels[r][1] = s.reels[r][0];
-                s.reels[r][0] = randomSymbolWeighted();
+                s.reels[r][0] = randomSymbolWeighted(s);
             } else if (s.frame == STOP_FRAME[r]) {
-                s.reels[r][0] = randomSymbolWeighted();
+                s.reels[r][0] = randomSymbolWeighted(s);
                 s.reels[r][1] = s.result[r];
-                s.reels[r][2] = randomSymbolWeighted();
+                s.reels[r][2] = randomSymbolWeighted(s);
                 if (p.isOnline())
                     p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 0.8f, 1.0f + r * 0.2f);
             }
@@ -352,10 +398,10 @@ public class SlotsController {
         long payout = 0;
         boolean triple = res[0] == res[1] && res[1] == res[2];
         if (triple)
-            payout = s.spinBet * tripleMult();
+            payout = s.spinBet * tripleMult(s);
         else if (res[0] == res[1] || res[1] == res[2] || res[0] == res[2])
-            payout = s.spinBet * doubleMult();
-        boolean jackpotWin = triple && jackpotEnabled() && res[0] == jackpotSymbol() && jackpot > 0;
+            payout = s.spinBet * doubleMult(s);
+        boolean jackpotWin = triple && jackpotEnabled() && res[0] == jackpotSymbol(s) && jackpot > 0;
         long pot = 0;
         if (jackpotWin) {
             pot = jackpot;
@@ -421,8 +467,8 @@ public class SlotsController {
 
     // ------------------------------------------------------------------
 
-    private List<Material> symbols() {
-        ConfigurationSection sec = plugin.getConfig().getConfigurationSection("games.slots.symbol_weights");
+    private List<Material> symbols(SlotsState s) {
+        ConfigurationSection sec = plugin.getConfig().getConfigurationSection(tp(s, "symbol_weights"));
         List<Material> out = new ArrayList<>();
         if (sec != null)
             for (String k : sec.getKeys(false)) {
@@ -433,8 +479,8 @@ public class SlotsController {
         return out.isEmpty() ? REELS : out;
     }
 
-    private Material randomSymbolWeighted() {
-        ConfigurationSection sec = plugin.getConfig().getConfigurationSection("games.slots.symbol_weights");
+    private Material randomSymbolWeighted(SlotsState s) {
+        ConfigurationSection sec = plugin.getConfig().getConfigurationSection(tp(s, "symbol_weights"));
         if (sec == null)
             return REELS.get(ThreadLocalRandom.current().nextInt(REELS.size()));
         List<Material> mats = new ArrayList<>();
@@ -459,6 +505,16 @@ public class SlotsController {
                 return mats.get(i);
         }
         return mats.get(mats.size() - 1);
+    }
+
+    /** Nombre del símbolo: slots.yml → symbol_names (o el del tema), si no el de siempre. */
+    private String name(SlotsState s, Material m) {
+        if (m != null) {
+            String custom = plugin.getConfig().getString(tp(s, "symbol_names." + m.name()));
+            if (custom != null && !custom.isBlank())
+                return custom;
+        }
+        return symbolName(m);
     }
 
     private static String symbolName(Material m) {

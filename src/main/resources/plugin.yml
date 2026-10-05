@@ -2,7 +2,7 @@ depend: [Vault]
 softdepend: [PlaceholderAPI]
 name: GamblingDex
 main: com.gamblingdex.GamblingDexPlugin
-version: 1.2.0
+version: 1.3.0
 api-version: 1.20
 author: marti
 website: https://example.com

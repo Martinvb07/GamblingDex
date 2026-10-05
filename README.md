@@ -42,8 +42,8 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 |---|---|
 | 🃏 **Blackjack** | Mesa con dealer y asientos reales (de 1 a 7 jugadores: se puede jugar solo). Zapato de 6 barajas, *split*, doblar, pago 3:2 y apuestas laterales **Perfect Pairs** y **21+3**. |
 | 🃏 **Baccarat** | Mesa con dealer y asientos como el blackjack. Apuestas a Jugador, Banca o Empate (y parejas), reglas reales de tercera carta. |
-| ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas de cada jugador solo las ve él. |
-| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), con **jackpot** acumulado que cae en un número al azar. Menú ordenado como la mesa, apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
+| ♠️ **Póker Texas Hold'em** | No-limit, hasta 9 asientos, ciegas configurables, comisión de la casa (*rake*) y **torneos sit & go** con ciegas crecientes y reparto de premios. Las cartas se reparten **una por una** desde la ciega chica (cada jugador solo ve las suyas) y el flop, turn y river también salen de a una, con sonido. |
+| 🔴 **Ruleta americana** | Ruleta construida con bloques (con 0 y 00), con **jackpot** acumulado que cae en un número al azar. Menú ordenado como la mesa, **rueda de números** para echar tus fichas en los plenos (los 38 números en el orden de la rueda, con tus fichas abajo), apuestas sin tope, botón de **repetir apuesta** y una luz que gira rápido y frena hasta caer en el ganador. |
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Cada mesa tiene su propia ronda, con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
@@ -129,7 +129,8 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx help` | Muestra la ayuda |
 | `/gdx balance` | Tu saldo interno |
 | `/gdx stats [jugador]` | Estadísticas propias o de otro jugador |
-| `/gdx top [week] [n]` | Ranking de ganancias (todos los juegos) |
+| `/gdx top` | **Ranking en un menú**: podio con las cabezas de los 3 primeros, del 4° al 10°, siempre o esta semana, por ganancias, mayor premio, más apostado o póker, y por juego (`/gdx top week` lo muestra en el chat) |
+| `/gdx profile` | **Tu perfil**: fichas, bono, ganancias y puesto en el ranking, juego favorito, póker, logros y últimas apuestas |
 | `/gdx history` | Tus últimas 10 apuestas |
 | `/gdx achievements` | Tus logros del casino (menú) |
 | `/gdx coinflip` · `create <amount> [cara\|sello]` · `cancel` | Coinflip |
@@ -149,6 +150,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx station set wheel` | Construir la rueda física (mirando un faro) |
 | `/gdx station set mines` | Estación de Mines con menú (mirando cualquier bloque) |
 | `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
+| `/gdx station set slots <theme>` | Slots con **tema** (cada máquina con sus símbolos y pagos, `slots.yml` → `themes`: `nether`, `oceano`...) |
 | `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
 | `/gdx station set tower` | Estación de Tower con menú (mirando cualquier bloque) |
 | `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |

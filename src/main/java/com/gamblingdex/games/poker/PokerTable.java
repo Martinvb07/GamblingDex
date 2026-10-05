@@ -125,6 +125,11 @@ public class PokerTable {
     private String lastAction = "";
 
     private BukkitTask menuTask;
+    /** Repartiendo cartas una por una (las propias o las de la mesa): no se apuesta. */
+    private boolean dealingCards;
+    private BukkitTask dealTask;
+    /** Cuántas de sus 2 cartas ya recibió cada asiento mientras se reparte. */
+    private final Map<Integer, Integer> shownHole = new HashMap<>();
 
     // ---- Hologramas (no persistentes: se recrean solos) ----
     private UUID boardDisplayId;
@@ -277,6 +282,12 @@ public class PokerTable {
 
     public void tick() {
         scanSeats();
+        if (dealingCards) {
+            // Repartiendo una por una: el resto espera (apuestas, all-in, tiempos).
+            sendActionBars();
+            updateDisplays();
+            return;
+        }
 
         switch (state) {
             case WAITING -> maybeStartCountdown();
@@ -755,30 +766,109 @@ public class PokerTable {
         state = State.BETTING;
         lastAction = "";
 
+        // Como en la mesa real: una carta a cada uno (desde la ciega chica), otra
+        // vuelta y después empiezan las apuestas. Cada uno solo ve las suyas.
+        List<Integer> order = new ArrayList<>();
+        for (int round = 0; round < 2; round++) {
+            int i = sbSeat;
+            for (int k = 0; k < dealt.size(); k++) {
+                order.add(i);
+                i = nextSeat(i, dealt::contains);
+            }
+        }
+
         broadcast(msg("hand_started",
                 "&6&lPóker &8» &7Mano &f#{hand} &8| &7Botón: &f{button} &8| &7Ciegas: &f{sbname} &8(&e{sb}&8) &7y &f{bbname} &8(&e{bb}&8)",
                 "hand", String.valueOf(handNumber), "button", seatName(button),
                 "sbname", seatName(sbSeat), "sb", units(smallBlind),
                 "bbname", seatName(bbSeat), "bb", units(bigBlind)));
 
-        for (int i : dealt) {
-            Player p = Bukkit.getPlayer(seats.get(i).player);
-            if (p == null)
-                continue;
-            // Solo en la pantalla del jugador (título), nunca en el mundo.
-            p.sendTitle(plugin.color(formatCards(hole.get(i))),
-                    plugin.color(msg("your_cards_subtitle", "&7{hand}", "hand", getHandStrength(p.getUniqueId()))),
-                    5, 40, 10);
-            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 1.0f, 1.0f);
-        }
+        Runnable afterDeal = () -> {
+            for (int i : dealt) {
+                Player p = Bukkit.getPlayer(seats.get(i).player);
+                if (p == null || folded.contains(i))
+                    continue;
+                // Solo en la pantalla del jugador (título), nunca en el mundo.
+                p.sendTitle(plugin.color(formatCards(hole.get(i))),
+                        plugin.color(msg("your_cards_subtitle", "&7{hand}", "hand", getHandStrength(p.getUniqueId()))),
+                        5, 40, 10);
+            }
+            int first = liveCount() <= 1 ? -1 : nextActor(bbSeat);
+            if (first < 0) {
+                endStreet();
+            } else {
+                beginTurn(first);
+            }
+            updateDisplays();
+        };
 
-        int first = nextActor(bbSeat);
-        if (first < 0) {
-            endStreet();
-        } else {
-            beginTurn(first);
+        int interval = cfgInt("deal_interval_ticks", 8, 0, 100);
+        if (interval == 0) {
+            playTableSound("card", "item.book.page_turn", 1.2f);
+            afterDeal.run();
+            return;
         }
+        dealingCards = true;
+        shownHole.clear();
+        final int[] step = { 0 };
+        dealTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (step[0] < order.size()) {
+                int seat = order.get(step[0]++);
+                shownHole.merge(seat, 1, Integer::sum);
+                playTableSound("card", "item.book.page_turn", 1.2f);
+                Player p = seats.get(seat).player == null ? null : Bukkit.getPlayer(seats.get(seat).player);
+                if (p != null && !folded.contains(seat))
+                    sendCardsBar(p, seat);
+                updateDisplays();
+                return;
+            }
+            cancelDealTask();
+            afterDeal.run();
+        }, interval, interval);
         updateDisplays();
+    }
+
+    /** Lo que ya recibió el jugador mientras se reparte (solo él lo ve). */
+    private void sendCardsBar(Player p, int seat) {
+        p.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(plugin.color(
+                msg("actionbar_dealing", "&7Repartiendo... &8| &7Tus cartas: {cards}", "cards",
+                        formatCards(visibleHole(seat))))));
+    }
+
+    /** Cartas propias que ya se ven (mientras se reparte, solo las que llegaron). */
+    private List<Card> visibleHole(int seat) {
+        List<Card> h = hole.get(seat);
+        if (h == null || !dealingCards || street != Street.PREFLOP)
+            return h;
+        int n = Math.min(h.size(), shownHole.getOrDefault(seat, 0));
+        return h.subList(0, n);
+    }
+
+    private void cancelDealTask() {
+        if (dealTask != null) {
+            dealTask.cancel();
+            dealTask = null;
+        }
+        dealingCards = false;
+        shownHole.clear();
+    }
+
+    /**
+     * Sonido en la mesa (lo escuchan los que están cerca). poker.yml → sounds.&lt;key&gt;
+     * con el nombre del sonido de Minecraft; vacío = sin sonido.
+     */
+    private void playTableSound(String key, String def, float pitch) {
+        if (!plugin.getConfig().getBoolean("poker.sounds.enabled", true) || center == null)
+            return;
+        String name = plugin.getConfig().getString("poker.sounds." + key, def);
+        World w = center.getWorld();
+        if (w == null || name == null || name.isBlank())
+            return;
+        float vol = (float) plugin.getConfig().getDouble("poker.sounds.volume", 0.9);
+        try {
+            w.playSound(center.clone().add(0.5, 1.0, 0.5), name.toLowerCase(Locale.ROOT), vol, pitch);
+        } catch (Exception ignored) {
+        }
     }
 
     private void postBlind(int i, long blind) {
@@ -1116,6 +1206,8 @@ public class PokerTable {
     }
 
     private void endStreet() {
+        if (dealingCards)
+            return; // se termina de repartir y luego sigue solo
         streetBet.clear();
         currentBet = 0L;
         lastRaiseSize = bigBlind;
@@ -1135,51 +1227,76 @@ public class PokerTable {
             return;
         }
 
-        dealNextStreet();
-        int first = nextActor(button);
-        if (first < 0) {
-            endStreet();
-        } else {
-            beginTurn(first);
-        }
+        dealNextStreet(() -> {
+            int first = liveCount() <= 1 ? -1 : nextActor(button);
+            if (first < 0) {
+                endStreet();
+            } else {
+                beginTurn(first);
+            }
+        });
     }
 
-    private void dealNextStreet() {
+    /**
+     * Saca las cartas de la siguiente calle (flop, turn o river) una por una, con
+     * su sonido, y después sigue con {@code after}.
+     */
+    private void dealNextStreet(Runnable after) {
         deck.pollFirst(); // quemar
+        int count;
         switch (street) {
             case PREFLOP -> {
-                board.add(deck.pollFirst());
-                board.add(deck.pollFirst());
-                board.add(deck.pollFirst());
+                count = 3;
                 street = Street.FLOP;
                 flopSeen = true;
             }
             case FLOP -> {
-                board.add(deck.pollFirst());
+                count = 1;
                 street = Street.TURN;
             }
             case TURN -> {
-                board.add(deck.pollFirst());
+                count = 1;
                 street = Street.RIVER;
             }
-            default -> {
-            }
+            default -> count = 0;
         }
+        List<Card> cards = new ArrayList<>();
+        for (int k = 0; k < count; k++)
+            cards.add(deck.pollFirst());
 
-        String label = switch (street) {
-            case FLOP -> "Flop";
-            case TURN -> "Turn";
-            case RIVER -> "River";
-            default -> "";
+        Runnable done = () -> {
+            String label = switch (street) {
+                case FLOP -> "Flop";
+                case TURN -> "Turn";
+                case RIVER -> "River";
+                default -> "";
+            };
+            broadcast(msg("street", "&6&l{street} &8» {board} &8| &7Bote: &e{pot}",
+                    "street", label, "board", formatCards(board), "pot", units(getPot())));
+            updateDisplays();
+            after.run();
         };
-        broadcast(msg("street", "&6&l{street} &8» {board} &8| &7Bote: &e{pot}",
-                "street", label, "board", formatCards(board), "pot", units(getPot())));
-        for (int i : dealt) {
-            Player p = Bukkit.getPlayer(seats.get(i).player);
-            if (p != null)
-                p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 1.0f, 1.2f);
+
+        int interval = cfgInt("board_interval_ticks", 12, 0, 100);
+        if (interval == 0 || cards.isEmpty()) {
+            board.addAll(cards);
+            if (!cards.isEmpty())
+                playTableSound("card", "item.book.page_turn", 1.0f);
+            done.run();
+            return;
         }
-        updateDisplays();
+        dealingCards = true;
+        final int[] k = { 0 };
+        dealTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (k[0] < cards.size()) {
+                board.add(cards.get(k[0]++));
+                playTableSound("card", "item.book.page_turn", 1.0f);
+                updateDisplays();
+                return;
+            }
+            cancelDealTask();
+            done.run();
+        }, interval, interval);
     }
 
     /** Todos (menos uno) están all-in: se muestran las cartas y se reparte el resto. */
@@ -1204,9 +1321,8 @@ public class PokerTable {
             resolve(true);
             return;
         }
-        dealNextStreet();
         // Tras el river, el siguiente paso resuelve.
-        countdown = cfgInt("runout_delay_seconds", 2, 1, 30);
+        dealNextStreet(() -> countdown = cfgInt("runout_delay_seconds", 2, 1, 30));
     }
 
     // =====================================================================
@@ -1441,6 +1557,7 @@ public class PokerTable {
 
     private void clearHand() {
         cancelMenuTask();
+        cancelDealTask();
         dealt.clear();
         hole.clear();
         folded.clear();
@@ -1843,7 +1960,7 @@ public class PokerTable {
 
     public String getHandStrength(UUID playerId) {
         int i = seatOf(playerId);
-        if (i < 0 || !hole.containsKey(i))
+        if (i < 0 || !hole.containsKey(i) || (dealingCards && street == Street.PREFLOP))
             return "-";
         List<Card> all = new ArrayList<>(hole.get(i));
         all.addAll(board);
@@ -2274,7 +2391,7 @@ public class PokerTable {
                         "cards", formatCards(hole.get(i)), "seconds", String.valueOf(Math.max(0, countdown)));
             } else {
                 text = msg("actionbar", "&7Tus cartas: {cards} &8| &e{hand} &8| &7Fichas: &e{stack}",
-                        "cards", formatCards(hole.get(i)), "hand", getHandStrength(s.player),
+                        "cards", formatCards(visibleHole(i)), "hand", getHandStrength(s.player),
                         "stack", units(s.stack));
             }
             if (bet(i) > 0)
