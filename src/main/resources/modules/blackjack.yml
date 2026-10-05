@@ -41,6 +41,8 @@ seating:
     - QUARTZ_BLOCK
 # Tiempo para apostar antes de repartir
 bet_window_seconds: 20
+# Cuando todos los sentados ya apostaron, se reparte en estos segundos (0 = al instante)
+all_bet_countdown_seconds: 3
 # Tiempo por turno (hit/stand)
 turn_timeout_seconds: 20
 # Delay (en segundos) antes de abrir el menú de acciones (al iniciar el turno y tras pedir).

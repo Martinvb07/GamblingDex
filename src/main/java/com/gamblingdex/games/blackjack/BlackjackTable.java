@@ -1019,6 +1019,7 @@ public class BlackjackTable {
                 "&7Saliste de la mesa."));
 
         updateHologramText();
+        checkAllBet(); // los que quedan quizá ya apostaron todos
         return true;
     }
 
@@ -1067,7 +1068,41 @@ public class BlackjackTable {
                         "amount", prettyUnits(amountUnits),
                         "total", prettyUnits(newBet))));
         updateHologramText();
+        if (spot == BetSpot.MAIN)
+            checkAllBet();
         return true;
+    }
+
+    /**
+     * Si todos los sentados ya pusieron su apuesta principal, el reparto se
+     * adelanta: el contador baja a blackjack.all_bet_countdown_seconds (3 por
+     * defecto, para alcanzar a subir la apuesta o poner laterales; 0 = ya).
+     */
+    private void checkAllBet() {
+        if (state != State.BETTING || seated.isEmpty())
+            return;
+        for (UUID id : seated)
+            if (bets.getOrDefault(id, 0L) <= 0)
+                return;
+        int left = Math.max(0, plugin.getConfig().getInt("blackjack.all_bet_countdown_seconds", 3));
+        if (bettingSecondsLeft <= left)
+            return;
+        if (left == 0) {
+            // En el siguiente tick (ahora mismo se está procesando un click del menú)
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (state == State.BETTING) {
+                    stopBettingTask();
+                    startRound();
+                }
+            });
+            return;
+        }
+        bettingSecondsLeft = left;
+        broadcastToSeated(plugin.getMessages().format(
+                "blackjack.all_bet",
+                "&a¡Todos apostaron! &7Repartiendo en &f{seconds}s&7...",
+                Map.of("seconds", String.valueOf(left))));
+        updateHologramText();
     }
 
     /** Total de la última apuesta del jugador (0 si no jugó todavía). */
