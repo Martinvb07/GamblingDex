@@ -1990,8 +1990,6 @@ public class BlackjackTable {
                 return;
             }
 
-            spawnTurnMarkerParticles();
-
             turnSecondsLeft--;
             if (turnSecondsLeft <= 0) {
                 Player cp = Bukkit.getPlayer(currentTurn);
@@ -2029,7 +2027,9 @@ public class BlackjackTable {
 
         int count = Math.max(1, plugin.getConfig().getInt("blackjack.turn_marker.count", 1));
         World w = p.getWorld();
-        Location base = p.getLocation().clone().add(0, 2.9, 0);
+        // Por encima del cartel de cartas que flota sobre la cabeza (para que no lo tape)
+        double above = plugin.getConfig().getDouble("blackjack.hand_holo_height", 2.25) + 1.1;
+        Location base = p.getLocation().clone().add(0, Math.max(2.9, above), 0);
 
         // Arrow pointing DOWN: shaft above, head below.
         for (int i = 0; i < 5; i++) {
@@ -2801,6 +2801,9 @@ public class BlackjackTable {
                 return;
             }
             followHandDisplays();
+            // Flecha de turno 5 veces por segundo (antes 1 vez: casi no se veía)
+            if (roundDisplayTick % 2 == 0 && state == State.PLAYING && !dealing)
+                spawnTurnMarkerParticles();
             if (roundDisplayTick++ % 10 == 0) {
                 sendHandActionBars();
             }
