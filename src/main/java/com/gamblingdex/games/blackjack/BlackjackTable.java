@@ -77,6 +77,8 @@ public class BlackjackTable {
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
     private boolean earlyDealScheduled; // ya se programó el reparto porque todos apostaron
+    private boolean dealing; // repartiendo las cartas iniciales una por una
+    private org.bukkit.scheduler.BukkitTask dealTask;
     private UUID currentTurn;
     private Float dealerYaw;
     private long minBet; // apuesta principal mínima de esta mesa (0 = la de blackjack.yml)
@@ -472,6 +474,11 @@ public class BlackjackTable {
     }
 
     public void stopAllTasks() {
+        if (dealTask != null) {
+            dealTask.cancel();
+            dealTask = null;
+        }
+        dealing = false;
         if (dealerTask != null) {
             dealerTask.cancel();
             dealerTask = null;
@@ -1752,16 +1759,6 @@ public class BlackjackTable {
             activeHand.put(id, 0);
         }
 
-        // 2 cards each, then dealer
-        for (int i = 0; i < 2; i++) {
-            for (UUID id : participants) {
-                Hand h = firstHand(id);
-                if (h != null)
-                    h.add(draw());
-            }
-            dealerHand.add(draw());
-        }
-
         state = State.PLAYING;
         broadcastToParticipants(participants, plugin.getMessages().getString(
                 "blackjack.round_started",
@@ -1776,10 +1773,102 @@ public class BlackjackTable {
             }
         }
 
+        startRoundDisplayTask();
+
+        // Reparto como en la vida real: una carta a cada jugador en orden de silla,
+        // una al dealer (boca arriba), otra vuelta a los jugadores y la del dealer
+        // (boca abajo). Cada carta con una pequeña pausa.
+        List<UUID> order = seatOrder(participants);
+        List<UUID> steps = new ArrayList<>(); // null = dealer
+        for (int r = 0; r < 2; r++) {
+            steps.addAll(order);
+            steps.add(null);
+        }
+        int interval = Math.max(0, Math.min(40, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
+        if (interval == 0) {
+            for (UUID id : steps)
+                dealOne(id);
+            afterDeal(participants);
+            return;
+        }
+        dealing = true;
+        updateHologramText();
+        final int[] i = { 0 };
+        dealTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.PLAYING || i[0] >= steps.size()) {
+                if (dealTask != null)
+                    dealTask.cancel();
+                dealTask = null;
+                if (state == State.PLAYING && dealing) {
+                    dealing = false;
+                    afterDeal(participants);
+                }
+                return;
+            }
+            dealOne(steps.get(i[0]++));
+            updateHologramText();
+        }, interval, interval);
+    }
+
+    /** Una carta: a la primera mano del jugador, o al dealer si {@code id} es null. */
+    private void dealOne(UUID id) {
+        if (id == null) {
+            dealerHand.add(draw());
+        } else {
+            Hand h = firstHand(id);
+            if (h == null)
+                return; // se fue durante el reparto
+            h.add(draw());
+        }
+        World w = center.getWorld();
+        if (w != null)
+            w.playSound(center.clone().add(0.5, 1.0, 0.5), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
+    }
+
+    /** Orden de silla (asientos en el orden en que se registraron / alrededor de la mesa). */
+    private List<UUID> seatOrder(Collection<UUID> ids) {
+        List<UUID> out = new ArrayList<>(ids);
+        Map<UUID, Integer> idx = new HashMap<>();
+        for (UUID id : out)
+            idx.put(id, seatIndexOf(id));
+        out.sort(Comparator.comparingInt(id -> idx.getOrDefault(id, Integer.MAX_VALUE)));
+        return out;
+    }
+
+    private int seatIndexOf(UUID id) {
+        String key = assignedSeatByPlayer.get(id);
+        if (key != null) {
+            int k = seatKeys.indexOf(key);
+            if (k >= 0)
+                return k;
+        }
+        Player p = Bukkit.getPlayer(id);
+        if (p == null)
+            return Integer.MAX_VALUE;
+        String mode = plugin.getConfig().getString("blackjack.seating.mode", "manual");
+        Block feet = p.getLocation().getBlock();
+        Block below = feet.getRelative(BlockFace.DOWN);
+        if (mode != null && mode.trim().equalsIgnoreCase("manual")) {
+            String fk = BlackjackTables.key(feet.getLocation()), bk = BlackjackTables.key(below.getLocation());
+            for (int i = 0; i < seatKeys.size(); i++)
+                if (seatKeys.get(i).equals(fk) || seatKeys.get(i).equals(bk))
+                    return i;
+            return Integer.MAX_VALUE;
+        }
+        int max = getConfiguredMaxPlayers();
+        for (int i = 0; i < max; i++) {
+            Block seat = getSeatBlock(i, max);
+            if (seat != null && (feet.equals(seat) || below.equals(seat)))
+                return i;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    /** Ya están las 4 cartas repartidas: laterales, blackjack del dealer y naturales, primer turno. */
+    private void afterDeal(List<UUID> participants) {
+        participants.removeIf(id -> !hands.containsKey(id));
         // Side bets se pagan apenas se reparte (como en el casino).
         resolveSideBets(participants);
-
-        startRoundDisplayTask();
 
         // Peek: si el dealer tiene Blackjack, la ronda termina ya.
         if (dealerHand.isBlackjack()) {
@@ -2024,9 +2113,9 @@ public class BlackjackTable {
     }
 
     private UUID nextTurnCandidate(UUID after) {
-        // iterate in seated order
+        // en orden de silla
         boolean start = (after == null);
-        for (UUID id : seated) {
+        for (UUID id : seatOrder(seated)) {
             if (!hands.containsKey(id))
                 continue; // not in this round
             if (!start) {
@@ -2484,6 +2573,8 @@ public class BlackjackTable {
                     : plugin.getMessages().getString(
                             "blackjack.holo.dealer_turn",
                             "&cTurno del dealer...");
+        } else if (dealing) {
+            status = plugin.getMessages().getString("blackjack.holo.dealing", "&eRepartiendo cartas...");
         } else {
             String turnName = currentTurn == null
                     ? "-"
