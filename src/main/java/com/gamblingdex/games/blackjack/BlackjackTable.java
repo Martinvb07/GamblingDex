@@ -1081,19 +1081,16 @@ public class BlackjackTable {
     }
 
     /**
-     * Si todos los sentados ya apostaron en todo (principal y, si están activas,
-     * las dos laterales: 21+3 y pares) Y ya cerraron el menú de apuestas, se
-     * reparte al instante sin esperar el contador. Mientras alguien tenga el
-     * menú abierto puede seguir poniendo fichas.
+     * Si todos los sentados ya pusieron su apuesta principal (las laterales son
+     * opcionales) Y cerraron el menú de apuestas, se reparte al instante sin
+     * esperar el contador. Mientras alguien tenga el menú abierto puede seguir
+     * poniendo fichas.
      */
     private void checkAllBet() {
         if (state != State.BETTING || seated.isEmpty() || earlyDealScheduled)
             return;
-        boolean sides = sideBetsEnabled();
         for (UUID id : seated) {
             if (bets.getOrDefault(id, 0L) <= 0)
-                return;
-            if (sides && (pairsBets.getOrDefault(id, 0L) <= 0 || plus3Bets.getOrDefault(id, 0L) <= 0))
                 return;
             Player p = Bukkit.getPlayer(id);
             if (p != null && p.getOpenInventory().getTopInventory()
