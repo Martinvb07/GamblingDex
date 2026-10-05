@@ -30,7 +30,32 @@ import java.util.*;
  */
 public final class CasinoSchedule implements Listener {
 
-    private static final DateTimeFormatter HM = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter H12 = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
+
+    /** Hora en formato 12 h: "6:00 PM". */
+    public static String fmt(LocalTime t) {
+        return t.format(H12);
+    }
+
+    /** Acepta "6:00 PM", "6 PM", "6:00pm" o "18:00". null si no se entiende. */
+    public static LocalTime parse(String s) {
+        if (s == null)
+            return null;
+        String t = s.trim().toUpperCase(Locale.ROOT).replace(".", "").replaceAll("\\s+", " ")
+                .replace("A M", "AM").replace("P M", "PM");
+        t = t.replaceAll("(?<=\\d)(AM|PM)$", " $1");
+        if (t.matches("\\d{1,2} (AM|PM)"))
+            t = t.replace(" ", ":00 ");
+        try {
+            return LocalTime.parse(t, H12);
+        } catch (Exception ignored) {
+        }
+        try {
+            return LocalTime.parse(t, DateTimeFormatter.ofPattern("H:mm"));
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
     private static final Locale ES = Locale.forLanguageTag("es-ES");
 
     private static final int S_TOGGLE = 10, S_OPEN = 12, S_CLOSE = 14, S_STATUS = 16;
@@ -100,19 +125,20 @@ public final class CasinoSchedule implements Listener {
     }
 
     private LocalTime time(String key, String def) {
-        try {
-            return LocalTime.parse(cfg.getString(key, def), HM);
-        } catch (Exception e) {
-            return LocalTime.parse(def, HM);
-        }
+        LocalTime t = parse(cfg.getString(key, def));
+        return t != null ? t : parse(def);
     }
 
-    private LocalTime openTime() {
-        return time("open", "18:00");
+    public LocalTime openTime() {
+        return time("open", "6:00 PM");
     }
 
-    private LocalTime closeTime() {
-        return time("close", "02:00");
+    public LocalTime closeTime() {
+        return time("close", "2:00 AM");
+    }
+
+    public String zoneName() {
+        return cfg.getString("zone_name", "hora Colombia");
     }
 
     private Set<DayOfWeek> days() {
@@ -151,7 +177,7 @@ public final class CasinoSchedule implements Listener {
     }
 
     /** Minutos que faltan para el próximo cambio (abrir o cerrar), máx. 8 días. */
-    private long minutesToChange() {
+    public long minutesToChange() {
         ZonedDateTime t = now().withSecond(0).withNano(0);
         boolean open = isOpenAt(t);
         for (int m = 1; m <= 8 * 24 * 60; m++)
@@ -173,8 +199,8 @@ public final class CasinoSchedule implements Listener {
 
     private String msg(String key, String def) {
         return plugin.color(cfg.getString("messages." + key, def)
-                .replace("{open}", openTime().format(HM))
-                .replace("{close}", closeTime().format(HM))
+                .replace("{open}", fmt(openTime()))
+                .replace("{close}", fmt(closeTime()))
                 .replace("{zone}", cfg.getString("zone_name", "hora Colombia")));
     }
 
@@ -235,18 +261,18 @@ public final class CasinoSchedule implements Listener {
                         "&eClick para " + (on ? "desactivar" : "activar")), on));
         List<String> openLore = new ArrayList<>(List.of("&7Hora en que abre el casino.", ""));
         openLore.addAll(List.of(ADJUST));
-        inv.setItem(S_OPEN, Icons.of(Material.CLOCK, 1, "&aAbre: &f&l" + openTime().format(HM), openLore, false));
+        inv.setItem(S_OPEN, Icons.of(Material.CLOCK, 1, "&aAbre: &f&l" + fmt(openTime()), openLore, false));
         List<String> closeLore = new ArrayList<>(List.of("&7Hora en que cierra el casino.",
                 "&8(si es antes de la apertura, cierra al día siguiente)", ""));
         closeLore.addAll(List.of(ADJUST));
-        inv.setItem(S_CLOSE, Icons.of(Material.CLOCK, 1, "&cCierra: &f&l" + closeTime().format(HM), closeLore, false));
+        inv.setItem(S_CLOSE, Icons.of(Material.CLOCK, 1, "&cCierra: &f&l" + fmt(closeTime()), closeLore, false));
 
         ZonedDateTime n = now();
         boolean openNow = isOpenNow();
         long change = on ? minutesToChange() : -1;
         inv.setItem(S_STATUS, Icons.of(openNow ? Material.EMERALD : Material.REDSTONE, 1,
                 openNow ? "&a&lAbierto ahora" : "&c&lCerrado ahora", List.of(
-                        "&7Hora actual: &f" + n.format(HM) + " &8(" + cfg.getString("zone_name", "hora Colombia") + ")",
+                        "&7Hora actual: &f" + fmt(n.toLocalTime()) + " &8(" + cfg.getString("zone_name", "hora Colombia") + ")",
                         "&7Hoy: &f" + cap(n.getDayOfWeek().getDisplayName(TextStyle.FULL, ES)),
                         on ? "&7" + (openNow ? "Cierra" : "Abre") + " en: &f" + fmtWait(change) : "&8(horario desactivado)"),
                 false));
@@ -283,8 +309,8 @@ public final class CasinoSchedule implements Listener {
                 cfg.set("enabled", !enabled());
                 wasOpen = true; // si al activarlo ya es hora de cerrar, el próximo tick cierra y devuelve las apuestas
             }
-            case S_OPEN -> cfg.set("open", openTime().plusMinutes((long) sign * step).format(HM));
-            case S_CLOSE -> cfg.set("close", closeTime().plusMinutes((long) sign * step).format(HM));
+            case S_OPEN -> cfg.set("open", fmt(openTime().plusMinutes((long) sign * step)));
+            case S_CLOSE -> cfg.set("close", fmt(closeTime().plusMinutes((long) sign * step)));
             default -> {
                 if (slot < 19 || slot > 25)
                     return;

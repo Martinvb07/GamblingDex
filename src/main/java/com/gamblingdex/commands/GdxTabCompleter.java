@@ -57,7 +57,7 @@ public class GdxTabCompleter implements TabCompleter {
                     return List.of();
                 List<String> out = new ArrayList<>(List.of("player", "games", "blackjack", "poker", "roulette", "slots", "exchange"));
                 if (admin)
-                    out.add("admin");
+                    out.addAll(List.of("admin", "signs"));
                 if (mm != null)
                     for (GameModule m : mm.getModules())
                         if (mm.byCommand(m.id()) != null)
@@ -112,9 +112,14 @@ public class GdxTabCompleter implements TabCompleter {
                         return List.of();
                     if (n == 3)
                         return filter(com.gamblingdex.stats.CasinoSigns.TYPES, cur);
-                    if (n == 4 && (args[2].equalsIgnoreCase("last_win") || args[2].toLowerCase(Locale.ROOT).startsWith("top")))
+                    String t = args[2].toLowerCase(Locale.ROOT);
+                    if (n == 4 && t.equals("table"))
+                        return filter(plugin.getCasinoSigns() == null ? List.of() : plugin.getCasinoSigns().tableNames(), cur);
+                    if (n == 4 && t.equals("game_status"))
+                        return filter(plugin.getMaintenance() == null ? List.of() : plugin.getMaintenance().gameNames(), cur);
+                    if (n == 4 && com.gamblingdex.stats.CasinoSigns.RANKED.contains(t))
                         return hint(cur, "<n>", "1", "2", "3", "4", "5");
-                    if (n == 5 && args[2].toLowerCase(Locale.ROOT).startsWith("top"))
+                    if (n == 5 && com.gamblingdex.stats.CasinoSigns.PER_GAME.contains(t))
                         return filter(List.of("blackjack", "roulette", "slots", "baccarat", "crash", "mines", "plinko",
                                 "tower", "wheel", "race", "coinflip", "scratch", "bingo", "lottery"), cur);
                     return List.of();

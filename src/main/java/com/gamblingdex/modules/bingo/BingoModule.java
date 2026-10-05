@@ -269,6 +269,7 @@ public class BingoModule extends GameModule {
                         : timeLeft(nextAutoStart - System.currentTimeMillis());
             };
             case "pot" -> units(pot());
+            case "price" -> units(price());
             default -> null;
         };
     }

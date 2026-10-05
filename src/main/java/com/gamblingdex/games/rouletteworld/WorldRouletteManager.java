@@ -191,6 +191,23 @@ public class WorldRouletteManager {
         return getByBlock(block) != null;
     }
 
+    /** La mesa más cercana a {@code l} (en el mismo mundo), o null. */
+    public WorldRouletteTable getNearest(org.bukkit.Location l) {
+        WorldRouletteTable best = null;
+        double bd = Double.MAX_VALUE;
+        for (WorldRouletteTable t : tablesByCenter.values()) {
+            org.bukkit.Location c = t.getCenter();
+            if (c == null || c.getWorld() == null || !c.getWorld().equals(l.getWorld()))
+                continue;
+            double d = c.distanceSquared(l);
+            if (d < bd) {
+                bd = d;
+                best = t;
+            }
+        }
+        return best;
+    }
+
     /** Centros de todas las mesas (para avisos cerca de la ruleta). */
     public java.util.List<org.bukkit.Location> getTableCenters() {
         java.util.List<org.bukkit.Location> out = new java.util.ArrayList<>();

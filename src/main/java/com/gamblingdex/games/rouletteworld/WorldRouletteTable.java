@@ -709,7 +709,17 @@ public class WorldRouletteTable {
         }
     }
 
+    /** Últimos números que salieron en esta mesa, el más reciente primero. */
+    private final java.util.Deque<Integer> recentNumbers = new java.util.ArrayDeque<>();
+
+    public java.util.List<Integer> getRecentNumbers() {
+        return new java.util.ArrayList<>(recentNumbers);
+    }
+
     private void finishRound(int winningNumber) {
+        recentNumbers.addFirst(winningNumber);
+        while (recentNumbers.size() > 10)
+            recentNumbers.removeLast();
         updateHologramLine(2, "§aGanó el número: §f" + WorldRouletteTables.formatNumber(winningNumber));
 
         boolean isRed = WorldRouletteTables.isRed(winningNumber);

@@ -334,6 +334,11 @@ public class BlackjackTable {
         }
     }
 
+    /** Jugadores sentados ahora. */
+    public int getSeatedCount() {
+        return seated.size();
+    }
+
     public State getState() {
         return state;
     }

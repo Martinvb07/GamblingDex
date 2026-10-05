@@ -177,7 +177,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx enable <game>` | Vuelve a abrir el juego |
 | `/gdx maintenance` | Juegos en mantenimiento |
 | `/gdx config check` | Revisa los valores de la config: materiales o sonidos que no existen, símbolo del jackpot que no está en `symbol_weights`, pesos en 0, mínima mayor que la máxima, horario mal escrito... |
-| `/gdx sign add <type> [n] [game]` | **Cartel que se actualiza solo** (mirando un cartel): `last_win`, `record`, `jackpot_slots`, `jackpot_roulette`, `top`, `top_week`. Quitar: `/gdx sign remove`. Textos en `config.yml` → `signs` |
+| `/gdx sign add <type> ...` | **Carteles que se actualizan solos** (mirando un cartel): ganadores, récord, jackpots, tops (ganancias, semana, mayor premio, más apostado, póker), horario, jugadores ahora, estado de un juego, info de una mesa, últimos números de la ruleta y de Crash, lotería, bingo y precio de las fichas. Todos los tipos: `/gdx help signs`. Textos en `config.yml` → `signs` |
 | `/gdx schedule` | **Horario del casino** en un menú: activar, hora de apertura y cierre, días |
 | `/gdx inspect <player>` | Menú con las fichas, bono, ganancias y últimas apuestas de un jugador |
 

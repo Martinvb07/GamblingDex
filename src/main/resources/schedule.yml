@@ -8,8 +8,8 @@
 enabled: false
 timezone: "America/Bogota"     # zona horaria (Colombia). Otras: America/Mexico_City, Europe/Madrid...
 zone_name: "hora Colombia"     # cómo se muestra en los mensajes
-open: "18:00"                  # hora de apertura (formato 24 h, HH:mm)
-close: "02:00"                 # hora de cierre; si es menor que la apertura, cierra al día siguiente
+open: "6:00 PM"                # hora de apertura (ej. "6:00 PM", "10:30 AM"; también acepta "18:00")
+close: "2:00 AM"               # hora de cierre; si es antes de la apertura, cierra al día siguiente
 # Días en que ABRE (si cruza la medianoche, cuenta el día en que abre).
 # MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
 days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]

@@ -223,8 +223,7 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
                 if (!action.equals("add") && !action.equals("remove")) {
-                    player.sendMessage(plugin.color("&7Uso: &f/gdx sign add <type> [n] [game] &7| &f/gdx sign remove &7| &f/gdx sign list"));
-                    player.sendMessage(plugin.color("&7Tipos: &f" + String.join(", ", com.gamblingdex.stats.CasinoSigns.TYPES)));
+                    HelpMenu.send(player, new String[] { "help", "signs" });
                     return true;
                 }
                 org.bukkit.block.Block target = com.gamblingdex.stats.CasinoSigns.target(player);
@@ -244,27 +243,44 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
                 int n = 1;
-                String game = "";
-                for (int i = 3; i < args.length; i++) {
-                    try {
-                        n = Integer.parseInt(args[i]);
-                    } catch (NumberFormatException ex) {
-                        String g = com.gamblingdex.stats.GameStats.gameId(args[i].toLowerCase(Locale.ROOT));
-                        if (g == null) {
-                            player.sendMessage(plugin.color("&cJuego desconocido: &f" + args[i]));
-                            return true;
+                String arg = "";
+                if (type.equals("table")) {
+                    if (args.length < 4 || !cs.tableExists(args[3])) {
+                        player.sendMessage(plugin.color("&cIndica una mesa de blackjack o póker: &f/gdx sign add table <name>"
+                                + (cs.tableNames().isEmpty() ? "" : " &7(" + String.join(", ", cs.tableNames()) + ")")));
+                        return true;
+                    }
+                    arg = args[3];
+                } else if (type.equals("game_status")) {
+                    String g = args.length >= 4 && plugin.getMaintenance() != null
+                            ? plugin.getMaintenance().resolve(args[3]) : null;
+                    if (g == null) {
+                        player.sendMessage(plugin.color("&cIndica el juego: &f/gdx sign add game_status <game>"));
+                        return true;
+                    }
+                    arg = g;
+                } else {
+                    for (int i = 3; i < args.length; i++) {
+                        try {
+                            n = Integer.parseInt(args[i]);
+                        } catch (NumberFormatException ex) {
+                            String g = com.gamblingdex.stats.GameStats.gameId(args[i].toLowerCase(Locale.ROOT));
+                            if (g == null || !com.gamblingdex.stats.CasinoSigns.PER_GAME.contains(type)) {
+                                player.sendMessage(plugin.color("&cNo entiendo &f" + args[i] + "&c para este cartel."));
+                                return true;
+                            }
+                            arg = g;
                         }
-                        game = g;
+                    }
+                    if (n < 1 || n > 10) {
+                        player.sendMessage(plugin.color("&cEl puesto tiene que ser de 1 a 10."));
+                        return true;
                     }
                 }
-                if (n < 1 || n > 10) {
-                    player.sendMessage(plugin.color("&cEl puesto tiene que ser de 1 a 10."));
-                    return true;
-                }
-                cs.add(target, type, n, game);
+                cs.add(target, type, n, arg);
                 player.sendMessage(plugin.color("&aCartel del casino creado: &f" + type
-                        + (type.equals("last_win") || type.startsWith("top") ? " #" + n : "")
-                        + "&a. Se actualiza solo."));
+                        + (com.gamblingdex.stats.CasinoSigns.RANKED.contains(type) ? " #" + n : "")
+                        + (arg.isEmpty() ? "" : " &7(" + arg + ")") + "&a. Se actualiza solo."));
                 return true;
             }
 

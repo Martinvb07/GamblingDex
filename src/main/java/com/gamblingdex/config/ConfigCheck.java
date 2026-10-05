@@ -10,9 +10,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.time.DayOfWeek;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -212,13 +210,9 @@ public final class ConfigCheck {
                     add("deal_interval_ticks", "tiene que estar entre 0 y 100");
             }
             case "schedule.yml" -> {
-                DateTimeFormatter hm = DateTimeFormatter.ofPattern("HH:mm");
                 for (String k : List.of("open", "close"))
-                    try {
-                        LocalTime.parse(y.getString(k, "00:00"), hm);
-                    } catch (Exception e) {
-                        add(k, "&c" + y.getString(k) + "&7 no es una hora válida (formato 24 h, ej. 18:00)");
-                    }
+                    if (y.isSet(k) && com.gamblingdex.util.CasinoSchedule.parse(y.getString(k)) == null)
+                        add(k, "&c" + y.getString(k) + "&7 no es una hora válida (ej. \"6:00 PM\")");
                 try {
                     ZoneId.of(y.getString("timezone", "America/Bogota"));
                 } catch (Exception e) {

@@ -77,6 +77,7 @@ public final class HelpMenu {
             case "" -> categories(p, admin);
             case "player", "jugador" -> player(p);
             case "games", "juegos" -> games(p, admin);
+            case "signs", "sign", "carteles" -> signs(p);
             case "admin" -> {
                 if (admin)
                     admin(p);
@@ -106,9 +107,12 @@ public final class HelpMenu {
                 .append(text(" &8- &7saldo, estadísticas, ranking")));
         p.sendMessage(link("  &e▸ &fJuegos", "&7Cómo se juega cada juego\n&8/gdx help games", "/gdx help games")
                 .append(text(" &8- &7cómo jugar cada juego")));
-        if (admin)
+        if (admin) {
             p.sendMessage(link("  &c▸ &fAdmin", "&7Montar mesas y administrar\n&8/gdx help admin", "/gdx help admin")
-                    .append(text(" &8- &7montar mesas, recargar, fichas")));
+                    .append(text(" &8- &7montar mesas, horario, inspeccionar, fichas")));
+            p.sendMessage(link("  &c▸ &fCarteles", "&7Carteles que se actualizan solos\n&8/gdx help signs", "/gdx help signs")
+                    .append(text(" &8- &7ganadores, tops, jackpots, horario, mesas...")));
+        }
         p.sendMessage(text("&8Tip: usa &7TAB &8para autocompletar los comandos."));
     }
 
@@ -205,12 +209,48 @@ public final class HelpMenu {
         line(p, "/gdx enable <game>", "Volver a abrir un juego");
         line(p, "/gdx maintenance", "Juegos en mantenimiento");
         line(p, "/gdx schedule", "Horario del casino: abre y cierra solo (menú)");
-        line(p, "/gdx sign add <type> [n] [game]", "Cartel que se actualiza solo (mirando un cartel)");
+        p.sendMessage(link("  &e/gdx help signs", "&7Click para ver todos los carteles", "/gdx help signs")
+                .append(text(" &8- &7Carteles que se actualizan solos (ganadores, tops, horario...)")));
         line(p, "/gdx inspect <player>", "Ver fichas, bono, ganancias y últimas apuestas de un jugador");
         line(p, "/gdx token <color|value> <amount>", "Crear fichas (ej. para Shopkeepers)");
         line(p, "/gdx item <roulette|slots> [amount]", "Ítems que abren menús");
         p.sendMessage(text("&7Montaje de cada juego &8(click)&7:"));
         games(p, true);
+    }
+
+    /** /gdx help signs: todos los tipos de carteles. */
+    private static void signs(Player p) {
+        header(p, "Carteles");
+        p.sendMessage(text("&7Mira un cartel y usa el comando. Se actualiza solo y nadie lo puede editar."));
+        sign(p, "last_win <1-10>", "Último ganador (1 = el más reciente)");
+        sign(p, "record", "El premio más grande de la historia");
+        sign(p, "jackpot_slots", "Pozo del jackpot de los slots");
+        sign(p, "jackpot_roulette", "Pozo del jackpot de la ruleta");
+        sign(p, "top <1-10> [game]", "Top de ganancias de siempre (juego opcional)");
+        sign(p, "top_week <1-10> [game]", "Top de ganancias de la semana");
+        sign(p, "top_biggest <1-10> [game]", "Top de mayor premio de una sola vez");
+        sign(p, "top_wagered <1-10> [game]", "Top de los que más apuestan");
+        sign(p, "top_poker <1-10>", "Top de ganancias en el póker");
+        sign(p, "top_poker_pot <1-10>", "Top de botes más grandes del póker");
+        sign(p, "schedule", "Horario: ABIERTO/CERRADO y a qué hora cierra o abre");
+        sign(p, "players_now", "Cuántos están jugando ahora");
+        sign(p, "game_status <game>", "Si un juego está abierto o en mantenimiento");
+        sign(p, "table <name>", "Info de una mesa de blackjack o póker");
+        sign(p, "roulette_last", "Últimos números de la ruleta más cercana");
+        sign(p, "crash_last", "Dónde explotaron las últimas rondas de Crash");
+        sign(p, "lottery", "Bote de la lotería y tiempo para el sorteo");
+        sign(p, "bingo", "Próxima partida de bingo, cartón y bote");
+        sign(p, "exchange", "Precio de las fichas en dinero");
+        line(p, "/gdx sign remove", "Quitar el cartel que miras (o rómpelo siendo admin)");
+        line(p, "/gdx sign list", "Carteles del casino");
+        p.sendMessage(text("&8Textos y colores: config.yml → signs.formats"));
+        back(p);
+    }
+
+    private static void sign(Player p, String args, String desc) {
+        String base = "/gdx sign add " + (args.contains(" ") ? args.substring(0, args.indexOf(' ')) + " " : args);
+        p.sendMessage(suggest("  &e/gdx sign add " + args, "&7Click para escribirlo", base)
+                .append(text(" &8- &7" + desc)));
     }
 
     private static void game(Player p, String topic, boolean admin) {
@@ -265,7 +305,9 @@ public final class HelpMenu {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lBlackjack",
                 "&8• &7Jugar: &fpárate en un asiento&7; el menú de apuestas se abre solo",
-                "&8• &7Apuestas laterales: &fPares Perfectos&7 y &f21+3&7; botón &fRepetir apuesta"));
+                "&8• &7Apuestas laterales: &fPares Perfectos&7 y &f21+3&7; botón &fRepetir apuesta",
+                "&8• &7Si cierras el menú: &fclick derecho&7 al dealer o a la mesa para abrirlo otra vez",
+                "&8• &7El crupier habla en la mesa &8(blackjack.yml → dealer_talk)"));
         if (admin) {
             l.add("&8• &e/gdx blackjack create <name> [min] [max] &7- Crear mesa (mirando el bloque)");
             l.add("&8• &e/gdx blackjack limits <name> <min> [max] &7- Apuesta mínima/máxima de la mesa");
@@ -282,7 +324,8 @@ public final class HelpMenu {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lPóker (Texas Hold'em)",
                 "&8• &7Jugar: &fpárate en un asiento&7 y compra fichas; al pararte se te devuelven",
-                "&8• &7Tu menú: &fclick derecho&7 al centro de la mesa (también para inscribirte a torneos)"));
+                "&8• &7Tu menú: &fclick derecho&7 al centro de la mesa (también para inscribirte a torneos)",
+                "&8• &7En ese menú también puedes &fdarle propina al crupier"));
         if (admin) {
             l.add("&8• &e/gdx poker create <name> [small] [big] &7- Crear mesa (mirando el centro)");
             l.add("&8• &e/gdx poker seat <add|remove|list|clear> <name> &7- Asientos (en orden horario)");
@@ -301,7 +344,8 @@ public final class HelpMenu {
                 "&6&lRuleta americana",
                 "&8• &7Jugar: &fclick derecho&7 al centro → eliges apuesta y monto",
                 "&8• &7También: fichas en la mano + click derecho &8(shift = todo el stack)",
-                "&8• &7Botón &fRepetir apuesta&7 · &6Jackpot&7: si sale su número, los plenos se lo reparten"));
+                "&8• &7Botón &fRepetir apuesta&7 · &6Jackpot&7: si sale su número, los plenos se lo reparten",
+                "&8• &7Cuando el pozo está alto suena una &fcampana&7 cerca de la ruleta"));
         if (admin) {
             l.add("&8• &e/gdx roulette build [radius] [yOffset] &7- Construir (mirando el centro)");
             l.add("&8• &e/gdx roulette remove&7|&elist");
@@ -312,7 +356,9 @@ public final class HelpMenu {
     private static List<String> slots(boolean admin) {
         List<String> l = new ArrayList<>(List.of(
                 "&6&lTragamonedas",
-                "&8• &7Jugar: &fclick derecho&7 a la estación de slots"));
+                "&8• &7Jugar: &fclick derecho&7 a la estación de slots",
+                "&8• &6Jackpot progresivo&7: 3 estrellas del Nether se llevan todo el pozo",
+                "&8• &7Cuando el pozo está alto suena una &fcampana&7 cerca de los slots"));
         if (admin)
             l.add("&8• &e/gdx station set slots &7- Registrar estación (mirando el bloque)");
         return l;
