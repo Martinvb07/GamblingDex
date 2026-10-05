@@ -1775,10 +1775,10 @@ public class BlackjackTable {
 
         startRoundDisplayTask();
 
-        // Reparto como en la vida real: una carta a cada jugador en orden de silla,
-        // una al dealer (boca arriba), otra vuelta a los jugadores y la del dealer
-        // (boca abajo). Cada carta con una pequeña pausa.
-        List<UUID> order = seatOrder(participants);
+        // Reparto como en la vida real: una carta a cada jugador en el orden en que
+        // se sentaron, una al dealer (boca arriba), otra vuelta a los jugadores y la
+        // del dealer (boca abajo). Cada carta con una pequeña pausa.
+        List<UUID> order = new ArrayList<>(participants); // seated guarda el orden de llegada
         List<UUID> steps = new ArrayList<>(); // null = dealer
         for (int r = 0; r < 2; r++) {
             steps.addAll(order);
@@ -1823,45 +1823,6 @@ public class BlackjackTable {
         World w = center.getWorld();
         if (w != null)
             w.playSound(center.clone().add(0.5, 1.0, 0.5), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
-    }
-
-    /** Orden de silla (asientos en el orden en que se registraron / alrededor de la mesa). */
-    private List<UUID> seatOrder(Collection<UUID> ids) {
-        List<UUID> out = new ArrayList<>(ids);
-        Map<UUID, Integer> idx = new HashMap<>();
-        for (UUID id : out)
-            idx.put(id, seatIndexOf(id));
-        out.sort(Comparator.comparingInt(id -> idx.getOrDefault(id, Integer.MAX_VALUE)));
-        return out;
-    }
-
-    private int seatIndexOf(UUID id) {
-        String key = assignedSeatByPlayer.get(id);
-        if (key != null) {
-            int k = seatKeys.indexOf(key);
-            if (k >= 0)
-                return k;
-        }
-        Player p = Bukkit.getPlayer(id);
-        if (p == null)
-            return Integer.MAX_VALUE;
-        String mode = plugin.getConfig().getString("blackjack.seating.mode", "manual");
-        Block feet = p.getLocation().getBlock();
-        Block below = feet.getRelative(BlockFace.DOWN);
-        if (mode != null && mode.trim().equalsIgnoreCase("manual")) {
-            String fk = BlackjackTables.key(feet.getLocation()), bk = BlackjackTables.key(below.getLocation());
-            for (int i = 0; i < seatKeys.size(); i++)
-                if (seatKeys.get(i).equals(fk) || seatKeys.get(i).equals(bk))
-                    return i;
-            return Integer.MAX_VALUE;
-        }
-        int max = getConfiguredMaxPlayers();
-        for (int i = 0; i < max; i++) {
-            Block seat = getSeatBlock(i, max);
-            if (seat != null && (feet.equals(seat) || below.equals(seat)))
-                return i;
-        }
-        return Integer.MAX_VALUE;
     }
 
     /** Ya están las 4 cartas repartidas: laterales, blackjack del dealer y naturales, primer turno. */
@@ -2113,9 +2074,9 @@ public class BlackjackTable {
     }
 
     private UUID nextTurnCandidate(UUID after) {
-        // en orden de silla
+        // en el orden en que se sentaron
         boolean start = (after == null);
-        for (UUID id : seatOrder(seated)) {
+        for (UUID id : seated) {
             if (!hands.containsKey(id))
                 continue; // not in this round
             if (!start) {

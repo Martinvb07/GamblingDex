@@ -70,7 +70,8 @@ hand_holo_height: 2.25
 # Zapato: cantidad de barajas y en qué % restante se rebaraja (carta de corte)
 decks: 6
 reshuffle_at_percent: 25
-# Reparto inicial: una carta a cada jugador en orden de silla, luego al dealer, y otra vuelta.
+# Reparto inicial: una carta a cada jugador en el orden en que se sentaron, luego al dealer,
+# y otra vuelta. Los turnos siguen el mismo orden.
 # Pausa entre cada carta (20 ticks = 1 segundo). 0 = todas de golpe.
 deal_interval_ticks: 8
 # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
