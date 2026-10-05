@@ -978,6 +978,19 @@ public class BlackjackTable {
         return null;
     }
 
+    /** Saca de la mesa a quien ya no está sentado (al abrir las apuestas, sin apuestas en juego). */
+    private void removeFromTable(UUID id, Player p) {
+        if (p != null) {
+            leave(p, false);
+            return;
+        }
+        seated.remove(id);
+        selectedSpot.remove(id);
+        hands.remove(id);
+        activeHand.remove(id);
+        assignedSeatByPlayer.remove(id);
+    }
+
     public boolean leave(Player player, boolean refundBetIfAny) {
         if (player == null)
             return false;
@@ -1533,13 +1546,23 @@ public class BlackjackTable {
         ensureDealerEntity();
         removePlayerHandDisplays();
 
+        // Durante la ronda nadie sale de la mesa aunque se baje de la silla (para no
+        // romper su mano). Antes de abrir las apuestas se saca a quien ya no está sentado.
+        if (plugin.getConfig().getBoolean("blackjack.seating.enabled", true)) {
+            for (UUID id : new ArrayList<>(seated)) {
+                Player p = Bukkit.getPlayer(id);
+                if (p == null || !isStandingOnSeatPad(p))
+                    removeFromTable(id, p);
+            }
+        }
+
         broadcastToSeated(plugin.getMessages().format(
                 "blackjack.betting_started",
                 "&eApuestas abiertas por &f{seconds}&e segundos. Abre el menú para apostar.",
                 Map.of("seconds", String.valueOf(bettingSecondsLeft))));
 
         // Open GUI for everyone seated.
-        for (UUID id : seated) {
+        for (UUID id : new ArrayList<>(seated)) {
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
                 new BlackjackBetMenu(plugin).open(p, this);
