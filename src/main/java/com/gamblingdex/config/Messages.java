@@ -68,6 +68,7 @@ public class Messages {
             if (in != null) {
                 YamlConfiguration jar = YamlConfiguration.loadConfiguration(
                         new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+                ConfigUpdater.update(plugin, "messages/" + fileName, f, y, jar);
                 if (CommandMigration.migrate(y, jar)) {
                     try {
                         y.save(f);

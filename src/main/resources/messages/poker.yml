@@ -54,6 +54,8 @@ actionbar_seated: "&7Fichas en la mesa: &e{stack}"
 actionbar_turn: "&a&l¡TU TURNO! &7{action} &8| {cards} &8| &f{seconds}s"
 actionbar: "&7Tus cartas: {cards} &8| &e{hand} &8| &7Fichas: &e{stack}"
 deposit_too_big: "&cEsa ficha te pasa del máximo de la mesa (&e{max}&c). Usa una más chica."
+tip_given: "&6Le diste &e{amount}&6 de propina al crupier."
+tip_not_enough: "&cNo te alcanzan las fichas para esa propina."
 no_tokens_of_type: "&cNo tienes fichas de ese tipo."
 cannot_break: "&cNo puedes romper una mesa de póker."
 

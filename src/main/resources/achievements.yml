@@ -12,11 +12,11 @@
 #   game_win    -> ganar una apuesta en el juego <game>
 #   games       -> jugar <amount> juegos distintos
 #   event       -> lo activa el propio juego. Eventos:
-#                  blackjack_natural, roulette_jackpot, mines_clear,
+#                  blackjack_natural, roulette_jackpot, slots_jackpot, mines_clear, tower_top,
 #                  poker_tournament, poker_pot (bote de al menos 'amount'), daily_bonus
 #
 # Ids de juegos: slots, ruleta, blackjack, baccarat, crash, rueda, carrera, coinflip,
-#                rasca, bingo, loteria, mines, plinko, poker
+#                rasca, bingo, loteria, mines, plinko, tower, poker
 #
 # Recompensa: reward (fichas) y/o commands (desde consola, {player} = nombre).
 
@@ -59,6 +59,13 @@ achievements:
     type: event
     event: blackjack_natural
     reward: 500
+  slots_jackpot:
+    name: "&6&l¡Jackpot de slots!"
+    description: "Gana el jackpot progresivo de los tragamonedas"
+    icon: NETHER_STAR
+    type: event
+    event: slots_jackpot
+    reward: 5000
   roulette_jackpot:
     name: "&6&l¡Jackpot!"
     description: "Gana el jackpot de la ruleta"
@@ -80,6 +87,13 @@ achievements:
     icon: TNT
     type: event
     event: mines_clear
+    reward: 2000
+  tower_top:
+    name: "&bRascacielos"
+    description: "Llega a la cima de la torre en Tower"
+    icon: END_ROD
+    type: event
+    event: tower_top
     reward: 2000
   plinko_edge:
     name: "&6Por la orilla"

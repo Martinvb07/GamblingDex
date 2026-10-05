@@ -334,6 +334,11 @@ public class BlackjackTable {
         }
     }
 
+    /** Jugadores sentados ahora. */
+    public int getSeatedCount() {
+        return seated.size();
+    }
+
     public State getState() {
         return state;
     }
@@ -1407,6 +1412,7 @@ public class BlackjackTable {
                 "blackjack.double",
                 "&eDoblas. Apuesta total: &f{total}",
                 java.util.Map.of("total", prettyUnits(newBet))));
+        dealerSay(hand.isBust() ? "player_bust" : "player_double", player.getName());
 
         if (hand.isBust()) {
             player.sendMessage(plugin.getMessages().format(
@@ -1467,6 +1473,7 @@ public class BlackjackTable {
                 "blackjack.split_broadcast",
                 "&7{player} divide su par.",
                 Map.of("player", player.getName())));
+        dealerSay("player_split", player.getName());
 
         if (aces) {
             // Ases divididos: una carta para cada uno y se plantan.
@@ -1498,6 +1505,7 @@ public class BlackjackTable {
                     "blackjack.bust",
                     "&cTe pasaste. (&f{value}&c)",
                     Map.of("value", String.valueOf(hand.bestValue()))));
+            dealerSay("player_bust", player.getName());
             hand.setDone(true);
         } else if (hand.bestValue() != 21) {
             player.sendMessage(plugin.getMessages().format(
@@ -1763,6 +1771,7 @@ public class BlackjackTable {
         broadcastToParticipants(participants, plugin.getMessages().getString(
                 "blackjack.round_started",
                 "&aRonda iniciada. ¡Suerte!"));
+        dealerSay("round_start", null);
 
         // Close the bet GUI so players can see their cards before the action menu
         // opens.
@@ -1784,7 +1793,7 @@ public class BlackjackTable {
             steps.addAll(order);
             steps.add(null);
         }
-        int interval = Math.max(0, Math.min(40, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
+        int interval = Math.max(0, Math.min(100, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
         if (interval == 0) {
             for (UUID id : steps)
                 dealOne(id);
@@ -1820,9 +1829,6 @@ public class BlackjackTable {
                 return; // se fue durante el reparto
             h.add(draw());
         }
-        World w = center.getWorld();
-        if (w != null)
-            w.playSound(center.clone().add(0.5, 1.0, 0.5), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
     }
 
     /** Ya están las 4 cartas repartidas: laterales, blackjack del dealer y naturales, primer turno. */
@@ -1836,6 +1842,7 @@ public class BlackjackTable {
             broadcastToParticipants(participants, plugin.getMessages().getString(
                     "blackjack.dealer_blackjack",
                     "&c&lEl dealer tiene BLACKJACK."));
+            dealerSay("dealer_blackjack", null);
             for (UUID id : participants) {
                 for (Hand h : handsOf(id))
                     h.setDone(true);
@@ -1887,6 +1894,7 @@ public class BlackjackTable {
             p.playSound(p.getLocation(), org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.2f);
         }
         String name = p == null ? "?" : p.getName();
+        dealerSay("player_blackjack", name);
         for (UUID other : hands.keySet()) {
             if (other.equals(id))
                 continue;
@@ -1993,8 +2001,6 @@ public class BlackjackTable {
                 return;
             }
 
-            spawnTurnMarkerParticles();
-
             turnSecondsLeft--;
             if (turnSecondsLeft <= 0) {
                 Player cp = Bukkit.getPlayer(currentTurn);
@@ -2013,12 +2019,17 @@ public class BlackjackTable {
     }
 
     private void spawnTurnMarkerParticles() {
-        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", true))
-            return;
         if (currentTurn == null)
             return;
         Player p = Bukkit.getPlayer(currentTurn);
         if (p == null)
+            return;
+        // Brillo (contorno) mientras es su turno: efecto corto que se renueva; al
+        // terminar el turno se apaga solo en menos de 1 segundo.
+        if (plugin.getConfig().getBoolean("blackjack.turn_marker.glow", true))
+            p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.GLOWING,
+                    12, 0, true, false, false));
+        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", false))
             return;
 
         Particle particle = Particle.END_ROD;
@@ -2032,7 +2043,9 @@ public class BlackjackTable {
 
         int count = Math.max(1, plugin.getConfig().getInt("blackjack.turn_marker.count", 1));
         World w = p.getWorld();
-        Location base = p.getLocation().clone().add(0, 2.9, 0);
+        // Por encima del cartel de cartas que flota sobre la cabeza (para que no lo tape)
+        double above = plugin.getConfig().getDouble("blackjack.hand_holo_height", 2.25) + 1.1;
+        Location base = p.getLocation().clone().add(0, Math.max(2.9, above), 0);
 
         // Arrow pointing DOWN: shaft above, head below.
         for (int i = 0; i < 5; i++) {
@@ -2139,6 +2152,7 @@ public class BlackjackTable {
             }
         }
 
+        playTableSound("reveal", "item.book.put", 1.0f);
         broadcastToRound(plugin.getMessages().format(
                 "blackjack.dealer_reveal",
                 "&7El dealer voltea su carta: &f{cards} &8(&f{value}&8)",
@@ -2206,6 +2220,9 @@ public class BlackjackTable {
                 "&cDealer&8: &f{cards} &8(&f{value}&8)",
                 Map.of("cards", dealerHand.describe(false), "value", dealerVal)));
 
+        String bestWinner = null;
+        long bestNet = 0L;
+        boolean anyPlayed = false;
         for (UUID id : new ArrayList<>(hands.keySet())) {
             Player p = Bukkit.getPlayer(id);
             List<Hand> list = handsOf(id);
@@ -2293,6 +2310,11 @@ public class BlackjackTable {
             // Total de la ronda: mano(s) + apuestas laterales + blackjack natural.
             long net = totalPayout - totalBet + early;
             roundNet.put(id, net);
+            anyPlayed = true;
+            if (net > bestNet) {
+                bestNet = net;
+                bestWinner = p.getName();
+            }
             long wagered = 0L;
             for (Hand h : list)
                 wagered += h.bet();
@@ -2319,6 +2341,13 @@ public class BlackjackTable {
                         plugin.color("&c-" + prettyUnits(-net) + " &8| &7Dealer &f" + dealerVal), 5, 60, 15);
             }
         }
+
+        if (dealerBust)
+            dealerSay("dealer_bust", null);
+        else if (bestWinner != null)
+            dealerSay("player_win", bestWinner);
+        else if (anyPlayed && !dealerBj)
+            dealerSay("house_wins", null);
 
         // Mantener cartas y resultados en pantalla antes de limpiar la mesa.
         resultSecondsLeft = resultDisplaySeconds();
@@ -2412,7 +2441,40 @@ public class BlackjackTable {
         if (deck == null || deck.isEmpty()) {
             deck = new ArrayDeque<>(buildShuffledDeck());
         }
+        // Cada carta que sale del zapato suena: reparto, pedir, doblar, dividir y el dealer.
+        playTableSound("card", "item.book.page_turn", 1.3f);
         return deck.pollFirst();
+    }
+
+    /**
+     * Sonido en la mesa (lo escuchan los que están cerca). Se configura en
+     * blackjack.yml → sounds.&lt;key&gt; con el nombre del sonido de Minecraft
+     * (ej. item.book.page_turn); vacío = sin sonido.
+     */
+    private void playTableSound(String key, String def, float pitch) {
+        if (!plugin.getConfig().getBoolean("blackjack.sounds.enabled", true))
+            return;
+        String name = plugin.getConfig().getString("blackjack.sounds." + key, def);
+        World w = center.getWorld();
+        if (w == null || name == null || name.isBlank())
+            return;
+        float vol = (float) plugin.getConfig().getDouble("blackjack.sounds.volume", 0.9);
+        try {
+            w.playSound(center.clone().add(0.5, 1.0, 0.5), name.toLowerCase(Locale.ROOT), vol, pitch);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** El crupier dice una frase (blackjack.yml → dealer_talk). */
+    private void dealerSay(String event, String player) {
+        World w = center.getWorld();
+        Entity dealer = w == null || dealerId == null ? null : w.getEntity(dealerId);
+        com.gamblingdex.util.DealerTalk.say(plugin, "blackjack.dealer_talk", "bj:" + System.identityHashCode(this),
+                center.clone().add(0.5, 1.0, 0.5), dealer == null || dealer.isDead() ? null
+                        // Arriba del todo: la línea más alta del holograma de la mesa está en holo_height + 0.6
+                        : dealer.getLocation().add(0, plugin.getConfig().getDouble("blackjack.holo_height", 2.3) + 0.6, 0),
+                event, null,
+                player == null ? Map.of() : Map.of("player", player), false);
     }
 
     private void broadcastToSeated(String msg) {
@@ -2782,6 +2844,9 @@ public class BlackjackTable {
                 return;
             }
             followHandDisplays();
+            // Flecha de turno 5 veces por segundo (antes 1 vez: casi no se veía)
+            if (roundDisplayTick % 2 == 0 && state == State.PLAYING && !dealing)
+                spawnTurnMarkerParticles();
             if (roundDisplayTick++ % 10 == 0) {
                 sendHandActionBars();
             }

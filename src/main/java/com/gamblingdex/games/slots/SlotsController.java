@@ -45,6 +45,48 @@ public class SlotsController {
 
     public SlotsController(GamblingDexPlugin plugin) {
         this.plugin = plugin;
+        this.jackpotFile = new java.io.File(plugin.getDataFolder(), "slots_jackpot.yml");
+        org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration
+                .loadConfiguration(jackpotFile);
+        this.jackpot = y.getLong("jackpot", jackpotSeed());
+    }
+
+    // ------------------------------------------------------------------
+    // Jackpot progresivo: cada tirada aporta un % al pozo; 3 símbolos del
+    // jackpot (estrella por defecto) en la línea se lo llevan todo.
+    // ------------------------------------------------------------------
+
+    private final java.io.File jackpotFile;
+    private long jackpot;
+    private int spinsSinceSave;
+
+    private boolean jackpotEnabled() {
+        return plugin.getConfig().getBoolean("games.slots.jackpot.enabled", true);
+    }
+
+    private long jackpotSeed() {
+        return Math.max(0, plugin.getConfig().getLong("games.slots.jackpot.seed", 10000));
+    }
+
+    private Material jackpotSymbol() {
+        Material m = Material.matchMaterial(plugin.getConfig().getString("games.slots.jackpot.symbol", "NETHER_STAR"));
+        return m == null ? Material.NETHER_STAR : m;
+    }
+
+    /** Pozo actual (para el menú y %gamblingdex_jackpot_slots%). */
+    public long getJackpot() {
+        return jackpot;
+    }
+
+    private void saveJackpot() {
+        org.bukkit.configuration.file.YamlConfiguration y = new org.bukkit.configuration.file.YamlConfiguration();
+        y.set("jackpot", jackpot);
+        try {
+            y.save(jackpotFile);
+        } catch (java.io.IOException e) {
+            plugin.getLogger().warning("No se pudo guardar slots_jackpot.yml: " + e.getMessage());
+        }
+        spinsSinceSave = 0;
     }
 
     private static final class SlotsState {
@@ -117,8 +159,14 @@ public class SlotsController {
             inv.setItem(i, Icons.of(light, " ", null));
             inv.setItem(36 + i, Icons.of(light, " ", null));
         }
-        inv.setItem(4, Icons.of(Material.NETHER_STAR, 1, "&d&lTRAGAMONEDAS",
-                List.of("&7Tres iguales en la línea: &ax" + tripleMult(), "&7Dos iguales: &ax" + doubleMult()), true));
+        if (jackpotEnabled())
+            inv.setItem(4, Icons.of(jackpotSymbol(), 1, "&6&l★ JACKPOT: &e&l" + fmt(jackpot) + " &6&l★", List.of(
+                    "&73 &f" + symbolName(jackpotSymbol()) + "&7 en la línea se llevan",
+                    "&7todo el pozo (además del triple).",
+                    "&8Cada tirada suma al pozo."), true));
+        else
+            inv.setItem(4, Icons.of(Material.NETHER_STAR, 1, "&d&lTRAGAMONEDAS",
+                    List.of("&7Tres iguales en la línea: &ax" + tripleMult(), "&7Dos iguales: &ax" + doubleMult()), true));
 
         // Marco de los rodillos
         for (int row = 1; row <= 3; row++)
@@ -144,6 +192,8 @@ public class SlotsController {
         List<String> pay = new ArrayList<>();
         pay.add("&7Tres iguales: &a&lx" + tripleMult());
         pay.add("&7Dos iguales: &ax" + doubleMult());
+        if (jackpotEnabled())
+            pay.add("&63 " + symbolName(jackpotSymbol()) + ": &6&lJACKPOT &e" + fmt(jackpot));
         pay.add("");
         pay.add("&7Símbolos:");
         for (Material m : symbols())
@@ -249,6 +299,12 @@ public class SlotsController {
         s.spinBet = s.bet;
         s.frame = 0;
         s.result = new Material[] { randomSymbolWeighted(), randomSymbolWeighted(), randomSymbolWeighted() };
+        if (jackpotEnabled()) {
+            double pct = Math.max(0, Math.min(50, plugin.getConfig().getDouble("games.slots.jackpot.contribution_percent", 2.0)));
+            jackpot += (long) Math.floor(s.spinBet * pct / 100.0);
+            if (++spinsSinceSave >= 25)
+                saveJackpot();
+        }
         try {
             plugin.getSlotsStatsManager().recordSpin(p.getUniqueId(), s.spinBet);
         } catch (Throwable ignored) {
@@ -299,9 +355,32 @@ public class SlotsController {
             payout = s.spinBet * tripleMult();
         else if (res[0] == res[1] || res[1] == res[2] || res[0] == res[2])
             payout = s.spinBet * doubleMult();
+        boolean jackpotWin = triple && jackpotEnabled() && res[0] == jackpotSymbol() && jackpot > 0;
+        long pot = 0;
+        if (jackpotWin) {
+            pot = jackpot;
+            payout += pot;
+            jackpot = jackpotSeed();
+            saveJackpot();
+        }
         s.lastPay = payout;
         if (payout > 0)
             TokenWallet.give(p.getUniqueId(), payout);
+        if (jackpotWin) {
+            GamblingDexPlugin.achievement(p.getUniqueId(), "slots_jackpot");
+            String msg = plugin.color(plugin.getConfig().getString("games.slots.jackpot.broadcast",
+                    "&6&l★ JACKPOT TRAGAMONEDAS ★ &e{player} &7se llevó &6&l{amount} &7fichas!")
+                    .replace("{player}", p.getName()).replace("{amount}", fmt(pot)));
+            for (Player o : Bukkit.getOnlinePlayers()) {
+                o.sendMessage(msg);
+                if (!o.equals(p))
+                    o.playSound(o.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 0.6f, 1.0f);
+            }
+            if (p.isOnline()) {
+                p.sendTitle(plugin.color("&6&l★ JACKPOT ★"), plugin.color("&e+" + fmt(pot)), 10, 80, 20);
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+            }
+        }
         try {
             plugin.getSlotsStatsManager().recordPayout(p.getUniqueId(), payout);
         } catch (Throwable ignored) {
@@ -317,7 +396,7 @@ public class SlotsController {
             p.sendMessage(colorCfg("messages.slots.win", "&a¡Premio! &7Ganaste fichas equivalentes a &e{amount} &7{currency}")
                     .replace("{amount}", fmt(payout)).replace("{currency}", currencyName));
             p.playSound(p.getLocation(), triple ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
-            if (triple)
+            if (triple && !jackpotWin)
                 p.sendTitle(plugin.color("&d&l¡TRIPLE!"), plugin.color("&e+" + fmt(payout)), 5, 40, 10);
         } else {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
@@ -337,6 +416,7 @@ public class SlotsController {
             if (p != null && e.getValue().spinning)
                 finish(p, e.getValue());
         }
+        saveJackpot();
     }
 
     // ------------------------------------------------------------------

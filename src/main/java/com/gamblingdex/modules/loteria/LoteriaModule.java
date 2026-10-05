@@ -151,6 +151,7 @@ public class LoteriaModule extends GameModule {
         return switch (key) {
             case "pot" -> units(pot());
             case "next" -> timeLeft();
+            case "price" -> units(price());
             default -> null;
         };
     }

@@ -86,6 +86,8 @@ public class CrashModule extends GameModule {
     }
 
     private final Map<String, Station> stations = new LinkedHashMap<>();
+    /** Dónde explotaron las últimas rondas (de cualquier mesa), la más reciente primero. */
+    private final Deque<Double> recentCrashes = new ArrayDeque<>();
 
     @Override
     public String id() {
@@ -157,6 +159,16 @@ public class CrashModule extends GameModule {
     /** %gamblingdex_crash_multiplier% (x1.00 en apuestas, el actual en vuelo, donde explotó en la pausa), _state, _seconds. */
     @Override
     public String placeholder(String key) {
+        if (key.startsWith("last_")) {
+            // %gamblingdex_crash_last_1% … _10: dónde explotaron las últimas rondas
+            try {
+                int n = Integer.parseInt(key.substring(5));
+                List<Double> l = new ArrayList<>(recentCrashes);
+                return n >= 1 && n <= l.size() ? "x" + fmt(l.get(n - 1)) : "-";
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
         Station st = null;
         for (Station s2 : stations.values())
             if (st == null || (s2.state == State.RUNNING && st.state != State.RUNNING)
@@ -416,6 +428,9 @@ public class CrashModule extends GameModule {
 
     private void crash(Station st) {
         st.state = State.PAUSE;
+        recentCrashes.addFirst(st.crashPoint);
+        while (recentCrashes.size() > 10)
+            recentCrashes.removeLast();
         st.secondsLeft = Math.max(1, config().getInt("pause_seconds", 5));
 
         // Resumen solo para los que jugaron la ronda de esta mesa.

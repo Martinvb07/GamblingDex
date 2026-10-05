@@ -140,6 +140,32 @@ public class GamblingDexCommand implements CommandExecutor {
                 }
                 plugin.reloadAll();
                 sender.sendMessage(cfg("messages.admin.reload.success", "&aGamblingDex recargado."));
+                int warnings = new com.gamblingdex.config.ConfigCheck(plugin).run().size();
+                if (warnings > 0)
+                    sender.sendMessage(plugin.color("&e⚠ Hay &f" + warnings
+                            + "&e valor(es) raros en la config. Míralos con &f/gdx config check&e."));
+                return true;
+            }
+            if (sub.equals("config")) {
+                if (!sender.hasPermission("gamblingdex.admin")) {
+                    sender.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+                if (args.length < 2 || !args[1].equalsIgnoreCase("check")) {
+                    sender.sendMessage(plugin.color("&7Uso: &f/gdx config check"));
+                    return true;
+                }
+                java.util.List<String> problems = new com.gamblingdex.config.ConfigCheck(plugin).run();
+                sender.sendMessage(plugin.color("&8&m        &r &6&lRevisión de la config &8&m        "));
+                if (problems.isEmpty()) {
+                    sender.sendMessage(plugin.color("&a✔ Todo bien: no encontré valores raros en los archivos."));
+                    return true;
+                }
+                for (String pr : problems)
+                    sender.sendMessage(plugin.color("&c✖ &e" + pr));
+                sender.sendMessage(plugin.color("&7" + problems.size()
+                        + " problema(s). Corrígelos y usa &f/gdx reload&7."));
                 return true;
             }
         }
@@ -177,6 +203,130 @@ public class GamblingDexCommand implements CommandExecutor {
                 var ach = GamblingDexPlugin.getInstance().getAchievements();
                 if (ach != null)
                     ach.open(player, 0);
+                return true;
+            }
+
+            if (sub.equals("sign") || sub.equals("signs")) {
+                GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+                if (!player.hasPermission("gamblingdex.admin")) {
+                    player.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                var cs = plugin.getCasinoSigns();
+                String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "";
+                if (action.equals("list")) {
+                    java.util.List<String> lines = cs.describe();
+                    player.sendMessage(plugin.color(lines.isEmpty() ? "&7No hay carteles del casino."
+                            : "&6&lCarteles del casino &7(" + lines.size() + ")"));
+                    for (String l : lines)
+                        player.sendMessage(plugin.color(l));
+                    return true;
+                }
+                if (!action.equals("add") && !action.equals("remove")) {
+                    HelpMenu.send(player, new String[] { "help", "signs" });
+                    return true;
+                }
+                org.bukkit.block.Block target = com.gamblingdex.stats.CasinoSigns.target(player);
+                if (target == null) {
+                    player.sendMessage(plugin.color("&cMira un cartel (a menos de 6 bloques)."));
+                    return true;
+                }
+                if (action.equals("remove")) {
+                    player.sendMessage(plugin.color(cs.remove(target) ? "&aCartel quitado. &7(el texto se queda como está)"
+                            : "&cEse cartel no es del casino."));
+                    return true;
+                }
+                String type = args.length >= 3 ? args[2].toLowerCase(Locale.ROOT) : "";
+                if (!com.gamblingdex.stats.CasinoSigns.TYPES.contains(type)) {
+                    player.sendMessage(plugin.color("&cTipo desconocido. Tipos: &f"
+                            + String.join(", ", com.gamblingdex.stats.CasinoSigns.TYPES)));
+                    return true;
+                }
+                int n = 1;
+                String arg = "";
+                if (type.equals("table")) {
+                    if (args.length < 4 || !cs.tableExists(args[3])) {
+                        player.sendMessage(plugin.color("&cIndica una mesa de blackjack o póker: &f/gdx sign add table <name>"
+                                + (cs.tableNames().isEmpty() ? "" : " &7(" + String.join(", ", cs.tableNames()) + ")")));
+                        return true;
+                    }
+                    arg = args[3];
+                } else if (type.equals("game_status")) {
+                    String g = args.length >= 4 && plugin.getMaintenance() != null
+                            ? plugin.getMaintenance().resolve(args[3]) : null;
+                    if (g == null) {
+                        player.sendMessage(plugin.color("&cIndica el juego: &f/gdx sign add game_status <game>"));
+                        return true;
+                    }
+                    arg = g;
+                } else {
+                    for (int i = 3; i < args.length; i++) {
+                        try {
+                            n = Integer.parseInt(args[i]);
+                        } catch (NumberFormatException ex) {
+                            String g = com.gamblingdex.stats.GameStats.gameId(args[i].toLowerCase(Locale.ROOT));
+                            if (g == null || !com.gamblingdex.stats.CasinoSigns.PER_GAME.contains(type)) {
+                                player.sendMessage(plugin.color("&cNo entiendo &f" + args[i] + "&c para este cartel."));
+                                return true;
+                            }
+                            arg = g;
+                        }
+                    }
+                    if (n < 1 || n > 10) {
+                        player.sendMessage(plugin.color("&cEl puesto tiene que ser de 1 a 10."));
+                        return true;
+                    }
+                }
+                cs.add(target, type, n, arg);
+                player.sendMessage(plugin.color("&aCartel del casino creado: &f" + type
+                        + (com.gamblingdex.stats.CasinoSigns.RANKED.contains(type) ? " #" + n : "")
+                        + (arg.isEmpty() ? "" : " &7(" + arg + ")") + "&a. Se actualiza solo."));
+                return true;
+            }
+
+            if (sub.equals("schedule") || sub.equals("inspect")) {
+                if (!player.hasPermission("gamblingdex.admin")) {
+                    player.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+                if (sub.equals("schedule")) {
+                    if (plugin.getSchedule() != null)
+                        plugin.getSchedule().open(player);
+                    return true;
+                }
+                if (args.length < 2) {
+                    player.sendMessage(plugin.color("&7Uso: &f/gdx inspect <player>"));
+                    return true;
+                }
+                UUID target = null;
+                String targetName = args[1];
+                Player on = org.bukkit.Bukkit.getPlayerExact(args[1]);
+                if (on != null) {
+                    target = on.getUniqueId();
+                    targetName = on.getName();
+                } else if (plugin.getPlayerIndex() != null) {
+                    target = plugin.getPlayerIndex().resolveNameToUuid(args[1]);
+                    if (target != null) {
+                        String known = plugin.getPlayerIndex().getLastKnownName(target);
+                        if (known != null && !known.isBlank())
+                            targetName = known;
+                    }
+                }
+                if (target == null) {
+                    OfflinePlayer cached = org.bukkit.Bukkit.getOfflinePlayerIfCached(args[1]);
+                    if (cached != null) {
+                        target = cached.getUniqueId();
+                        if (cached.getName() != null)
+                            targetName = cached.getName();
+                    }
+                }
+                if (target == null) {
+                    player.sendMessage(plugin.color("&cJugador no encontrado: &f" + args[1]
+                            + " &c(tiene que haber entrado al servidor)"));
+                    return true;
+                }
+                plugin.getInspectMenu().open(player, target, targetName);
                 return true;
             }
 

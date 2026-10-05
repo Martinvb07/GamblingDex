@@ -139,3 +139,55 @@ gui:
   exchange:
     # Menú de cambio: pestañas Comprar/Vender, fichas, cantidad y confirmar (todo en uno).
     title: "&8&l✦ &e&lCAMBIO &8&l✦"
+
+# ======================
+# CARTELES DEL CASINO
+# ======================
+# Carteles que se actualizan solos (no necesitan PlaceholderAPI ni otro plugin).
+# Mira un cartel y usa: /gdx sign add <tipo> ...   (todos los tipos: /gdx help signs)
+#   last_win [1-10]               -> último ganador (1 = el más reciente)
+#   record                        -> el premio más grande de la historia
+#   jackpot_slots / jackpot_roulette -> pozo de cada jackpot
+#   top [1-10] [juego]            -> top de ganancias (de siempre); juego opcional (blackjack, slots...)
+#   top_week [1-10] [juego]       -> top de ganancias de la semana
+#   top_biggest [1-10] [juego]    -> top de mayor premio de una sola vez
+#   top_wagered [1-10] [juego]    -> top de los que más apuestan
+#   top_poker [1-10]              -> top de ganancias del póker
+#   top_poker_pot [1-10]          -> top de botes más grandes del póker
+#   schedule                      -> horario: ABIERTO / CERRADO (usa schedule_open, schedule_closed, schedule_always)
+#   players_now                   -> cuántos están jugando ahora (últimos 5 min)
+#   game_status <juego>           -> abierto / mantenimiento / cerrado por horario
+#   table <mesa>                  -> info de una mesa de blackjack o póker
+#   roulette_last                 -> últimos números de la ruleta más cercana al cartel
+#   crash_last                    -> dónde explotaron las últimas rondas de Crash
+#   lottery / bingo               -> bote, precio y próximo sorteo / partida
+#   exchange                      -> precio de las fichas en dinero
+# Quitar: /gdx sign remove (mirando el cartel) o romperlo siendo admin. Lista: /gdx sign list
+# Cada cartel tiene 4 líneas de ~15 letras. Las horas salen en formato 12 h (6:00 PM).
+signs:
+  update_seconds: 10
+  formats:
+    last_win: ["&6&lGANADOR #{n}", "{name}", "&2+{amount}", "&8{game}"]
+    record: ["&6&l★ RÉCORD ★", "{name}", "&2+{amount}", "&8{game}"]
+    jackpot_slots: ["&5&lJACKPOT", "&5SLOTS", "&6&l{amount}", "&8¡Llévatelo!"]
+    jackpot_roulette: ["&4&lJACKPOT", "&4RULETA", "&6&l{amount}", "&8¡Llévatelo!"]
+    top: ["&1&lTOP #{n}", "{name}", "&2{amount}", "&8{game}"]
+    top_week: ["&1&lTOP SEMANA #{n}", "{name}", "&2{amount}", "&8{game}"]
+    top_biggest: ["&6&lMAYOR PREMIO", "&8#{n} &0{name}", "&2+{amount}", "&8{game}"]
+    top_wagered: ["&1&lMÁS APOSTADO", "&8#{n} &0{name}", "&2{amount}", "&8{game}"]
+    top_poker: ["&5&lTOP PÓKER #{n}", "{name}", "&2{amount}", "&8ganancias"]
+    top_poker_pot: ["&5&lBOTE MAYOR #{n}", "{name}", "&2{amount}", "&8póker"]
+    schedule_open: ["&6&l✦ CASINO ✦", "&2&lABIERTO", "Cierra {close}", "&8{zone}"]
+    schedule_closed: ["&6&l✦ CASINO ✦", "&4&lCERRADO", "Abre {open}", "&8{zone}"]
+    schedule_always: ["&6&l✦ CASINO ✦", "&2&lABIERTO", "Todo el día", ""]
+    players_now: ["&6&l✦ CASINO ✦", "&8Jugando ahora", "&2&l{count}", "&8jugadores"]
+    game_open: ["&l{game}", "&2&lABIERTO", "", "&8¡A jugar!"]
+    game_maintenance: ["&l{game}", "&4&lMANTENIMIENTO", "", "&8Vuelve pronto"]
+    game_closed_hours: ["&l{game}", "&4&lCERRADO", "Abre {open}", ""]
+    table_blackjack: ["&l{name}", "Jugadores {players}/{seats}", "&2{limits}", "&8{state}"]
+    table_poker: ["&l{name}", "Jugadores {players}/{seats}", "&2Ciegas {blinds}", "&8{state}"]
+    roulette_last: ["&4&lRULETA", "&8Últimos números", "{r1} {r2} {r3} {r4} {r5}", "{r6} {r7} {r8} {r9} {r10}"]
+    crash_last: ["&4&lCRASH ↑", "{c1}  {c2}", "{c3}  {c4}", "{c5}  {c6}"]
+    lottery: ["&6&lLOTERÍA", "Bote: &2{pot}", "&8Sorteo en", "{next}"]
+    bingo: ["&5&lBINGO", "{next}", "Cartón: &2{price}", "Bote: &2{pot}"]
+    exchange: ["&e&lCAMBIO", "1 ficha = &2${price}", "1.000 = &2${price1000}", "&8compra y venta"]

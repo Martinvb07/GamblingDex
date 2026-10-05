@@ -11,6 +11,29 @@
 min_bet: 10
 max_bet: 0                  # 0 = sin tope
 
+# Jackpot progresivo: cada tirada suma un % de la apuesta al pozo. Quien saque
+# 3 del símbolo del jackpot en la línea se lleva todo el pozo (además del triple).
+# Placeholder: %gamblingdex_jackpot_slots%
+jackpot:
+  enabled: true
+  contribution_percent: 2.0   # % de cada apuesta que va al pozo
+  seed: 10000                 # con cuánto vuelve a empezar el pozo después de ganarse
+  symbol: NETHER_STAR         # tiene que estar en symbol_weights
+  broadcast: "&6&l★ JACKPOT TRAGAMONEDAS ★ &e{player} &7se llevó &6&l{amount} &7fichas!"
+  # Campana: cuando el pozo pasa de min_pot sale un aviso (y suena una campana) SOLO para
+  # los que estén cerca de una estación de slots. Mientras siga alto, el aviso se repite cada
+  # repeat_minutes; la campana suena como mucho max_sounds_per_day veces al día.
+  bell:
+    enabled: true
+    min_pot: 300000           # el pozo tiene que llegar a esto para que suene
+    repeat_minutes: 10        # cada cuánto se repite el AVISO mientras siga alto (0 = solo una vez)
+    max_sounds_per_day: 3     # veces al día que suena la CAMPANA (0 = sin límite)
+    radius: 20                # bloques alrededor de cada estación de slots
+    sound: block.bell.use
+    volume: 1.0
+    rings: 3                  # campanadas
+    message: "&6&l🔔 JACKPOT &8» &7¡El pozo de los slots ya va en &6&l{amount}&7 fichas! ¿Te lo llevas?"
+
 payout:
   triple_multiplier: 5
   double_multiplier: 2

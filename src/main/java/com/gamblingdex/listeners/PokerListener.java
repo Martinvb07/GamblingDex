@@ -131,6 +131,10 @@ public class PokerListener implements Listener {
             player.closeInventory();
             return;
         }
+        if (action.equals("tip")) {
+            openTip(player, table);
+            return;
+        }
         if (action.equals("register")) {
             table.register(player);
             new PokerBuyInMenu(plugin).open(player, table);
@@ -181,6 +185,37 @@ public class PokerListener implements Listener {
             plugin.getTokenPayout().pay(player, units);
         }
         new PokerBuyInMenu(plugin).open(player, table);
+    }
+
+    /** Propina al crupier: elige cuánto, se cobra de sus fichas y el crupier da las gracias. */
+    private void openTip(Player player, PokerTable table) {
+        var cfg = plugin.getConfig();
+        long min = Math.max(1, cfg.getLong("poker.tips.min", 10));
+        long max = Math.max(0, cfg.getLong("poker.tips.max", 0));
+        player.closeInventory();
+        com.gamblingdex.gui.AmountPickerMenu.open(player, "&6&lPropina &8- &eCrupier", min, max, min,
+                java.util.List.of("&7La propina es para la casa.", "&7Sale de tus fichas (tokens)."), amount -> {
+                    if (!com.gamblingdex.economy.TokenWallet.take(player, amount)) {
+                        player.sendMessage(plugin.getMessages().getString("poker.tip_not_enough",
+                                "&cNo te alcanzan las fichas para esa propina."));
+                    } else {
+                        player.sendMessage(plugin.getMessages().format("poker.tip_given",
+                                "&6Le diste &e{amount}&6 de propina al crupier.",
+                                java.util.Map.of("amount", PokerTable.units(amount))));
+                        org.bukkit.Location c = table.getCenter();
+                        com.gamblingdex.util.DealerTalk.say(plugin, "poker.dealer_talk", "pk:" + table.getTableKey(),
+                                c == null ? player.getLocation() : c.clone().add(0.5, 1.0, 0.5),
+                                c == null ? null : c.clone().add(0.5, cfg.getDouble("poker.holo_height", 1.0), 0.5), "tip", null,
+                                java.util.Map.of("player", player.getName(), "amount", PokerTable.units(amount)), true);
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+                        plugin.getLogger().info("[Póker] " + player.getName() + " dio " + amount + " de propina en " + table.getName());
+                    }
+                    if (table.isSeated(player.getUniqueId()))
+                        table.openMenu(player);
+                }, () -> {
+                    if (table.isSeated(player.getUniqueId()))
+                        table.openMenu(player);
+                });
     }
 
     @EventHandler

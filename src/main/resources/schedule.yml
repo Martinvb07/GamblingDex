@@ -1,0 +1,23 @@
+# ==============================
+# GamblingDex - Horario del casino
+# ==============================
+# El casino abre y cierra solo. Fuera de horario nadie puede jugar a ningún juego,
+# y al cerrar se devuelven las apuestas que estén en curso.
+# Se cambia en el juego con /gdx schedule (menú) o aquí (después: /gdx reload).
+
+enabled: false
+timezone: "America/Bogota"     # zona horaria (Colombia). Otras: America/Mexico_City, Europe/Madrid...
+zone_name: "hora Colombia"     # cómo se muestra en los mensajes
+open: "6:00 PM"                # hora de apertura (ej. "6:00 PM", "10:30 AM"; también acepta "18:00")
+close: "2:00 AM"               # hora de cierre; si es antes de la apertura, cierra al día siguiente
+# Días en que ABRE (si cruza la medianoche, cuenta el día en que abre).
+# MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+warn_minutes: [10, 5, 1]       # avisos antes de cerrar
+admin_bypass: false            # true = los admins pueden jugar fuera de horario (para probar)
+
+messages:
+  closed: "&c&l⚠ &cEl casino está cerrado. Abre a las &e{open} &7({zone})&c."
+  opened: "&a&l✦ CASINO &8» &a¡El casino está abierto! &7Cierra a las &e{close}&7."
+  closed_now: "&c&l✦ CASINO &8» &cEl casino cerró. &7Vuelve a las &e{open}&7."
+  closing_soon: "&e&l✦ CASINO &8» &eEl casino cierra en &f{minutes} min&e."

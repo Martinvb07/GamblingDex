@@ -580,6 +580,15 @@ public class PokerTable {
         return c;
     }
 
+    /** Jugadores sentados ahora (para los carteles). */
+    public int getSeatedCount() {
+        return seatedCount();
+    }
+
+    public int getSeatCount() {
+        return seats.size();
+    }
+
     private int seatedCount() {
         int c = 0;
         for (Seat s : seats) {

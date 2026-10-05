@@ -50,9 +50,10 @@ turn_timeout_seconds: 20
 action_menu_delay_seconds: 5
 # Marcador visual de turno (se dibuja una “flecha” con partículas sobre el jugador actual)
 turn_marker:
-  enabled: true
+  enabled: false  # flecha de partículas encima del jugador de turno
   particle: END_ROD
   count: 1
+  glow: true      # el jugador de turno brilla (contorno) mientras dura su turno
 # Regla del dealer: pide carta hasta llegar a 17.
 # false = se planta en TODO 17 (regla clásica "S17", mejor para el jugador)
 # true  = también pide con 17 suave (A+6)
@@ -72,8 +73,58 @@ decks: 6
 reshuffle_at_percent: 25
 # Reparto inicial: una carta a cada jugador en el orden en que se sentaron, luego al dealer,
 # y otra vuelta. Los turnos siguen el mismo orden.
-# Pausa entre cada carta (20 ticks = 1 segundo). 0 = todas de golpe.
+# Pausa entre cada carta (20 ticks = 1 segundo, máximo 100 = 5 s). 0 = todas de golpe.
 deal_interval_ticks: 8
+# Sonidos de la mesa (los escuchan los que están cerca). Nombres de sonidos de Minecraft;
+# vacío ("") = sin ese sonido.
+sounds:
+  enabled: true
+  volume: 0.9
+  card: item.book.page_turn   # cada carta: reparto, pedir, doblar, dividir y las del dealer
+  reveal: item.book.put       # el dealer voltea su carta oculta
+# El crupier habla: dice una frase al azar cuando pasa algo en la mesa. Sale en el chat de
+# los que están cerca y en un globo de texto sobre el crupier. {player} = nombre del jugador.
+# Deja una lista vacía ([]) para que no diga nada en ese momento.
+dealer_talk:
+  enabled: true
+  name: "Crupier"                       # nombre en el chat
+  format: "&6&l{dealer} &8» &f{message}"
+  chance_percent: 100                   # probabilidad de que hable en cada momento
+  cooldown_seconds: 1.5                 # tiempo mínimo entre frases de la misma mesa
+  radius: 10                            # bloques: quién lee las frases en el chat
+  bubble: true                          # globo de texto sobre el crupier
+  bubble_format: "&f{message}"
+  bubble_height: 0.5                    # bloques POR ENCIMA del holograma de la mesa (nunca se encima con él)
+  bubble_ticks: 60                      # cuánto dura el globo (20 = 1 s)
+  phrases:
+    round_start:
+      - "Apuestas cerradas. ¡Repartimos!"
+      - "Mucha suerte a todos."
+      - "Vamos con las cartas."
+    player_blackjack:
+      - "¡Blackjack para {player}! Buena mano."
+      - "¡Qué mano, {player}! Blackjack."
+    dealer_blackjack:
+      - "¡Blackjack para la casa!"
+      - "Lo siento, la casa tiene blackjack."
+    player_bust:
+      - "Uy, {player} se pasó."
+      - "Te pasaste, {player}. A la próxima."
+    dealer_bust:
+      - "Me pasé... ¡ganan los que siguen en pie!"
+      - "La casa se pasa. ¡Felicidades!"
+    player_double:
+      - "{player} dobla. ¡Valiente!"
+      - "Doble para {player}, una sola carta."
+    player_split:
+      - "{player} divide. Veamos qué sale."
+      - "Dos manos para {player}."
+    player_win:                         # el que más ganó en la ronda
+      - "Buena mano, {player}."
+      - "Bien jugado, {player}."
+    house_wins:                         # nadie ganó
+      - "La casa gana esta vez."
+      - "Esta ronda es para la casa."
 # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
 dealer_draw_interval_ticks: 40
 # Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda

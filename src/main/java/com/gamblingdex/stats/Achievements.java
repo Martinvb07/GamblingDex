@@ -20,8 +20,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -81,9 +79,11 @@ public class Achievements implements Listener {
         if (!configFile.exists() && plugin.getResource("achievements.yml") != null)
             plugin.saveResource("achievements.yml", false);
         config = YamlConfiguration.loadConfiguration(configFile);
-        var in = plugin.getResource("achievements.yml");
-        if (in != null)
-            config.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8)));
+        YamlConfiguration jar = com.gamblingdex.config.ConfigUpdater.jarConfig(plugin, "achievements.yml");
+        if (jar != null) {
+            config.setDefaults(jar);
+            com.gamblingdex.config.ConfigUpdater.update(plugin, "achievements.yml", configFile, config, jar);
+        }
         defs.clear();
         // Solo los de la sección del archivo del servidor (los defaults no deben revivir logros borrados)
         ConfigurationSection sec = YamlConfiguration.loadConfiguration(configFile).getConfigurationSection("achievements");

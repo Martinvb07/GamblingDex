@@ -1,0 +1,53 @@
+# ======================
+# GamblingDex - Tower
+# ======================
+# Admin: mira un bloque y usa: /gdx station set tower
+#        -> estación con MENÚ: click derecho abre la torre en un cofre (juegan varios a la vez).
+#        Quitarla: /gdx station remove (mirando el bloque).
+# En cada piso hay varias puertas y detrás de alguna hay una trampa. Una puerta
+# segura sube un piso y aumenta el premio. Retírate cuando quieras con el botón
+# verde (cerrar el menú también te retira). Si caes en una trampa pierdes la apuesta.
+#
+# Multiplicador tras N pisos = (1 - house_edge) x (puertas / puertas seguras)^N
+# Ej. normal (3 puertas, 1 trampa) con 3% de casa: piso 1 x1.45, piso 4 x4.91, piso 8 x24.86
+
+enabled: true
+
+min_bet: 10
+max_bet: 0                  # 0 = sin tope
+max_win: 0                  # premio máximo por partida (0 = sin tope)
+house_edge_percent: 3.0
+floors: 8                   # pisos de la torre (3 a 12)
+
+# Dificultades: puertas por piso (2 a 4) y cuántas tienen trampa (menos que las puertas)
+difficulties:
+  easy:
+    name: "&aFácil"
+    doors: 4
+    traps: 1
+  normal:
+    name: "&eNormal"
+    doors: 3
+    traps: 1
+  hard:
+    name: "&cDifícil"
+    doors: 2
+    traps: 1
+  expert:
+    name: "&4&lExperto"
+    doors: 3
+    traps: 2
+
+station_holo: "&b&lTOWER\n&7Click para jugar"
+station_holo_height: 1.2
+
+messages:
+  use_station: "&7Tower se juega en las estaciones: &fclick derecho&7 para abrir la torre."
+  lost: "&c&l¡TRAMPA! &7en el piso &f{floor}&7. Perdiste &e{amount}&7."
+  cashed_out: "&a&l¡RETIRASTE! &7en el piso &f{floor}&7 &fx{mult} &7→ &e+{amount}"
+  top: "&6&l¡CIMA! &7Subiste los &f{floors}&7 pisos &fx{mult} &7→ &e+{amount}"
+  refunded: "&7No subiste ningún piso: se te devolvieron &e{amount}&7."
+  not_enough: "&cNo te alcanzan las fichas. Tienes &e{balance}&c."
+  exists: "&cEse bloque ya es una estación de Tower."
+  station_created: "&aEstación de Tower creada. &7Click derecho al bloque para jugar."
+  station_removed: "&aEstación de Tower eliminada."

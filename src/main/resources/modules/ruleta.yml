@@ -36,6 +36,19 @@ jackpot:
   seed: 0                    # con cuánto vuelve a empezar el pozo después de ganarse
   announce_radius: 20        # el aviso de "ronda de jackpot" solo les llega a los que estén a esta distancia
   broadcast_win: true        # cuando alguien se lo gana se anuncia a TODO el servidor (false = solo a los de cerca)
+  # Campana: cuando el pozo pasa de min_pot sale un aviso (y suena una campana) SOLO para
+  # los que estén cerca de una mesa de ruleta. Mientras siga alto, el aviso se repite cada
+  # repeat_minutes; la campana suena como mucho max_sounds_per_day veces al día.
+  bell:
+    enabled: true
+    min_pot: 300000           # el pozo tiene que llegar a esto para que suene
+    repeat_minutes: 10        # cada cuánto se repite el AVISO mientras siga alto (0 = solo una vez)
+    max_sounds_per_day: 3     # veces al día que suena la CAMPANA (0 = sin límite)
+    radius: 20                # bloques alrededor de cada mesa
+    sound: block.bell.use
+    volume: 1.0
+    rings: 3                  # campanadas
+    message: "&6&l🔔 JACKPOT &8» &7¡El pozo de la ruleta ya va en &6&l{amount}&7 fichas!"
 holo_height: 2.3
 holo_lines:
   - "&6&lRULETA"
