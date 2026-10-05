@@ -2008,12 +2008,17 @@ public class BlackjackTable {
     }
 
     private void spawnTurnMarkerParticles() {
-        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", true))
-            return;
         if (currentTurn == null)
             return;
         Player p = Bukkit.getPlayer(currentTurn);
         if (p == null)
+            return;
+        // Brillo (contorno) mientras es su turno: efecto corto que se renueva; al
+        // terminar el turno se apaga solo en menos de 1 segundo.
+        if (plugin.getConfig().getBoolean("blackjack.turn_marker.glow", true))
+            p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.GLOWING,
+                    12, 0, true, false, false));
+        if (!plugin.getConfig().getBoolean("blackjack.turn_marker.enabled", true))
             return;
 
         Particle particle = Particle.END_ROD;
