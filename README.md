@@ -47,8 +47,9 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Cada mesa tiene su propia ronda, con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
-| 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables. |
+| 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables y **jackpot progresivo**: cada tirada aporta un % al pozo y tres estrellas del Nether se lo llevan todo (con anuncio a todo el servidor). |
 | 💣 **Mines** | **Estación con menú**: tablero de 5×5 en un cofre, eliges apuesta y minas, cada casilla segura sube el multiplicador y te retiras cuando quieras (juegan varios a la vez). También se puede construir como **pared física** de 5×5. |
+| 🗼 **Tower** | **Estación con menú**: sube una torre eligiendo puertas en cada piso; detrás de alguna hay una trampa. Cuatro dificultades, el premio crece con cada piso y te retiras cuando quieras. |
 | 🎯 **Plinko** | **Estación con menú**: la bola baja animada entre los clavos y cae en una casilla con multiplicador (shift = 5 bolas). También como **pared física** con clavos; las orillas pagan hasta x10. |
 | 🎁 **Bonos** | Estación con menú: bono **diario** (24 h, con racha), **semanal** y **mensual**, en fichas. Las fichas de bono no se pueden vender por dinero hasta apostar x3 lo reclamado (configurable). |
 
@@ -131,7 +132,7 @@ Comando principal: `/gdx` (alias: `/gamblingdex`, `/gambledex`)
 | `/gdx bingo` · `buy <n>` | Bingo |
 | `/gdx lottery` · `buy <n>` | Lotería |
 
-En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, crash, mines, plinko, slots, bono diario) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
+En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, crash, mines, plinko, tower, slots, bono diario) se juega con **click derecho** o **parándose en un asiento**. Los menús se abren solos.
 
 ### Administradores
 
@@ -144,6 +145,7 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx station set mines` | Estación de Mines con menú (mirando cualquier bloque) |
 | `/gdx station set mines wall` | Construir la pared 5×5 de Mines (mirando el bloque de la mesa) |
 | `/gdx station set plinko` | Estación de Plinko con menú (mirando cualquier bloque) |
+| `/gdx station set tower` | Estación de Tower con menú (mirando cualquier bloque) |
 | `/gdx station set plinko wall [rows]` | Construir la pared de Plinko (mirando el bloque de la mesa) |
 | `/gdx station set daily` | Estación de bonos (diario, semanal, mensual) |
 | `/gdx station set baccarat [name]` | Crear mesa de baccarat (mirando el bloque de la mesa) |
@@ -263,6 +265,13 @@ Mira el bloque que será la mesa y usa `/gdx station set mines`. Detrás se cons
 </details>
 
 <details>
+<summary><b>🗼 Tower</b></summary>
+
+Mira cualquier bloque y usa `/gdx station set tower`. Click derecho abre la torre en un menú: el jugador elige apuesta y dificultad (fácil, normal, difícil o experto), y en cada piso abre una puerta. Si es segura sube un piso y el premio crece; si es una trampa pierde la apuesta. Se retira cuando quiera (cerrar el menú también lo retira). Pisos, dificultades y ventaja de la casa en `modules/tower.yml`.
+
+</details>
+
+<details>
 <summary><b>📈 Crash</b></summary>
 
 Mira cualquier bloque: `/gdx station set crash`. Encima aparece un holograma con el multiplicador en vivo.
@@ -299,6 +308,7 @@ plugins/GamblingDex/
     ├── slots.yml
     ├── mines.yml
     ├── plinko.yml
+    ├── tower.yml
     ├── baccarat.yml
     ├── crash.yml
     ├── carrera.yml
@@ -340,7 +350,8 @@ Si tienes [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.624
 | `%gamblingdex_top_profit_1_value%` | Ganancia del 1° |
 | `%gamblingdex_topweek_profit_1_name%` | Igual, pero del ranking semanal |
 | `%gamblingdex_jackpot_ruleta%` | Pozo del jackpot de la ruleta |
-| `%gamblingdex_top_blackjack_profit_1_name%` · `_value` | Top de un juego (`topweek_...` = semana). Juegos: `blackjack`, `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `wheel`, `race`, `coinflip`, `scratch`, `bingo`, `lottery` |
+| `%gamblingdex_jackpot_slots%` | Pozo del jackpot progresivo de los slots |
+| `%gamblingdex_top_blackjack_profit_1_name%` · `_value` | Top de un juego (`topweek_...` = semana). Juegos: `blackjack`, `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `tower`, `wheel`, `race`, `coinflip`, `scratch`, `bingo`, `lottery` |
 | `%gamblingdex_blackjack_profit%` · `_wagered` · `_biggest` · `_rounds` · `_rank` | Stats del jugador en un juego (`weekly_blackjack_...` = semana) |
 | `%gamblingdex_last_win_1%` | Último premio: "Martin +400.000 en Blackjack" (1 a 10; también `_name`, `_value`, `_game`) |
 | `%gamblingdex_record_win_name%` · `_value` · `_game` | Récord del casino (el premio más grande de la historia) |
@@ -424,7 +435,7 @@ Párate donde quieras el tablero y pega sus comandos. El `1` después del nombre
 /dh line add topblackjack 1 &8&m                              
 /dh line add topblackjack 1 &7Tu puesto: &e%gamblingdex_weekly_blackjack_rank% &8| &7Tu ganancia: &a%gamblingdex_weekly_blackjack_profit%
 ```
-Sirve igual para cualquier juego cambiando `blackjack` por `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `wheel`, `race`, `coinflip`, `scratch`, `bingo` o `lottery`.
+Sirve igual para cualquier juego cambiando `blackjack` por `roulette`, `crash`, `slots`, `baccarat`, `mines`, `plinko`, `tower`, `wheel`, `race`, `coinflip`, `scratch`, `bingo` o `lottery`.
 
 **♠ Top póker de la semana**
 ```

@@ -30,6 +30,7 @@ import java.util.UUID;
  * %gamblingdex_topweek_profit_1_name%   lo mismo pero de la semana
  *   (métricas: profit, wagered, paid, biggest)
  * %gamblingdex_jackpot_ruleta%          pozo del jackpot de la ruleta
+ * %gamblingdex_jackpot_slots%           pozo del jackpot progresivo de los slots
  *
  * %gamblingdex_last_win_1%              "Martin +400.000 en Blackjack" (1 = el más reciente, hasta 10)
  * %gamblingdex_last_win_1_name|value|game%
@@ -37,7 +38,7 @@ import java.util.UUID;
  * %gamblingdex_players_playing%         jugadores que jugaron en los últimos 5 minutos
  * %gamblingdex_achievements%            logros del jugador  (_total = cuántos hay)
  *
- * Por juego (blackjack, ruleta/roulette, crash, slots, baccarat, mines, plinko, wheel, race,
+ * Por juego (blackjack, ruleta/roulette, crash, slots, baccarat, mines, plinko, tower, wheel, race,
  * coinflip, scratch, bingo, lottery):
  * %gamblingdex_top_blackjack_profit_1_name%  /  _value   (topweek_blackjack_... = semana)
  * %gamblingdex_blackjack_profit%  _wagered  _paid  _biggest  _rounds  _rank  (weekly_blackjack_... = semana)
@@ -86,6 +87,10 @@ public class GdxPlaceholders extends PlaceholderExpansion {
         GameStats stats = plugin.getGameStats();
         String p = params.toLowerCase(Locale.ROOT);
 
+        if (p.equals("jackpot_slots")) {
+            var sc = plugin.getSlotsController();
+            return sc == null ? "0" : fmt(sc.getJackpot());
+        }
         if (p.equals("jackpot_ruleta")) {
             var rm = plugin.getWorldRouletteManager();
             return rm == null ? "0" : fmt(rm.getJackpot());

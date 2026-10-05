@@ -97,7 +97,7 @@ public final class HelpMenu {
                 if (mm.byCommand(m.id()) != null)
                     games++;
         p.sendMessage(text("&7Casino completo con &f" + games + " juegos&7: mesas con dealer, ruleta, slots,"));
-        p.sendMessage(text("&7crash, carreras, rueda, plinko, mines y más. Todo se juega con &ffichas&7."));
+        p.sendMessage(text("&7crash, carreras, rueda, plinko, mines, tower y más. Todo se juega con &ffichas&7."));
         p.sendMessage(text("&7Tus fichas: &e" + com.gamblingdex.economy.TokenWallet.balance(p)
                 + " &8| &7Compra/vende fichas en la &fmesa de cambio&7."));
         p.sendMessage(text(" "));
@@ -116,7 +116,7 @@ public final class HelpMenu {
     private static void playerHome(Player p) {
         header(p, null);
         p.sendMessage(text("&7Casino con mesas con dealer, ruleta, slots, crash, carreras,"));
-        p.sendMessage(text("&7rueda, plinko, mines y más. Todo se juega con &ffichas&7."));
+        p.sendMessage(text("&7rueda, plinko, mines, tower y más. Todo se juega con &ffichas&7."));
         p.sendMessage(text("&7Tus fichas: &e" + com.gamblingdex.economy.TokenWallet.balance(p)
                 + " &8| &7Compra/vende fichas en la &fmesa de cambio&7."));
         p.sendMessage(text("&7Las mesas se juegan con &fclick derecho&7 o parándote en un asiento."));

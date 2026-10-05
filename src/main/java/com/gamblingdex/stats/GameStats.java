@@ -154,6 +154,7 @@ public class GameStats {
             case "loteria" -> "Lotería";
             case "mines" -> "Mines";
             case "plinko" -> "Plinko";
+            case "tower" -> "Tower";
             case "poker" -> "Póker";
             default -> id;
         };
@@ -433,6 +434,7 @@ public class GameStats {
             case "loteria", "lottery" -> "loteria";
             case "mines" -> "mines";
             case "plinko" -> "plinko";
+            case "tower", "torre" -> "tower";
             default -> null;
         };
     }

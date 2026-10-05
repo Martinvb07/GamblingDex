@@ -5,7 +5,7 @@
 
     <groupId>com.gamblingdex</groupId>
     <artifactId>gamblingdex</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <name>GamblingDex</name>
     <description>Plugin de juegos de azar para Minecraft</description>
 

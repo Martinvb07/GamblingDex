@@ -11,6 +11,16 @@
 min_bet: 10
 max_bet: 0                  # 0 = sin tope
 
+# Jackpot progresivo: cada tirada suma un % de la apuesta al pozo. Quien saque
+# 3 del símbolo del jackpot en la línea se lleva todo el pozo (además del triple).
+# Placeholder: %gamblingdex_jackpot_slots%
+jackpot:
+  enabled: true
+  contribution_percent: 2.0   # % de cada apuesta que va al pozo
+  seed: 10000                 # con cuánto vuelve a empezar el pozo después de ganarse
+  symbol: NETHER_STAR         # tiene que estar en symbol_weights
+  broadcast: "&6&l★ JACKPOT TRAGAMONEDAS ★ &e{player} &7se llevó &6&l{amount} &7fichas!"
+
 payout:
   triple_multiplier: 5
   double_multiplier: 2
