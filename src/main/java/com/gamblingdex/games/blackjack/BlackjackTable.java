@@ -2308,6 +2308,10 @@ public class BlackjackTable {
             if (net > 0) {
                 p.sendTitle(plugin.color(anyBlackjack ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
                         plugin.color("&a+" + prettyUnits(net) + " &7fichas"), 5, 60, 15);
+            } else if (net == 0 && totalPayout - totalBet > 0) {
+                // Ganó la mano pero las laterales se llevaron la ganancia: no es un empate.
+                p.sendTitle(plugin.color("&a&l¡Ganaste la mano!"),
+                        plugin.color("&7Laterales " + signed(early) + " &8| &7Total &e±0"), 5, 60, 15);
             } else if (net == 0) {
                 p.sendTitle(plugin.color("&eEmpate"), plugin.color("&7Dealer &f" + dealerVal), 5, 60, 15);
             } else {
@@ -2815,7 +2819,7 @@ public class BlackjackTable {
             return "§a+" + prettyUnits(v);
         if (v < 0)
             return "§c-" + prettyUnits(-v);
-        return "§70";
+        return "§e±0";
     }
 
     /** Tus cartas en pantalla (encima de la barra de experiencia). */
