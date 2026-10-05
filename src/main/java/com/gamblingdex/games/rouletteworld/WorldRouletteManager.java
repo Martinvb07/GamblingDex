@@ -191,6 +191,15 @@ public class WorldRouletteManager {
         return getByBlock(block) != null;
     }
 
+    /** Centros de todas las mesas (para avisos cerca de la ruleta). */
+    public java.util.List<org.bukkit.Location> getTableCenters() {
+        java.util.List<org.bukkit.Location> out = new java.util.ArrayList<>();
+        for (WorldRouletteTable t : tablesByCenter.values())
+            if (t.getCenter() != null)
+                out.add(t.getCenter());
+        return out;
+    }
+
     public int getTableCount() {
         return tablesByCenter.size();
     }

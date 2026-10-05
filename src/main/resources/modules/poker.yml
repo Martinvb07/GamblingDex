@@ -53,6 +53,28 @@ turn_marker:
   particle: END_ROD
 # Registrar cada mano en la consola
 log_hands: true
+# Propinas: en el menú de la mesa (click derecho estando sentado) hay un botón "Dar propina".
+# Sale de las fichas (tokens) del jugador, no de las de la mesa, y es para la casa.
+tips:
+  enabled: true
+  min: 10
+  max: 0                    # 0 = sin tope
+# El crupier da las gracias por la propina (en el chat de los de cerca y en un globo sobre la mesa).
+# {player} = quien dio la propina, {amount} = cuánto.
+dealer_talk:
+  enabled: true
+  name: "Crupier"
+  format: "&6&l{dealer} &8» &f{message}"
+  radius: 10
+  bubble: true
+  bubble_format: "&f{message}"
+  bubble_height: 2.2        # sobre el bloque centro de la mesa
+  bubble_ticks: 60
+  phrases:
+    tip:
+      - "¡Gracias por la propina, {player}!"
+      - "Muy amable, {player}. ¡Suerte en la mesa!"
+      - "{player}, que las cartas te acompañen. ¡Gracias!"
 # Torneos (sit & go): /gdx poker tournament <table> <fee> [chips] [minutes]
 tournament:
   starting_stack_bb: 100    # fichas iniciales si no se indican (en ciegas grandes de la mesa)

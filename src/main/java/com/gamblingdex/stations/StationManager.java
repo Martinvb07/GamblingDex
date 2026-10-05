@@ -308,6 +308,24 @@ public class StationManager {
         return hologramToStation.get(hologramId);
     }
 
+    /** Ubicaciones de todas las estaciones de un tipo (para avisos cerca de ellas). */
+    public java.util.List<Location> locationsOf(GameItemType type) {
+        java.util.List<Location> out = new java.util.ArrayList<>();
+        if (!stations.isConfigurationSection("stations"))
+            return out;
+        for (String k : stations.getConfigurationSection("stations").getKeys(false)) {
+            String id = stations.isConfigurationSection("stations." + k)
+                    ? stations.getString("stations." + k + ".type")
+                    : stations.getString("stations." + k);
+            if (id == null || !id.equalsIgnoreCase(type.getId()))
+                continue;
+            Location l = parseKey(k);
+            if (l != null)
+                out.add(l);
+        }
+        return out;
+    }
+
     public Map<GameItemType, Integer> countByType() {
         Map<GameItemType, Integer> map = new EnumMap<>(GameItemType.class);
         for (GameItemType t : GameItemType.values())

@@ -64,6 +64,8 @@ public class GamblingDexPlugin extends JavaPlugin {
     private com.gamblingdex.stats.GameStats gameStats;
     private com.gamblingdex.stats.Achievements achievements;
     private com.gamblingdex.util.Maintenance maintenance;
+    private com.gamblingdex.util.CasinoSchedule schedule;
+    private com.gamblingdex.gui.InspectMenu inspectMenu;
     private com.gamblingdex.economy.BonusLock bonusLock;
 
     private Messages messages;
@@ -78,6 +80,8 @@ public class GamblingDexPlugin extends JavaPlugin {
     public java.util.List<String> validateYamlFiles() {
         java.util.List<java.io.File> files = new java.util.ArrayList<>();
         files.add(new java.io.File(getDataFolder(), "config.yml"));
+        files.add(new java.io.File(getDataFolder(), "schedule.yml"));
+        files.add(new java.io.File(getDataFolder(), "achievements.yml"));
         java.io.File[] msgs = new java.io.File(getDataFolder(), "messages")
                 .listFiles((d, n) -> n.toLowerCase(java.util.Locale.ROOT).endsWith(".yml"));
         if (msgs != null)
@@ -146,6 +150,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             moduleManager.reloadAll();
         if (achievements != null)
             achievements.reload();
+        if (schedule != null)
+            schedule.reload();
 
         if (playerIndex != null)
             playerIndex.load();
@@ -220,6 +226,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.gameStats = new com.gamblingdex.stats.GameStats(this);
         this.achievements = new com.gamblingdex.stats.Achievements(this);
         this.maintenance = new com.gamblingdex.util.Maintenance(this);
+        this.schedule = new com.gamblingdex.util.CasinoSchedule(this);
         this.bonusLock = new com.gamblingdex.economy.BonusLock(this);
 
         this.worldRouletteManager = new WorldRouletteManager(this);
@@ -235,6 +242,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         registerCommands();
         registerListeners();
+        new com.gamblingdex.games.JackpotBell(this).start();
 
         // Minijuegos (cada uno en com.gamblingdex.modules.<juego>, se detectan solos).
         this.moduleManager = new com.gamblingdex.modules.ModuleManager(this);
@@ -295,6 +303,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        com.gamblingdex.util.DealerTalk.removeAll();
         // (las estadísticas se guardan al final, después de devolver las fichas)
         // Devolver fichas de rondas en curso (si no, se pierden al apagar/reiniciar).
         try {
@@ -364,6 +373,8 @@ public class GamblingDexPlugin extends JavaPlugin {
     private void registerListeners() {
         org.bukkit.plugin.PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new com.gamblingdex.listeners.PlayerJoinListener(this), this);
+        this.inspectMenu = new com.gamblingdex.gui.InspectMenu(this);
+        pm.registerEvents(inspectMenu, this);
         pm.registerEvents(new TokenRedeemListener(this), this);
         pm.registerEvents(new GameItemInteractListener(this), this);
         pm.registerEvents(new StationInteractListener(this), this);
@@ -472,6 +483,14 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public com.gamblingdex.economy.BonusLock getBonusLock() {
         return bonusLock;
+    }
+
+    public com.gamblingdex.gui.InspectMenu getInspectMenu() {
+        return inspectMenu;
+    }
+
+    public com.gamblingdex.util.CasinoSchedule getSchedule() {
+        return schedule;
     }
 
     public com.gamblingdex.util.Maintenance getMaintenance() {

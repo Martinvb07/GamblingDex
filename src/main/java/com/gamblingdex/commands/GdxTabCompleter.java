@@ -30,7 +30,7 @@ public class GdxTabCompleter implements TabCompleter {
             List<String> out = new ArrayList<>(List.of("help", "balance", "stats", "top", "history", "achievements"));
             if (admin)
                 out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
-                        "disable", "enable", "maintenance"));
+                        "disable", "enable", "maintenance", "schedule", "inspect"));
             if (mm != null)
                 for (GameModule m : mm.getModules()) {
                     if (mm.byCommand(m.id()) == null)
@@ -102,8 +102,16 @@ public class GdxTabCompleter implements TabCompleter {
                     }
                     return n == 3 ? hint(cur, "<amount>", "1", "16", "64") : List.of();
                 }
-                case "reload" -> {
+                case "reload", "schedule" -> {
                     return List.of();
+                }
+                case "inspect" -> {
+                    if (n != 2)
+                        return List.of();
+                    List<String> names = new ArrayList<>();
+                    for (org.bukkit.entity.Player op : org.bukkit.Bukkit.getOnlinePlayers())
+                        names.add(op.getName());
+                    return filter(names, cur);
                 }
                 case "disable", "enable" -> {
                     var mt = plugin.getMaintenance();

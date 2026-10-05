@@ -74,6 +74,11 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 - **Seguro ante reinicios**: las mesas se guardan en disco y al apagar el servidor las rondas en curso se reembolsan y los boletos de lotería se guardan.
 - **Módulos activables**: cada juego se puede apagar con `enabled: false`.
 - **Modo mantenimiento**: `/gdx disable crash` cierra un juego al momento (sin reiniciar) y devuelve las apuestas en curso.
+- **Horario del casino** (`/gdx schedule`, `schedule.yml`): abre y cierra solo a las horas que elijas (hora de Colombia por defecto), con avisos antes de cerrar. Al cerrar se devuelven las apuestas en curso.
+- **Crupier que habla**: el dealer de blackjack dice frases al repartir, con blackjack, al pasarse, al ganar... en el chat de los de cerca y en un globo sobre su cabeza (`blackjack.yml` → `dealer_talk`).
+- **Campana del jackpot**: cuando el pozo de slots o de la ruleta pasa de un mínimo, suena una campana y sale un aviso solo cerca de las estaciones o mesas (`jackpot.bell`).
+- **Propinas en el póker**: botón "Dar propina" en el menú de la mesa; el crupier da las gracias (`poker.yml` → `tips`).
+- **Inspeccionar jugadores** (`/gdx inspect <player>`): fichas, bono bloqueado, ganancias, juego favorito, póker, logros y últimas apuestas en un menú.
 - **Logros del casino** (`achievements.yml`): primer blackjack, jackpot, retirarse en x10 en Crash... con recompensas en fichas o comandos y su menú (`/gdx achievements`).
 - **Historial personal** (`/gdx history`), últimos premios y récord del casino para hologramas.
 
@@ -171,6 +176,8 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx disable <game>` | **Mantenimiento**: cierra un juego al instante y devuelve las apuestas en curso |
 | `/gdx enable <game>` | Vuelve a abrir el juego |
 | `/gdx maintenance` | Juegos en mantenimiento |
+| `/gdx schedule` | **Horario del casino** en un menú: activar, hora de apertura y cierre, días |
+| `/gdx inspect <player>` | Menú con las fichas, bono, ganancias y últimas apuestas de un jugador |
 
 ---
 

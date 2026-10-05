@@ -106,6 +106,7 @@ public class PokerBuyInMenu {
             info.setItemMeta(im);
         }
         inv.setItem(22, info);
+        addTipButton(inv, player);
 
         ItemStack close = MenuUtils.createButton("§7Cerrar", Material.BARRIER);
         ItemMeta cm = close.getItemMeta();
@@ -158,6 +159,7 @@ public class PokerBuyInMenu {
         }
         inv.setItem(22, MenuUtils.createButton("§7Tus fichas (tokens): §e"
                 + PokerTable.units(com.gamblingdex.economy.TokenWallet.balance(player)), Material.SUNFLOWER));
+        addTipButton(inv, player);
 
         ItemStack close = MenuUtils.createButton("§7Cerrar", Material.BARRIER);
         ItemMeta cm = close.getItemMeta();
@@ -168,6 +170,22 @@ public class PokerBuyInMenu {
         }
         inv.setItem(31, close);
         player.openInventory(inv);
+    }
+
+    /** Botón de propina al crupier (poker.yml → tips). */
+    private void addTipButton(Inventory inv, Player player) {
+        if (!plugin.getConfig().getBoolean("poker.tips.enabled", true))
+            return;
+        ItemStack tip = MenuUtils.createButton("§6§lDar propina al crupier", Material.GOLD_NUGGET);
+        ItemMeta meta = tip.getItemMeta();
+        if (meta != null) {
+            meta.setLore(List.of("§7Un detalle para el crupier.", "§7Sale de tus fichas (tokens), no de la mesa.",
+                    "", "§7Tus fichas: §e" + PokerTable.units(com.gamblingdex.economy.TokenWallet.balance(player)),
+                    "", "§eClick para elegir cuánto"));
+            meta.getPersistentDataContainer().set(new NamespacedKey(plugin, KEY_ACTION), PersistentDataType.STRING, "tip");
+            tip.setItemMeta(meta);
+        }
+        inv.setItem(24, tip);
     }
 
     private int countTokens(Player player, Material mat) {

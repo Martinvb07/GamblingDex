@@ -93,6 +93,15 @@ public class Maintenance {
         return true;
     }
 
+    /** Cierre del casino por horario: devuelve las apuestas en curso de todos los juegos. */
+    public void refundAll() {
+        for (String g : gameNames()) {
+            String id = resolve(g);
+            if (id != null)
+                refund(id);
+        }
+    }
+
     private void refund(String game) {
         try {
             switch (game) {
@@ -130,6 +139,20 @@ public class Maintenance {
      * mucho cada 5 s, porque algunos juegos lo comprueban cada tick).
      */
     public boolean allow(Player p, String game) {
+        var schedule = plugin.getSchedule();
+        if (schedule != null && !schedule.isOpenNow()
+                && !(p != null && schedule.adminBypass() && p.hasPermission("gamblingdex.admin"))) {
+            if (p != null) {
+                String k = p.getUniqueId() + ":schedule";
+                long now = System.currentTimeMillis();
+                Long last = lastNotice.get(k);
+                if (last == null || now - last > 5000L) {
+                    lastNotice.put(k, now);
+                    p.sendMessage(schedule.closedMessage());
+                }
+            }
+            return false;
+        }
         if (!isClosed(game))
             return true;
         if (p != null) {

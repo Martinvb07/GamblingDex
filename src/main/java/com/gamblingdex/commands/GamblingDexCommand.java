@@ -180,6 +180,52 @@ public class GamblingDexCommand implements CommandExecutor {
                 return true;
             }
 
+            if (sub.equals("schedule") || sub.equals("inspect")) {
+                if (!player.hasPermission("gamblingdex.admin")) {
+                    player.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+                if (sub.equals("schedule")) {
+                    if (plugin.getSchedule() != null)
+                        plugin.getSchedule().open(player);
+                    return true;
+                }
+                if (args.length < 2) {
+                    player.sendMessage(plugin.color("&7Uso: &f/gdx inspect <player>"));
+                    return true;
+                }
+                UUID target = null;
+                String targetName = args[1];
+                Player on = org.bukkit.Bukkit.getPlayerExact(args[1]);
+                if (on != null) {
+                    target = on.getUniqueId();
+                    targetName = on.getName();
+                } else if (plugin.getPlayerIndex() != null) {
+                    target = plugin.getPlayerIndex().resolveNameToUuid(args[1]);
+                    if (target != null) {
+                        String known = plugin.getPlayerIndex().getLastKnownName(target);
+                        if (known != null && !known.isBlank())
+                            targetName = known;
+                    }
+                }
+                if (target == null) {
+                    OfflinePlayer cached = org.bukkit.Bukkit.getOfflinePlayerIfCached(args[1]);
+                    if (cached != null) {
+                        target = cached.getUniqueId();
+                        if (cached.getName() != null)
+                            targetName = cached.getName();
+                    }
+                }
+                if (target == null) {
+                    player.sendMessage(plugin.color("&cJugador no encontrado: &f" + args[1]
+                            + " &c(tiene que haber entrado al servidor)"));
+                    return true;
+                }
+                plugin.getInspectMenu().open(player, target, targetName);
+                return true;
+            }
+
             if (sub.equals("disable") || sub.equals("enable") || sub.equals("maintenance")
                     || sub.equals("mantenimiento")) {
                 if (!player.hasPermission("gamblingdex.admin")) {

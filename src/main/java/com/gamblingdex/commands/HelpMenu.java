@@ -203,6 +203,8 @@ public final class HelpMenu {
         line(p, "/gdx disable <game>", "Cerrar un juego por mantenimiento (devuelve apuestas)");
         line(p, "/gdx enable <game>", "Volver a abrir un juego");
         line(p, "/gdx maintenance", "Juegos en mantenimiento");
+        line(p, "/gdx schedule", "Horario del casino: abre y cierra solo (menú)");
+        line(p, "/gdx inspect <player>", "Ver fichas, bono, ganancias y últimas apuestas de un jugador");
         line(p, "/gdx token <color|value> <amount>", "Crear fichas (ej. para Shopkeepers)");
         line(p, "/gdx item <roulette|slots> [amount]", "Ítems que abren menús");
         p.sendMessage(text("&7Montaje de cada juego &8(click)&7:"));
