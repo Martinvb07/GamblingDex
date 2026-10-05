@@ -172,6 +172,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         saveDefaultConfig();
         migrateHoloHeight();
+        addNewConfigOptions();
 
         this.messages = new Messages(this);
         this.messages.reload();
@@ -269,6 +270,27 @@ public class GamblingDexPlugin extends JavaPlugin {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * Añade a config.yml y a modules/blackjack|poker|ruleta|slots.yml las opciones
+     * nuevas de esta versión (los demás archivos se actualizan al cargarlos).
+     */
+    private void addNewConfigOptions() {
+        int added = 0;
+        java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of("config.yml"));
+        for (String g : java.util.List.of("blackjack", "poker", "ruleta", "slots"))
+            names.add("modules/" + g + ".yml");
+        for (String name : names) {
+            java.io.File f = new java.io.File(getDataFolder(), name);
+            if (!f.exists())
+                continue;
+            added += com.gamblingdex.config.ConfigUpdater.update(this, name, f,
+                    org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f),
+                    com.gamblingdex.config.ConfigUpdater.jarConfig(this, name));
+        }
+        if (added > 0)
+            reloadConfig();
     }
 
     @Override
