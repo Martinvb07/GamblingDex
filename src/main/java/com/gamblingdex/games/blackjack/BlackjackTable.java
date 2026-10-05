@@ -1784,7 +1784,7 @@ public class BlackjackTable {
             steps.addAll(order);
             steps.add(null);
         }
-        int interval = Math.max(0, Math.min(40, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
+        int interval = Math.max(0, Math.min(100, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
         if (interval == 0) {
             for (UUID id : steps)
                 dealOne(id);
