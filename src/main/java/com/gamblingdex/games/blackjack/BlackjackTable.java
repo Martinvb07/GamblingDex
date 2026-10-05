@@ -77,6 +77,8 @@ public class BlackjackTable {
     private State state = State.WAITING;
     private int bettingSecondsLeft = 0;
     private boolean earlyDealScheduled; // ya se programó el reparto porque todos apostaron
+    private boolean dealing; // repartiendo las cartas iniciales una por una
+    private org.bukkit.scheduler.BukkitTask dealTask;
     private UUID currentTurn;
     private Float dealerYaw;
     private long minBet; // apuesta principal mínima de esta mesa (0 = la de blackjack.yml)
@@ -472,6 +474,11 @@ public class BlackjackTable {
     }
 
     public void stopAllTasks() {
+        if (dealTask != null) {
+            dealTask.cancel();
+            dealTask = null;
+        }
+        dealing = false;
         if (dealerTask != null) {
             dealerTask.cancel();
             dealerTask = null;
@@ -611,6 +618,25 @@ public class BlackjackTable {
                 new BlackjackActionMenu(plugin).open(p, this);
             }
         });
+    }
+
+    /**
+     * Click derecho al dealer o a la mesa: vuelve a abrir el menú del jugador
+     * (el de jugada si es su turno, el de apuestas si están abiertas).
+     * true si abrió algo.
+     */
+    public boolean reopenMenu(Player p) {
+        if (p == null || !seated.contains(p.getUniqueId()))
+            return false;
+        if (state == State.PLAYING && Objects.equals(currentTurn, p.getUniqueId())) {
+            openActionMenuNow(p.getUniqueId());
+            return true;
+        }
+        if (state == State.BETTING) {
+            new com.gamblingdex.gui.BlackjackBetMenu(plugin).open(p, this);
+            return true;
+        }
+        return false;
     }
 
     public void requestActionMenuOpen(UUID playerId) {
@@ -1020,7 +1046,7 @@ public class BlackjackTable {
                 "&7Saliste de la mesa."));
 
         updateHologramText();
-        checkAllBet(); // los que quedan quizá ya apostaron todos
+        checkAllBet(); // los que quedan quizá ya apostaron todos y cerraron el menú
         return true;
     }
 
@@ -1069,24 +1095,33 @@ public class BlackjackTable {
                         "amount", prettyUnits(amountUnits),
                         "total", prettyUnits(newBet))));
         updateHologramText();
-        checkAllBet();
         return true;
     }
 
     /**
-     * Si todos los sentados ya apostaron en todo (principal y, si están activas,
-     * las dos laterales: 21+3 y pares), se reparte al instante sin esperar el
-     * contador. Si alguno no completó todo, el contador sigue normal.
+     * Alguien cerró el menú de apuestas. Se revisa en el siguiente tick: al poner
+     * una ficha el menú se vuelve a abrir (eso también dispara el cierre).
+     */
+    public void onBetMenuClosed() {
+        Bukkit.getScheduler().runTask(plugin, this::checkAllBet);
+    }
+
+    /**
+     * Si todos los sentados ya pusieron su apuesta principal (las laterales son
+     * opcionales) Y cerraron el menú de apuestas, se reparte al instante sin
+     * esperar el contador. Mientras alguien tenga el menú abierto puede seguir
+     * poniendo fichas.
      */
     private void checkAllBet() {
         if (state != State.BETTING || seated.isEmpty() || earlyDealScheduled)
             return;
-        boolean sides = sideBetsEnabled();
         for (UUID id : seated) {
             if (bets.getOrDefault(id, 0L) <= 0)
                 return;
-            if (sides && (pairsBets.getOrDefault(id, 0L) <= 0 || plus3Bets.getOrDefault(id, 0L) <= 0))
-                return;
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && p.getOpenInventory().getTopInventory()
+                    .getHolder() instanceof com.gamblingdex.gui.BlackjackBetMenuHolder)
+                return; // todavía está apostando
         }
         earlyDealScheduled = true;
         broadcastToSeated(plugin.getMessages().getString(
@@ -1724,16 +1759,6 @@ public class BlackjackTable {
             activeHand.put(id, 0);
         }
 
-        // 2 cards each, then dealer
-        for (int i = 0; i < 2; i++) {
-            for (UUID id : participants) {
-                Hand h = firstHand(id);
-                if (h != null)
-                    h.add(draw());
-            }
-            dealerHand.add(draw());
-        }
-
         state = State.PLAYING;
         broadcastToParticipants(participants, plugin.getMessages().getString(
                 "blackjack.round_started",
@@ -1748,10 +1773,63 @@ public class BlackjackTable {
             }
         }
 
+        startRoundDisplayTask();
+
+        // Reparto como en la vida real: una carta a cada jugador en el orden en que
+        // se sentaron, una al dealer (boca arriba), otra vuelta a los jugadores y la
+        // del dealer (boca abajo). Cada carta con una pequeña pausa.
+        List<UUID> order = new ArrayList<>(participants); // seated guarda el orden de llegada
+        List<UUID> steps = new ArrayList<>(); // null = dealer
+        for (int r = 0; r < 2; r++) {
+            steps.addAll(order);
+            steps.add(null);
+        }
+        int interval = Math.max(0, Math.min(40, plugin.getConfig().getInt("blackjack.deal_interval_ticks", 8)));
+        if (interval == 0) {
+            for (UUID id : steps)
+                dealOne(id);
+            afterDeal(participants);
+            return;
+        }
+        dealing = true;
+        updateHologramText();
+        final int[] i = { 0 };
+        dealTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (state != State.PLAYING || i[0] >= steps.size()) {
+                if (dealTask != null)
+                    dealTask.cancel();
+                dealTask = null;
+                if (state == State.PLAYING && dealing) {
+                    dealing = false;
+                    afterDeal(participants);
+                }
+                return;
+            }
+            dealOne(steps.get(i[0]++));
+            updateHologramText();
+        }, interval, interval);
+    }
+
+    /** Una carta: a la primera mano del jugador, o al dealer si {@code id} es null. */
+    private void dealOne(UUID id) {
+        if (id == null) {
+            dealerHand.add(draw());
+        } else {
+            Hand h = firstHand(id);
+            if (h == null)
+                return; // se fue durante el reparto
+            h.add(draw());
+        }
+        World w = center.getWorld();
+        if (w != null)
+            w.playSound(center.clone().add(0.5, 1.0, 0.5), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
+    }
+
+    /** Ya están las 4 cartas repartidas: laterales, blackjack del dealer y naturales, primer turno. */
+    private void afterDeal(List<UUID> participants) {
+        participants.removeIf(id -> !hands.containsKey(id));
         // Side bets se pagan apenas se reparte (como en el casino).
         resolveSideBets(participants);
-
-        startRoundDisplayTask();
 
         // Peek: si el dealer tiene Blackjack, la ronda termina ya.
         if (dealerHand.isBlackjack()) {
@@ -1996,7 +2074,7 @@ public class BlackjackTable {
     }
 
     private UUID nextTurnCandidate(UUID after) {
-        // iterate in seated order
+        // en el orden en que se sentaron
         boolean start = (after == null);
         for (UUID id : seated) {
             if (!hands.containsKey(id))
@@ -2230,6 +2308,10 @@ public class BlackjackTable {
             if (net > 0) {
                 p.sendTitle(plugin.color(anyBlackjack ? "&6&lBLACKJACK!" : "&a&l¡Ganaste!"),
                         plugin.color("&a+" + prettyUnits(net) + " &7fichas"), 5, 60, 15);
+            } else if (net == 0 && totalPayout - totalBet > 0) {
+                // Ganó la mano pero las laterales se llevaron la ganancia: no es un empate.
+                p.sendTitle(plugin.color("&a&l¡Ganaste la mano!"),
+                        plugin.color("&7Laterales " + signed(early) + " &8| &7Total &e±0"), 5, 60, 15);
             } else if (net == 0) {
                 p.sendTitle(plugin.color("&eEmpate"), plugin.color("&7Dealer &f" + dealerVal), 5, 60, 15);
             } else {
@@ -2456,6 +2538,8 @@ public class BlackjackTable {
                     : plugin.getMessages().getString(
                             "blackjack.holo.dealer_turn",
                             "&cTurno del dealer...");
+        } else if (dealing) {
+            status = plugin.getMessages().getString("blackjack.holo.dealing", "&eRepartiendo cartas...");
         } else {
             String turnName = currentTurn == null
                     ? "-"
@@ -2735,7 +2819,7 @@ public class BlackjackTable {
             return "§a+" + prettyUnits(v);
         if (v < 0)
             return "§c-" + prettyUnits(-v);
-        return "§70";
+        return "§e±0";
     }
 
     /** Tus cartas en pantalla (encima de la barra de experiencia). */

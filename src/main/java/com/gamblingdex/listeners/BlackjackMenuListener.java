@@ -226,6 +226,14 @@ public class BlackjackMenuListener implements Listener {
         }
 
         Object holder = event.getInventory().getHolder();
+        if (holder instanceof BlackjackBetMenuHolder betHolder) {
+            // Cerró el menú de apuestas: si todos ya apostaron en todo, se reparte.
+            BlackjackTable t = plugin.getBlackjackManager() == null ? null
+                    : plugin.getBlackjackManager().getByKey(betHolder.getTableKey());
+            if (t != null)
+                t.onBetMenuClosed();
+            return;
+        }
         if (!(holder instanceof BlackjackActionMenuHolder actionHolder)) {
             return;
         }
@@ -246,6 +254,9 @@ public class BlackjackMenuListener implements Listener {
         if (!stillYourTurn) {
             return;
         }
+
+        player.sendMessage(plugin.getMessages().getString("blackjack.menu_reopen_hint",
+                "&7Cerraste el menú. &fClick derecho al dealer&7 para abrirlo de nuevo."));
 
         // Re-open using the table's configured delay (run next tick to avoid fighting
         // the close event).
