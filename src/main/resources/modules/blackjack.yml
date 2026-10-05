@@ -74,6 +74,13 @@ reshuffle_at_percent: 25
 # y otra vuelta. Los turnos siguen el mismo orden.
 # Pausa entre cada carta (20 ticks = 1 segundo, máximo 100 = 5 s). 0 = todas de golpe.
 deal_interval_ticks: 8
+# Sonidos de la mesa (los escuchan los que están cerca). Nombres de sonidos de Minecraft;
+# vacío ("") = sin ese sonido.
+sounds:
+  enabled: true
+  volume: 0.9
+  card: item.book.page_turn   # cada carta: reparto, pedir, doblar, dividir y las del dealer
+  reveal: item.book.put       # el dealer voltea su carta oculta
 # Turno del dealer: pausa entre cada carta que saca (20 ticks = 1 segundo)
 dealer_draw_interval_ticks: 40
 # Segundos que se muestran las cartas del dealer y los resultados antes de la siguiente ronda

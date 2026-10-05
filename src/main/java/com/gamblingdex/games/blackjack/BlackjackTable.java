@@ -1820,9 +1820,6 @@ public class BlackjackTable {
                 return; // se fue durante el reparto
             h.add(draw());
         }
-        World w = center.getWorld();
-        if (w != null)
-            w.playSound(center.clone().add(0.5, 1.0, 0.5), org.bukkit.Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
     }
 
     /** Ya están las 4 cartas repartidas: laterales, blackjack del dealer y naturales, primer turno. */
@@ -2139,6 +2136,7 @@ public class BlackjackTable {
             }
         }
 
+        playTableSound("reveal", "item.book.put", 1.0f);
         broadcastToRound(plugin.getMessages().format(
                 "blackjack.dealer_reveal",
                 "&7El dealer voltea su carta: &f{cards} &8(&f{value}&8)",
@@ -2412,7 +2410,28 @@ public class BlackjackTable {
         if (deck == null || deck.isEmpty()) {
             deck = new ArrayDeque<>(buildShuffledDeck());
         }
+        // Cada carta que sale del zapato suena: reparto, pedir, doblar, dividir y el dealer.
+        playTableSound("card", "item.book.page_turn", 1.3f);
         return deck.pollFirst();
+    }
+
+    /**
+     * Sonido en la mesa (lo escuchan los que están cerca). Se configura en
+     * blackjack.yml → sounds.&lt;key&gt; con el nombre del sonido de Minecraft
+     * (ej. item.book.page_turn); vacío = sin sonido.
+     */
+    private void playTableSound(String key, String def, float pitch) {
+        if (!plugin.getConfig().getBoolean("blackjack.sounds.enabled", true))
+            return;
+        String name = plugin.getConfig().getString("blackjack.sounds." + key, def);
+        World w = center.getWorld();
+        if (w == null || name == null || name.isBlank())
+            return;
+        float vol = (float) plugin.getConfig().getDouble("blackjack.sounds.volume", 0.9);
+        try {
+            w.playSound(center.clone().add(0.5, 1.0, 0.5), name.toLowerCase(Locale.ROOT), vol, pitch);
+        } catch (Exception ignored) {
+        }
     }
 
     private void broadcastToSeated(String msg) {
