@@ -239,6 +239,8 @@ public final class HelpMenu {
         sign(p, "players_now", "Cuántos están jugando ahora");
         sign(p, "game_status <game>", "Si un juego está abierto o en mantenimiento");
         sign(p, "table <name>", "Info de una mesa de blackjack o póker");
+        sign(p, "table <name> 2", "Póker: segundo cartel con compra, bote y calle");
+        sign(p, "baccarat_road [table]", "Historial del baccarat: banca, jugador y empate");
         sign(p, "roulette_last", "Últimos números de la ruleta más cercana");
         sign(p, "crash_last", "Dónde explotaron las últimas rondas de Crash");
         sign(p, "lottery", "Bote de la lotería y tiempo para el sorteo");
@@ -318,6 +320,8 @@ public final class HelpMenu {
             l.add("&8• &e/gdx blackjack remove <name>&7|&elist &7- Gestionar mesas");
             l.add("&8• &e/gdx blackjack face <name> &7- El dealer mira hacia donde estás");
             l.add("&8• &e/gdx blackjack rename <table> <name...> &7- Nombre de la mesa (con colores)");
+            l.add("&8• &e/gdx blackjack close <table> &7- Cerrar solo esa mesa (devuelve apuestas) &8| &eopen <table>");
+            l.add("&8• &e/gdx blackjack move <table> &7- Mover la mesa (mirando el bloque nuevo)");
             l.add("&8• &7Título de la mesa: &fmodules/blackjack.yml &7→ &ftable_names");
         }
         return l;
@@ -336,6 +340,8 @@ public final class HelpMenu {
             l.add("&8• &e/gdx poker rename <table> <name...> &7- Nombre de la mesa (con colores)");
             l.add("&8• &e/gdx poker tournament <table> <fee> [chips] [minutes] &7- Abrir torneo");
             l.add("&8• &e/gdx poker tournament <start|cancel> <table>");
+            l.add("&8• &e/gdx poker close <table> &7- Cerrar solo esa mesa (devuelve fichas) &8| &eopen <table>");
+            l.add("&8• &e/gdx poker move <table> &7- Mover la mesa vacía (mirando el centro nuevo)");
             l.add("&8• &e/gdx poker remove <name>&7|&elist&7|&erake");
             l.add("&8• &7Título de la mesa: &fmodules/poker.yml &7→ &ftable_names");
         }
@@ -352,6 +358,7 @@ public final class HelpMenu {
         if (admin) {
             l.add("&8• &e/gdx roulette build [radius] [yOffset] &7- Construir (mirando el centro)");
             l.add("&8• &e/gdx roulette remove&7|&elist");
+            l.add("&8• &e/gdx roulette close &7- Cerrar solo esa ruleta (mirándola) &8| &eopen");
         }
         return l;
     }

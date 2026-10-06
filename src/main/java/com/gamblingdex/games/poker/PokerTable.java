@@ -427,7 +427,7 @@ public class PokerTable {
     }
 
     private void sit(int i, Player p) {
-        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(p, "poker"))
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allowTable(p, "poker", name))
             return;
         if (tournament != null && tournament.started) {
             // Torneo en curso: no entra nadie nuevo.
@@ -591,6 +591,19 @@ public class PokerTable {
         return c;
     }
 
+    /** Calle de la mano en curso (para los carteles). */
+    public String getStreetName() {
+        if (!isHandRunning() || street == null)
+            return "Esperando";
+        return switch (street) {
+            case PREFLOP -> "Preflop";
+            case FLOP -> "Flop";
+            case TURN -> "Turn";
+            case RIVER -> "River";
+            default -> "En juego";
+        };
+    }
+
     /** Jugadores sentados ahora (para los carteles). */
     public int getSeatedCount() {
         return seatedCount();
@@ -689,6 +702,8 @@ public class PokerTable {
     // =====================================================================
 
     private void maybeStartCountdown() {
+        if (plugin.getMaintenance() != null && plugin.getMaintenance().isTableClosed("poker", name))
+            return; // mesa cerrada
         if (tournament != null && !tournament.started)
             return; // inscripción abierta: arranca cuando el admin lo indique
         if (eligibleCount() < minPlayers())

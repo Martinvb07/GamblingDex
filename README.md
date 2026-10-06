@@ -178,6 +178,8 @@ En las mesas y estaciones (blackjack, póker, baccarat, ruleta, rueda, carrera, 
 | `/gdx disable <game>` | **Mantenimiento**: cierra un juego al instante y devuelve las apuestas en curso |
 | `/gdx enable <game>` | Vuelve a abrir el juego |
 | `/gdx maintenance` | Juegos en mantenimiento |
+| `/gdx blackjack close <mesa>` · `open <mesa>` | **Cerrar una sola mesa** (devuelve las apuestas; las demás siguen). También `/gdx poker close <mesa>`, `/gdx baccarat close <mesa>` y `/gdx roulette close` (mirando la ruleta) |
+| `/gdx blackjack move <mesa>` | **Mover una mesa** al bloque que miras: conserva nombre, límites y asientos (se mueven lo mismo que la mesa). También `/gdx poker move <mesa>` (vacía) y `/gdx baccarat move <mesa>` |
 | `/gdx config check` | Revisa los valores de la config: materiales o sonidos que no existen, símbolo del jackpot que no está en `symbol_weights`, pesos en 0, mínima mayor que la máxima, horario mal escrito... |
 | `/gdx sign add <type> ...` | **Carteles que se actualizan solos** (mirando un cartel): ganadores, récord, jackpots, tops (ganancias, semana, mayor premio, más apostado, póker), horario, jugadores ahora, estado de un juego, info de una mesa, últimos números de la ruleta y de Crash, lotería, bingo y precio de las fichas. Todos los tipos: `/gdx help signs`. Textos en `config.yml` → `signs` |
 | `/gdx schedule` | **Horario del casino** en un menú: activar, hora de apertura y cierre, días |

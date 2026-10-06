@@ -423,6 +423,46 @@ public class BlackjackManager {
         return true;
     }
 
+    /**
+     * Mueve una mesa al bloque {@code newCenter} sin perder nada: nombre, título,
+     * límites y asientos (los asientos se desplazan lo mismo que el centro, así que
+     * en el sitio nuevo tiene que estar la misma mesa construida).
+     *
+     * @return null = OK; "not_found", "busy" (ronda en curso) u "occupied"
+     */
+    public String moveTable(String tableName, Block newCenter, Location facing) {
+        BlackjackTable t = getByName(tableName);
+        if (t == null || newCenter == null)
+            return "not_found";
+        if (t.getState() != BlackjackTable.State.WAITING)
+            return "busy";
+        BlackjackTable there = getByBlock(newCenter);
+        if (there != null && there != t)
+            return "occupied";
+        Location old = t.getCenter();
+        int dx = newCenter.getX() - old.getBlockX(), dy = newCenter.getY() - old.getBlockY(),
+                dz = newCenter.getZ() - old.getBlockZ();
+        String name = t.getDisplayName();
+        String pretty = t.getPrettyDisplayName();
+        long min = t.getMinBetRaw(), max = t.getMaxBetRaw();
+        List<String> seats = new ArrayList<>(t.getSeatKeys());
+
+        removeTable(name, true);
+        BlackjackTable n = createTable(name, newCenter, facing);
+        if (n == null)
+            return "not_found";
+        if (min > 0 || max > 0)
+            setLimits(n, min, max);
+        if (pretty != null && !pretty.isBlank())
+            setPrettyName(name, pretty);
+        for (String key : seats) {
+            Location l = BlackjackTables.parseKey(key);
+            if (l != null)
+                addSeat(name, newCenter.getWorld().getBlockAt(l.getBlockX() + dx, l.getBlockY() + dy, l.getBlockZ() + dz));
+        }
+        return null;
+    }
+
     public boolean removeTable(String tableName, boolean removeDisplays) {
         BlackjackTable table = getByName(tableName);
         if (table == null)

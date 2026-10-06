@@ -204,6 +204,39 @@ public class PokerManager {
         return true;
     }
 
+    /**
+     * Mueve una mesa al bloque {@code newCenter}: conserva nombre, ciegas y asientos
+     * (desplazados lo mismo que el centro). Solo con la mesa vacía.
+     *
+     * @return null = OK; "not_found", "busy" (hay jugadores o torneo) u "occupied"
+     */
+    public String moveTable(String name, Block newCenter) {
+        PokerTable t = getByName(name);
+        if (t == null || newCenter == null)
+            return "not_found";
+        if (t.isHandRunning() || t.isTournament() || t.getSeatedCount() > 0)
+            return "busy";
+        PokerTable there = getByBlock(newCenter);
+        if (there != null && there != t)
+            return "occupied";
+        org.bukkit.Location old = t.getCenter();
+        int dx = newCenter.getX() - old.getBlockX(), dy = newCenter.getY() - old.getBlockY(),
+                dz = newCenter.getZ() - old.getBlockZ();
+        String realName = t.getName();
+        long sb = t.getSmallBlind(), bb = t.getBigBlind();
+        List<String> seats = new ArrayList<>(t.getSeatKeys());
+        removeTable(realName);
+        PokerTable n = createTable(realName, newCenter, sb, bb);
+        if (n == null)
+            return "not_found";
+        for (String key : seats) {
+            org.bukkit.Location l = BlackjackTables.parseKey(key);
+            if (l != null)
+                addSeat(realName, newCenter.getWorld().getBlockAt(l.getBlockX() + dx, l.getBlockY() + dy, l.getBlockZ() + dz));
+        }
+        return null;
+    }
+
     /** null = OK; si no, el motivo. */
     public String setStakes(String name, long sb, long bb) {
         PokerTable t = getByName(name);

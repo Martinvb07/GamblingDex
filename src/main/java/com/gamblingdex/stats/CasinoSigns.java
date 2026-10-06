@@ -31,7 +31,7 @@ public final class CasinoSigns implements Listener {
 
     public static final List<String> TYPES = List.of("last_win", "record", "jackpot_slots", "jackpot_roulette", "top",
             "top_week", "top_biggest", "top_wagered", "top_poker", "top_poker_pot", "schedule", "players_now",
-            "game_status", "table", "roulette_last", "crash_last", "lottery", "bingo", "exchange");
+            "game_status", "table", "roulette_last", "crash_last", "lottery", "bingo", "exchange", "baccarat_road");
 
     /** Tipos que llevan puesto (1..10). */
     public static final Set<String> RANKED = Set.of("last_win", "top", "top_week", "top_biggest", "top_wagered",
@@ -165,6 +165,12 @@ public final class CasinoSigns implements Listener {
                 }
             }
         }
+        boolean glow = plugin.getConfig().getBoolean("signs.glowing", true);
+        for (Side side : Side.values())
+            if (sign.getSide(side).isGlowingText() != glow) {
+                sign.getSide(side).setGlowingText(glow);
+                changed = true;
+            }
         if (!sign.isWaxed()) {
             sign.setWaxed(true); // que nadie lo pueda editar
             changed = true;
@@ -234,7 +240,32 @@ public final class CasinoSigns implements Listener {
                     format = mt != null && mt.isClosed(e.arg()) ? "game_maintenance" : "game_open";
                 }
             }
-            case "table" -> format = table(e.arg(), v);
+            case "table" -> format = table(e.arg(), e.n(), v);
+            case "baccarat_road" -> {
+                var mm = plugin.getModuleManager();
+                GameModule m = mm == null ? null : mm.find("baccarat");
+                List<Character> road = null;
+                if (m instanceof com.gamblingdex.modules.baccarat.BaccaratModule bm) {
+                    String table = e.arg().isEmpty() ? bm.nearestTable(at.getLocation()) : e.arg();
+                    road = bm.road(table);
+                }
+                if (road == null)
+                    road = List.of();
+                int b = 0, j = 0, t = 0;
+                for (char c : road) {
+                    if (c == 'B')
+                        b++;
+                    else if (c == 'J')
+                        j++;
+                    else
+                        t++;
+                }
+                v.put("row1", roadRow(road, 0));
+                v.put("row2", roadRow(road, 8));
+                v.put("banker", String.valueOf(b));
+                v.put("player", String.valueOf(j));
+                v.put("tie", String.valueOf(t));
+            }
             case "roulette_last" -> {
                 var rm = plugin.getWorldRouletteManager();
                 var t = rm == null ? null : rm.getNearest(at.getLocation());
@@ -297,9 +328,26 @@ public final class CasinoSigns implements Listener {
         return out;
     }
 
-    private String table(String name, Map<String, String> v) {
+    /** 8 resultados del baccarat desde {@code from}: B banca (rojo), J jugador (azul), E empate (verde). */
+    private static String roadRow(List<Character> road, int from) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = from; i < Math.min(road.size(), from + 8); i++) {
+            char c = road.get(i);
+            if (sb.length() > 0)
+                sb.append(' ');
+            sb.append(c == 'B' ? "&4B" : c == 'J' ? "&1J" : "&2E");
+        }
+        return sb.length() == 0 ? "&8-" : sb.toString();
+    }
+
+    private String table(String name, int n, Map<String, String> v) {
+        var mt = plugin.getMaintenance();
         var bm = plugin.getBlackjackManager();
         var bj = bm == null ? null : bm.getByName(name);
+        if (bj != null && mt != null && mt.isTableClosed("blackjack", bj.getDisplayName())) {
+            v.put("name", short15(bj.getPrettyDisplayName() != null ? bj.getPrettyDisplayName() : bj.getDisplayName()));
+            return "table_closed";
+        }
         if (bj != null) {
             v.put("name", short15(bj.getPrettyDisplayName() != null ? bj.getPrettyDisplayName() : bj.getDisplayName()));
             v.put("players", String.valueOf(bj.getSeatedCount()));
@@ -315,6 +363,17 @@ public final class CasinoSigns implements Listener {
         }
         var pm = plugin.getPokerManager();
         var pk = pm == null ? null : pm.getByName(name);
+        if (pk != null && mt != null && mt.isTableClosed("poker", pk.getName())) {
+            v.put("name", short15(pk.getDisplayName()));
+            return "table_closed";
+        }
+        if (pk != null && n == 2) {
+            v.put("name", short15(pk.getDisplayName()));
+            v.put("buyin", compact(pk.getMinBuyIn()) + "-" + compact(pk.getMaxBuyIn()));
+            v.put("pot", pk.isHandRunning() ? GameModule.units(pk.getPot()) : "-");
+            v.put("street", pk.isTournament() ? "Torneo · " + pk.getStreetName() : pk.getStreetName());
+            return "table_poker_extra";
+        }
         if (pk != null) {
             v.put("name", short15(pk.getDisplayName()));
             v.put("players", String.valueOf(pk.getSeatedCount()));
@@ -395,6 +454,9 @@ public final class CasinoSigns implements Listener {
             case "table_blackjack" -> List.of("&l{name}", "Jugadores {players}/{seats}", "&2{limits}", "&8{state}");
             case "table_poker" -> List.of("&l{name}", "Jugadores {players}/{seats}", "&2Ciegas {blinds}", "&8{state}");
             case "table_missing" -> List.of("&l{name}", "&4Mesa no", "&4encontrada", "");
+            case "table_closed" -> List.of("&l{name}", "&4&lCERRADA", "&8Mantenimiento", "");
+            case "table_poker_extra" -> List.of("&l{name}", "Compra &2{buyin}", "Bote: &2{pot}", "&8{street}");
+            case "baccarat_road" -> List.of("&6&lBACCARAT", "{row1}", "{row2}", "&4B{banker} &1J{player} &2E{tie}");
             case "roulette_last" -> List.of("&4&lRULETA", "&8Últimos números", "{r1} {r2} {r3} {r4} {r5}",
                     "{r6} {r7} {r8} {r9} {r10}");
             case "crash_last" -> List.of("&4&lCRASH ↑", "{c1}  {c2}", "{c3}  {c4}", "{c5}  {c6}");

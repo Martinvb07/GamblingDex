@@ -688,7 +688,7 @@ public class BlackjackTable {
     public boolean join(Player player) {
         if (player == null)
             return false;
-        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(player, "blackjack"))
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allowTable(player, "blackjack", displayName))
             return false;
 
         if (plugin.getConfig().getBoolean("blackjack.seating.enabled", true)) {
@@ -1634,6 +1634,8 @@ public class BlackjackTable {
     private void maybeStartBetting() {
         if (state != State.WAITING)
             return;
+        if (plugin.getMaintenance() != null && plugin.getMaintenance().isTableClosed("blackjack", displayName))
+            return; // mesa cerrada: no se juega
 
         int minPlayers = Math.max(1, plugin.getConfig().getInt("blackjack.min_players", 1));
         if (seated.size() < minPlayers)

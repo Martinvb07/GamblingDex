@@ -257,6 +257,18 @@ public class GamblingDexCommand implements CommandExecutor {
                         return true;
                     }
                     arg = args[3];
+                    if (args.length >= 5 && args[4].equals("2"))
+                        n = 2; // segundo cartel (póker: compra, bote y calle)
+                } else if (type.equals("baccarat_road")) {
+                    if (args.length >= 4) {
+                        var mm = plugin.getModuleManager();
+                        var m = mm == null ? null : mm.find("baccarat");
+                        if (!(m instanceof com.gamblingdex.modules.baccarat.BaccaratModule bm) || bm.road(args[3]) == null) {
+                            player.sendMessage(plugin.color("&cNo existe esa mesa de baccarat. &7(sin nombre = la más cercana al cartel)"));
+                            return true;
+                        }
+                        arg = args[3];
+                    }
                 } else if (type.equals("game_status")) {
                     String g = args.length >= 4 && plugin.getMaintenance() != null
                             ? plugin.getMaintenance().resolve(args[3]) : null;
@@ -927,6 +939,46 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
+                if (action.equals("close") || action.equals("open") || action.equals("move")) {
+                    GamblingDexPlugin pl = GamblingDexPlugin.getInstance();
+                    var bm = pl.getBlackjackManager();
+                    var t = bm == null || args.length < 3 ? null : bm.getByName(args[2]);
+                    if (t == null) {
+                        player.sendMessage(pl.color("&cUso: /gdx blackjack " + action + " <name>"
+                                + (bm == null ? "" : " &7(mesas: &f" + String.join(", ", bm.getTableNames()) + "&7)")));
+                        return true;
+                    }
+                    if (action.equals("move")) {
+                        Block target = player.getTargetBlockExact(6);
+                        if (target == null) {
+                            player.sendMessage(pl.color("&cMira el bloque de la mesa nueva (a menos de 6 bloques)."));
+                            return true;
+                        }
+                        String err = bm.moveTable(t.getDisplayName(), target, player.getLocation());
+                        player.sendMessage(pl.color(err == null
+                                ? "&aMesa &f" + args[2] + " &amovida. &7Nombre, límites y asientos se conservan (los asientos se movieron lo mismo que la mesa)."
+                                : err.equals("busy") ? "&cHay una ronda en curso. Espera a que termine."
+                                        : err.equals("occupied") ? "&cAhí ya hay otra mesa de blackjack." : "&cNo se pudo mover la mesa."));
+                        if (err == null)
+                            pl.syncTableNames();
+                        return true;
+                    }
+                    var mt = pl.getMaintenance();
+                    if (action.equals("close")) {
+                        if (!mt.closeTable("blackjack", t.getDisplayName())) {
+                            player.sendMessage(pl.color("&eEsa mesa ya estaba cerrada."));
+                            return true;
+                        }
+                        t.abortRound();
+                        t.refreshHologram();
+                        player.sendMessage(pl.color("&aMesa &f" + t.getDisplayName() + " &acerrada. &7Se devolvieron las apuestas; las demás mesas siguen abiertas."));
+                    } else {
+                        player.sendMessage(pl.color(mt.openTable("blackjack", t.getDisplayName())
+                                ? "&aMesa &f" + t.getDisplayName() + " &aabierta otra vez." : "&eEsa mesa no estaba cerrada."));
+                    }
+                    return true;
+                }
+
                 if (action.equals("remove") || action.equals("del") || action.equals("delete")) {
                     if (args.length < 3) {
                         player.sendMessage(cfg(
@@ -1205,6 +1257,29 @@ public class GamblingDexCommand implements CommandExecutor {
                     return true;
                 }
 
+                if (action.equals("close") || action.equals("open")) {
+                    GamblingDexPlugin pl = GamblingDexPlugin.getInstance();
+                    Block target = player.getTargetBlockExact(6);
+                    var rt = target == null ? null : pl.getWorldRouletteManager().getByBlock(target);
+                    if (rt == null) {
+                        player.sendMessage(pl.color("&cMira la ruleta (el centro o una casilla) a menos de 6 bloques."));
+                        return true;
+                    }
+                    var mt = pl.getMaintenance();
+                    if (action.equals("close")) {
+                        if (!mt.closeTable("ruleta", rt.getTableKey())) {
+                            player.sendMessage(pl.color("&eEsa ruleta ya estaba cerrada."));
+                            return true;
+                        }
+                        rt.abortRound();
+                        player.sendMessage(pl.color("&aRuleta cerrada. &7Se devolvieron las apuestas; las demás siguen abiertas."));
+                    } else {
+                        player.sendMessage(pl.color(mt.openTable("ruleta", rt.getTableKey())
+                                ? "&aRuleta abierta otra vez." : "&eEsa ruleta no estaba cerrada."));
+                    }
+                    return true;
+                }
+
                 if (action.equals("remove") || action.equals("delete") || action.equals("del")) {
                     Block target = player.getTargetBlockExact(6);
                     if (target == null) {
@@ -1346,6 +1421,42 @@ public class GamblingDexCommand implements CommandExecutor {
                         "&aMesa de póker &f{table}&a creada (ciegas &e{sb}/{bb}&a). Agrega asientos con &f/gdx poker seat add {table}&a, en orden horario.",
                         "table", t.getName(), "sb", String.valueOf(t.getSmallBlind()),
                         "bb", String.valueOf(t.getBigBlind())));
+            }
+            case "close", "open" -> {
+                var t = args.length < 3 ? null : pm.getByName(args[2]);
+                if (t == null) {
+                    player.sendMessage(GamblingDexPlugin.getInstance().color("&cUso: /gdx poker " + action
+                            + " <name> &7(mesas: &f" + String.join(", ", pm.getTableNames()) + "&7)"));
+                    return true;
+                }
+                var mt = GamblingDexPlugin.getInstance().getMaintenance();
+                if (action.equals("close")) {
+                    if (!mt.closeTable("poker", t.getName())) {
+                        player.sendMessage(GamblingDexPlugin.getInstance().color("&eEsa mesa ya estaba cerrada."));
+                        return true;
+                    }
+                    t.shutdown(); // devuelve las fichas y levanta a todos
+                    t.updateDisplays();
+                    player.sendMessage(GamblingDexPlugin.getInstance().color("&aMesa &f" + t.getName()
+                            + " &acerrada. &7Se devolvieron las fichas; las demás mesas siguen abiertas."));
+                } else {
+                    player.sendMessage(GamblingDexPlugin.getInstance().color(mt.openTable("poker", t.getName())
+                            ? "&aMesa &f" + t.getName() + " &aabierta otra vez." : "&eEsa mesa no estaba cerrada."));
+                }
+            }
+            case "move" -> {
+                Block target = player.getTargetBlockExact(6);
+                if (args.length < 3 || target == null) {
+                    player.sendMessage(GamblingDexPlugin.getInstance().color("&cUso: /gdx poker move <name> &7(mirando el centro de la mesa nueva)"));
+                    return true;
+                }
+                String err = pm.moveTable(args[2], target);
+                player.sendMessage(GamblingDexPlugin.getInstance().color(err == null
+                        ? "&aMesa &f" + args[2] + " &amovida. &7Nombre, ciegas y asientos se conservan (los asientos se movieron lo mismo que la mesa)."
+                        : err.equals("busy") ? "&cLa mesa tiene que estar vacía (sin jugadores ni torneo)."
+                                : err.equals("occupied") ? "&cAhí ya hay otra mesa de póker." : pokerError("not_found")));
+                if (err == null)
+                    GamblingDexPlugin.getInstance().syncTableNames();
             }
             case "remove", "del", "delete" -> {
                 if (args.length < 3) {
