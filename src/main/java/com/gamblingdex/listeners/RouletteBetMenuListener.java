@@ -116,7 +116,10 @@ public class RouletteBetMenuListener implements Listener {
             }
             case "repeat" -> {
                 table.repeatLastBet(player);
-                new RouletteBetMenu(plugin).open(player, table);
+                if (isNumberMenu)
+                    new RouletteNumberMenu(plugin).refresh(player, table);
+                else
+                    new RouletteBetMenu(plugin).open(player, table);
             }
             case "back" -> {
                 new RouletteBetMenu(plugin).open(player, table);
