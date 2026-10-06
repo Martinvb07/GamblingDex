@@ -125,6 +125,8 @@ public class PokerTable {
     private String lastWinnerName = "-", lastWinnerHand = "", lastStreet = "";
     private long lastWinnerAmount;
     private final List<Card> lastBoard = new ArrayList<>();
+    /** Cartas propias del que ganó la última mano (vacío si ganó sin mostrar). */
+    private final List<Card> lastWinnerCards = new ArrayList<>();
     private final Map<UUID, Long> raiseTarget = new HashMap<>();
     private String lastAction = "";
 
@@ -605,6 +607,11 @@ public class PokerTable {
 
     public long getLastWinnerAmount() {
         return lastWinnerAmount;
+    }
+
+    /** Las cartas con las que ganó la última mano (vacío si todos se retiraron). */
+    public List<Card> getLastWinnerCards() {
+        return Collections.unmodifiableList(lastWinnerCards);
     }
 
     /** Cartas de la mesa de la última mano terminada. */
@@ -1450,6 +1457,9 @@ public class PokerTable {
                 lastWinnerAmount = pot.amount();
                 lastBoard.clear();
                 lastBoard.addAll(board);
+                lastWinnerCards.clear();
+                if (showdown && hole.get(winners.get(0)) != null)
+                    lastWinnerCards.addAll(hole.get(winners.get(0)));
                 lastStreet = getStreetName();
             }
 

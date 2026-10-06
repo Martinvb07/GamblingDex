@@ -253,6 +253,7 @@ public final class CasinoSigns implements Listener {
                 if (e.type().equals("poker_winner")) {
                     v.put("winner", short15(pk.getLastWinnerName()));
                     v.put("hand", short15(pk.getLastWinnerHand()));
+                    v.put("cards", pk.getLastWinnerCards().isEmpty() ? "&8(no mostró)" : signCards(pk.getLastWinnerCards()));
                     v.put("amount", pk.getLastWinnerAmount() > 0 ? "+" + GameModule.units(pk.getLastWinnerAmount()) : "-");
                 } else if (pk.isHandRunning() && !pk.getBoard().isEmpty()) {
                     v.put("street", pk.getStreetName().toUpperCase(Locale.ROOT));
@@ -498,7 +499,7 @@ public final class CasinoSigns implements Listener {
             case "table_poker_extra" -> List.of("&l{name}", "Compra &2{buyin}", "Bote: &2{pot}", "&8{street}");
             case "poker_board" -> List.of("&l{name}", "&5&l{street}", "{cards}", "Bote: &2{pot}");
             case "poker_board_last" -> List.of("&l{name}", "&8Última mano", "{cards}", "&8{winner}");
-            case "poker_winner" -> List.of("&6&lÚLTIMA MANO", "{winner}", "&8{hand}", "&2{amount}");
+            case "poker_winner" -> List.of("&6&lÚLTIMA MANO", "{winner}", "{cards}", "&8{hand}");
             case "baccarat_road" -> List.of("&6&lBACCARAT", "{row1}", "{row2}", "&4B{banker} &1J{player} &2E{tie}");
             case "roulette_last" -> List.of("&4&lRULETA", "&8Últimos números", "{r1} {r2} {r3} {r4} {r5}",
                     "{r6} {r7} {r8} {r9} {r10}");
