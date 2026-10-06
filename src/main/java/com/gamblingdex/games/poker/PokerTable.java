@@ -121,6 +121,10 @@ public class PokerTable {
     private boolean revealAll;
     private final Map<Integer, String> showdownText = new HashMap<>();
     private final Map<Integer, Long> lastWin = new HashMap<>();
+    /** Última mano terminada (para los carteles). */
+    private String lastWinnerName = "-", lastWinnerHand = "", lastStreet = "";
+    private long lastWinnerAmount;
+    private final List<Card> lastBoard = new ArrayList<>();
     private final Map<UUID, Long> raiseTarget = new HashMap<>();
     private String lastAction = "";
 
@@ -589,6 +593,27 @@ public class PokerTable {
                 c++;
         }
         return c;
+    }
+
+    public String getLastWinnerName() {
+        return lastWinnerName;
+    }
+
+    public String getLastWinnerHand() {
+        return lastWinnerHand;
+    }
+
+    public long getLastWinnerAmount() {
+        return lastWinnerAmount;
+    }
+
+    /** Cartas de la mesa de la última mano terminada. */
+    public List<Card> getLastBoard() {
+        return Collections.unmodifiableList(lastBoard);
+    }
+
+    public String getLastStreet() {
+        return lastStreet;
     }
 
     /** Calle de la mano en curso (para los carteles). */
@@ -1415,6 +1440,18 @@ public class PokerTable {
                 }
             }
             distribute(pot.amount(), winners);
+            if (k == 0) {
+                List<String> wn = new ArrayList<>();
+                for (int w : winners)
+                    wn.add(seatName(w));
+                lastWinnerName = String.join(", ", wn);
+                lastWinnerHand = !showdown ? msg("sign_uncontested", "Todos se retiraron")
+                        : results.get(winners.get(0)).name();
+                lastWinnerAmount = pot.amount();
+                lastBoard.clear();
+                lastBoard.addAll(board);
+                lastStreet = getStreetName();
+            }
 
             String potName = k == 0
                     ? msg("pot_main", "Bote principal")

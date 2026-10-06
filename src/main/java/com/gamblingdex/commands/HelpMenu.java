@@ -240,6 +240,8 @@ public final class HelpMenu {
         sign(p, "game_status <game>", "Si un juego está abierto o en mantenimiento");
         sign(p, "table <name>", "Info de una mesa de blackjack o póker");
         sign(p, "table <name> 2", "Póker: segundo cartel con compra, bote y calle");
+        sign(p, "poker_board <name>", "Póker: cartas de la mesa (flop, turn, river) y bote");
+        sign(p, "poker_winner <name>", "Póker: quién ganó la última mano, con qué y cuánto");
         sign(p, "baccarat_road [table]", "Historial del baccarat: banca, jugador y empate");
         sign(p, "roulette_last", "Últimos números de la ruleta más cercana");
         sign(p, "crash_last", "Dónde explotaron las últimas rondas de Crash");

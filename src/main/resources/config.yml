@@ -158,6 +158,8 @@ gui:
 #   players_now                   -> cuántos están jugando ahora (últimos 5 min)
 #   game_status <juego>           -> abierto / mantenimiento / cerrado por horario
 #   table <mesa> [2]              -> info de una mesa de blackjack o póker (2 = póker: compra, bote y calle)
+#   poker_board <mesa>            -> cartas de la mesa del póker (flop/turn/river) y bote; sin mano, la última
+#   poker_winner <mesa>           -> quién ganó la última mano del póker, con qué jugada y cuánto
 #   baccarat_road [mesa]          -> historial del baccarat: B banca, J jugador, E empate (sin mesa = la más cercana)
 #   roulette_last                 -> últimos números de la ruleta más cercana al cartel
 #   crash_last                    -> dónde explotaron las últimas rondas de Crash
@@ -190,6 +192,9 @@ signs:
     table_poker: ["&l{name}", "Jugadores {players}/{seats}", "&2Ciegas {blinds}", "&8{state}"]
     table_poker_extra: ["&l{name}", "Compra &2{buyin}", "Bote: &2{pot}", "&8{street}"]
     table_closed: ["&l{name}", "&4&lCERRADA", "&8Mantenimiento", ""]
+    poker_board: ["&l{name}", "&5&l{street}", "{cards}", "Bote: &2{pot}"]
+    poker_board_last: ["&l{name}", "&8Última mano", "{cards}", "&8{winner}"]
+    poker_winner: ["&6&lÚLTIMA MANO", "{winner}", "&8{hand}", "&2{amount}"]
     baccarat_road: ["&6&lBACCARAT", "{row1}", "{row2}", "&4B{banker} &1J{player} &2E{tie}"]
     roulette_last: ["&4&lRULETA", "&8Últimos números", "{r1} {r2} {r3} {r4} {r5}", "{r6} {r7} {r8} {r9} {r10}"]
     crash_last: ["&4&lCRASH ↑", "{c1}  {c2}", "{c3}  {c4}", "{c5}  {c6}"]

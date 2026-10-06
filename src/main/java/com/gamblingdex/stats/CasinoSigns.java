@@ -31,7 +31,7 @@ public final class CasinoSigns implements Listener {
 
     public static final List<String> TYPES = List.of("last_win", "record", "jackpot_slots", "jackpot_roulette", "top",
             "top_week", "top_biggest", "top_wagered", "top_poker", "top_poker_pot", "schedule", "players_now",
-            "game_status", "table", "roulette_last", "crash_last", "lottery", "bingo", "exchange", "baccarat_road");
+            "game_status", "table", "roulette_last", "crash_last", "lottery", "bingo", "exchange", "baccarat_road", "poker_board", "poker_winner");
 
     /** Tipos que llevan puesto (1..10). */
     public static final Set<String> RANKED = Set.of("last_win", "top", "top_week", "top_biggest", "top_wagered",
@@ -241,6 +241,33 @@ public final class CasinoSigns implements Listener {
                 }
             }
             case "table" -> format = table(e.arg(), e.n(), v);
+            case "poker_board", "poker_winner" -> {
+                var pm = plugin.getPokerManager();
+                var pk = pm == null ? null : pm.getByName(e.arg());
+                if (pk == null) {
+                    v.put("name", short15(e.arg()));
+                    format = "table_missing";
+                    break;
+                }
+                v.put("name", short15(pk.getDisplayName()));
+                if (e.type().equals("poker_winner")) {
+                    v.put("winner", short15(pk.getLastWinnerName()));
+                    v.put("hand", short15(pk.getLastWinnerHand()));
+                    v.put("amount", pk.getLastWinnerAmount() > 0 ? "+" + GameModule.units(pk.getLastWinnerAmount()) : "-");
+                } else if (pk.isHandRunning() && !pk.getBoard().isEmpty()) {
+                    v.put("street", pk.getStreetName().toUpperCase(Locale.ROOT));
+                    v.put("cards", signCards(pk.getBoard()));
+                    v.put("pot", GameModule.units(pk.getPot()));
+                } else if (pk.isHandRunning()) {
+                    v.put("street", "PREFLOP");
+                    v.put("cards", "&8? ? ? ? ?");
+                    v.put("pot", GameModule.units(pk.getPot()));
+                } else {
+                    format = "poker_board_last";
+                    v.put("cards", pk.getLastBoard().isEmpty() ? "&8-" : signCards(pk.getLastBoard()));
+                    v.put("winner", short15(pk.getLastWinnerName()));
+                }
+            }
             case "baccarat_road" -> {
                 var mm = plugin.getModuleManager();
                 GameModule m = mm == null ? null : mm.find("baccarat");
@@ -326,6 +353,19 @@ public final class CasinoSigns implements Listener {
             out.add(plugin.color(l));
         }
         return out;
+    }
+
+    /** Cartas para un cartel: rojo oscuro (♥ ♦) y negro (♠ ♣), que se leen sobre la madera. */
+    private static String signCards(List<com.gamblingdex.games.blackjack.Card> cards) {
+        StringBuilder sb = new StringBuilder();
+        for (var c : cards) {
+            if (sb.length() > 0)
+                sb.append(' ');
+            boolean red = c.suit() == com.gamblingdex.games.blackjack.Card.Suit.HEARTS
+                    || c.suit() == com.gamblingdex.games.blackjack.Card.Suit.DIAMONDS;
+            sb.append(red ? "&4" : "&0").append(c.rank().label()).append(c.suit().symbol());
+        }
+        return sb.toString();
     }
 
     /** 8 resultados del baccarat desde {@code from}: B banca (rojo), J jugador (azul), E empate (verde). */
@@ -456,6 +496,9 @@ public final class CasinoSigns implements Listener {
             case "table_missing" -> List.of("&l{name}", "&4Mesa no", "&4encontrada", "");
             case "table_closed" -> List.of("&l{name}", "&4&lCERRADA", "&8Mantenimiento", "");
             case "table_poker_extra" -> List.of("&l{name}", "Compra &2{buyin}", "Bote: &2{pot}", "&8{street}");
+            case "poker_board" -> List.of("&l{name}", "&5&l{street}", "{cards}", "Bote: &2{pot}");
+            case "poker_board_last" -> List.of("&l{name}", "&8Última mano", "{cards}", "&8{winner}");
+            case "poker_winner" -> List.of("&6&lÚLTIMA MANO", "{winner}", "&8{hand}", "&2{amount}");
             case "baccarat_road" -> List.of("&6&lBACCARAT", "{row1}", "{row2}", "&4B{banker} &1J{player} &2E{tie}");
             case "roulette_last" -> List.of("&4&lRULETA", "&8Últimos números", "{r1} {r2} {r3} {r4} {r5}",
                     "{r6} {r7} {r8} {r9} {r10}");

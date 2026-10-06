@@ -115,6 +115,8 @@ public class GdxTabCompleter implements TabCompleter {
                     String t = args[2].toLowerCase(Locale.ROOT);
                     if (n == 4 && t.equals("table"))
                         return filter(plugin.getCasinoSigns() == null ? List.of() : plugin.getCasinoSigns().tableNames(), cur);
+                    if (n == 4 && (t.equals("poker_board") || t.equals("poker_winner")))
+                        return filter(plugin.getPokerManager() == null ? List.of() : plugin.getPokerManager().getTableNames(), cur);
                     if (n == 5 && t.equals("table"))
                         return hint(cur, "[2]", "2");
                     if (n == 4 && t.equals("baccarat_road")) {

@@ -259,6 +259,14 @@ public class GamblingDexCommand implements CommandExecutor {
                     arg = args[3];
                     if (args.length >= 5 && args[4].equals("2"))
                         n = 2; // segundo cartel (póker: compra, bote y calle)
+                } else if (type.equals("poker_board") || type.equals("poker_winner")) {
+                    var pm = plugin.getPokerManager();
+                    if (args.length < 4 || pm == null || pm.getByName(args[3]) == null) {
+                        player.sendMessage(plugin.color("&cIndica la mesa de póker: &f/gdx sign add " + type + " <name>"
+                                + (pm == null ? "" : " &7(" + String.join(", ", pm.getTableNames()) + ")")));
+                        return true;
+                    }
+                    arg = pm.getByName(args[3]).getName();
                 } else if (type.equals("baccarat_road")) {
                     if (args.length >= 4) {
                         var mm = plugin.getModuleManager();
