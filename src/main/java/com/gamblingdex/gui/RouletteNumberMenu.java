@@ -58,7 +58,7 @@ public class RouletteNumberMenu {
         RING = r.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static final int S_CHIP = 20, S_STATUS = 22, S_MINE = 24;
+    private static final int S_CHIP = 20, S_REPEAT = 21, S_STATUS = 22, S_MINE = 24;
     private static final int S_BACK = 45, S_BALANCE = 53;
     private static final int[] CHIP_SLOTS = { 46, 47, 48, 49, 50, 51, 52 };
 
@@ -72,17 +72,29 @@ public class RouletteNumberMenu {
         return NumberFormat.getInstance(Locale.forLanguageTag("es-ES")).format(v);
     }
 
-    /** Ficha elegida (si no eligió ninguna, la más chica que tenga, o la de 1). */
+    /** Fichas que el jugador tiene en el inventario: valor → cantidad (de menor a mayor). */
+    public static SortedMap<Integer, Integer> chipsInInventory(Player p) {
+        SortedMap<Integer, Integer> out = new TreeMap<>();
+        TokenManager tm = GamblingDexPlugin.getInstance().getTokenManager();
+        if (tm == null)
+            return out;
+        for (ItemStack it : p.getInventory().getContents()) {
+            if (it == null || !tm.isToken(it))
+                continue;
+            Integer v = tm.getTokenValue(it);
+            if (v != null && v > 0)
+                out.merge(v, it.getAmount(), Integer::sum);
+        }
+        return out;
+    }
+
+    /** Ficha elegida; si ya no la tiene, la más chica que tenga en el inventario. */
     public static int selectedChip(Player p) {
+        SortedMap<Integer, Integer> have = chipsInInventory(p);
         Integer c = CHIP.get(p.getUniqueId());
-        if (c != null)
+        if (c != null && (have.isEmpty() || have.containsKey(c)))
             return c;
-        int best = Integer.MAX_VALUE;
-        long bal = TokenWallet.balance(p);
-        for (int v : TokenManager.getDenoms().values())
-            if (v <= bal && v < best)
-                best = v;
-        return best == Integer.MAX_VALUE ? 1 : best;
+        return have.isEmpty() ? (c != null ? c : 1) : have.firstKey();
     }
 
     public static void selectChip(Player p, int value) {
@@ -151,17 +163,35 @@ public class RouletteNumberMenu {
         }
         inv.setItem(S_MINE, button("noop", Material.WRITABLE_BOOK, "§e§lTus plenos", mineLore));
 
+        long last = table.lastBetTotal(id);
+        if (last > 0) {
+            List<String> repeat = new ArrayList<>(table.describeLastBets(id));
+            repeat.add("");
+            repeat.add("§7Total: §e" + u(last));
+            repeat.add(open ? "§eClick para apostar lo mismo otra vez" : "§cApuestas cerradas");
+            inv.setItem(S_REPEAT, button("repeat", Material.EMERALD, "§a§lRepetir apuesta", repeat));
+        } else {
+            inv.setItem(S_REPEAT, button("noop", Material.GRAY_DYE, "§7Repetir apuesta",
+                    List.of("§8Disponible después de tu primera ronda")));
+        }
+
         // Abajo: volver, fichas, saldo
         inv.setItem(S_BACK, button("back", Material.ARROW, "§7« Volver", List.of("§7Al menú de apuestas")));
-        List<Map.Entry<Material, Integer>> denoms = new ArrayList<>(TokenManager.getDenoms().entrySet());
-        denoms.sort(Map.Entry.comparingByValue());
+        // Solo las fichas que tiene en el inventario (con cuántas tiene)
+        SortedMap<Integer, Integer> have = chipsInInventory(player);
         long bal = TokenWallet.balance(player);
-        for (int k = 0; k < Math.min(CHIP_SLOTS.length, denoms.size()); k++) {
-            int value = denoms.get(k).getValue();
+        List<Map.Entry<Integer, Integer>> owned = new ArrayList<>(have.entrySet());
+        if (owned.isEmpty())
+            inv.setItem(49, pane(Material.BARRIER, "§cNo tienes fichas en el inventario"));
+        if (owned.size() > CHIP_SLOTS.length) // si tiene más tipos de los que caben, las más grandes
+            owned = owned.subList(owned.size() - CHIP_SLOTS.length, owned.size());
+        for (int k = 0; k < owned.size(); k++) {
+            int value = owned.get(k).getKey();
+            int count = owned.get(k).getValue();
             boolean sel = value == chip;
-            boolean can = bal >= value;
-            ItemStack it = chipIcon(value, sel, (sel ? "§a▶ " : "") + (can ? "§e" : "§8") + "Ficha de " + u(value),
-                    List.of(sel ? "§aElegida" : can ? "§eClick para elegirla" : "§cNo te alcanza"));
+            ItemStack it = chipIcon(value, sel, (sel ? "§a▶ " : "") + "§eFicha de " + u(value),
+                    List.of("§7Tienes: §f" + count, "", sel ? "§aElegida" : "§eClick para elegirla"));
+            it.setAmount(Math.max(1, Math.min(64, count)));
             ItemMeta im = it.getItemMeta();
             if (im != null) {
                 im.getPersistentDataContainer().set(key(RouletteBetMenu.KEY_ACTION), PersistentDataType.STRING, "chip");
