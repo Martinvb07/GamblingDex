@@ -121,6 +121,12 @@ public class PokerTable {
     private boolean revealAll;
     private final Map<Integer, String> showdownText = new HashMap<>();
     private final Map<Integer, Long> lastWin = new HashMap<>();
+    /** Última mano terminada (para los carteles). */
+    private String lastWinnerName = "-", lastWinnerHand = "", lastStreet = "";
+    private long lastWinnerAmount;
+    private final List<Card> lastBoard = new ArrayList<>();
+    /** Cartas propias del que ganó la última mano (vacío si ganó sin mostrar). */
+    private final List<Card> lastWinnerCards = new ArrayList<>();
     private final Map<UUID, Long> raiseTarget = new HashMap<>();
     private String lastAction = "";
 
@@ -427,7 +433,7 @@ public class PokerTable {
     }
 
     private void sit(int i, Player p) {
-        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allow(p, "poker"))
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allowTable(p, "poker", name))
             return;
         if (tournament != null && tournament.started) {
             // Torneo en curso: no entra nadie nuevo.
@@ -591,6 +597,45 @@ public class PokerTable {
         return c;
     }
 
+    public String getLastWinnerName() {
+        return lastWinnerName;
+    }
+
+    public String getLastWinnerHand() {
+        return lastWinnerHand;
+    }
+
+    public long getLastWinnerAmount() {
+        return lastWinnerAmount;
+    }
+
+    /** Las cartas con las que ganó la última mano (vacío si todos se retiraron). */
+    public List<Card> getLastWinnerCards() {
+        return Collections.unmodifiableList(lastWinnerCards);
+    }
+
+    /** Cartas de la mesa de la última mano terminada. */
+    public List<Card> getLastBoard() {
+        return Collections.unmodifiableList(lastBoard);
+    }
+
+    public String getLastStreet() {
+        return lastStreet;
+    }
+
+    /** Calle de la mano en curso (para los carteles). */
+    public String getStreetName() {
+        if (!isHandRunning() || street == null)
+            return "Esperando";
+        return switch (street) {
+            case PREFLOP -> "Preflop";
+            case FLOP -> "Flop";
+            case TURN -> "Turn";
+            case RIVER -> "River";
+            default -> "En juego";
+        };
+    }
+
     /** Jugadores sentados ahora (para los carteles). */
     public int getSeatedCount() {
         return seatedCount();
@@ -689,6 +734,8 @@ public class PokerTable {
     // =====================================================================
 
     private void maybeStartCountdown() {
+        if (plugin.getMaintenance() != null && plugin.getMaintenance().isTableClosed("poker", name))
+            return; // mesa cerrada
         if (tournament != null && !tournament.started)
             return; // inscripción abierta: arranca cuando el admin lo indique
         if (eligibleCount() < minPlayers())
@@ -1400,6 +1447,21 @@ public class PokerTable {
                 }
             }
             distribute(pot.amount(), winners);
+            if (k == 0) {
+                List<String> wn = new ArrayList<>();
+                for (int w : winners)
+                    wn.add(seatName(w));
+                lastWinnerName = String.join(", ", wn);
+                lastWinnerHand = !showdown ? msg("sign_uncontested", "Todos se retiraron")
+                        : results.get(winners.get(0)).name();
+                lastWinnerAmount = pot.amount();
+                lastBoard.clear();
+                lastBoard.addAll(board);
+                lastWinnerCards.clear();
+                if (showdown && hole.get(winners.get(0)) != null)
+                    lastWinnerCards.addAll(hole.get(winners.get(0)));
+                lastStreet = getStreetName();
+            }
 
             String potName = k == 0
                     ? msg("pot_main", "Bote principal")

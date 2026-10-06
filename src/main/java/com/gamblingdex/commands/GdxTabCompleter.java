@@ -85,7 +85,7 @@ public class GdxTabCompleter implements TabCompleter {
                 }
                 case "roulette", "ruleta" -> {
                     if (n == 2)
-                        return filter(List.of("build", "remove", "list"), cur);
+                        return filter(List.of("build", "remove", "list", "close", "open"), cur);
                     if (args[1].equalsIgnoreCase("build"))
                         return n == 3 ? hint(cur, "[radius]", "6", "8") : n == 4 ? hint(cur, "[yOffset]", "-1", "0") : List.of();
                     return List.of();
@@ -115,6 +115,14 @@ public class GdxTabCompleter implements TabCompleter {
                     String t = args[2].toLowerCase(Locale.ROOT);
                     if (n == 4 && t.equals("table"))
                         return filter(plugin.getCasinoSigns() == null ? List.of() : plugin.getCasinoSigns().tableNames(), cur);
+                    if (n == 4 && (t.equals("poker_board") || t.equals("poker_winner")))
+                        return filter(plugin.getPokerManager() == null ? List.of() : plugin.getPokerManager().getTableNames(), cur);
+                    if (n == 5 && t.equals("table"))
+                        return hint(cur, "[2]", "2");
+                    if (n == 4 && t.equals("baccarat_road")) {
+                        var bm = mm == null ? null : mm.find("baccarat");
+                        return bm instanceof com.gamblingdex.modules.baccarat.BaccaratModule b ? filter(b.tableNamesList(), cur) : List.of();
+                    }
                     if (n == 4 && t.equals("game_status"))
                         return filter(plugin.getMaintenance() == null ? List.of() : plugin.getMaintenance().gameNames(), cur);
                     if (n == 4 && com.gamblingdex.stats.CasinoSigns.RANKED.contains(t))
@@ -189,7 +197,7 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> blackjack(String[] args, String cur, int n) {
         if (n == 2)
-            return filter(List.of("create", "remove", "list", "seat", "rename", "face", "limits"), cur);
+            return filter(List.of("create", "remove", "list", "seat", "rename", "face", "limits", "close", "open", "move"), cur);
         String action = args[1].toLowerCase(Locale.ROOT);
         List<String> tables = blackjackTables();
         switch (action) {
@@ -201,7 +209,7 @@ public class GdxTabCompleter implements TabCompleter {
                 return n == 3 ? filter(tables, cur) : n == 4 ? hint(cur, "<min>", "100", "10k")
                         : n == 5 ? hint(cur, "[max]", "0", "10k", "1m") : List.of();
             }
-            case "remove", "del", "delete", "face" -> {
+            case "remove", "del", "delete", "face", "close", "open", "move" -> {
                 return n == 3 ? filter(tables, cur) : List.of();
             }
             case "seat", "seats" -> {
@@ -218,7 +226,7 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> poker(String[] args, String cur, int n, boolean admin) {
         if (n == 2)
-            return admin ? filter(List.of("create", "remove", "list", "stakes", "seat", "rename", "tournament", "rake"), cur)
+            return admin ? filter(List.of("create", "remove", "list", "stakes", "seat", "rename", "tournament", "rake", "close", "open", "move"), cur)
                     : List.of();
         if (!admin)
             return List.of();
@@ -229,7 +237,7 @@ public class GdxTabCompleter implements TabCompleter {
                 return n == 3 ? hint(cur, "<name>") : n == 4 ? hint(cur, "[small]", "5", "10", "1000")
                         : n == 5 ? hint(cur, "[big]", "10", "20", "2000") : List.of();
             }
-            case "remove", "del", "delete" -> {
+            case "remove", "del", "delete", "close", "open", "move" -> {
                 return n == 3 ? filter(tables, cur) : List.of();
             }
             case "rename", "renombrar" -> {

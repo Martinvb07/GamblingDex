@@ -28,17 +28,22 @@ public class Maintenance {
     private final GamblingDexPlugin plugin;
     private final File file;
     private final Set<String> closed = new LinkedHashSet<>();
+    /** Mesas cerradas una por una: "juego:mesa" (en minúsculas). */
+    private final Set<String> closedTables = new LinkedHashSet<>();
     private final Map<String, Long> lastNotice = new HashMap<>();
 
     public Maintenance(GamblingDexPlugin plugin) {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), "maintenance.yml");
-        closed.addAll(YamlConfiguration.loadConfiguration(file).getStringList("closed"));
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
+        closed.addAll(y.getStringList("closed"));
+        closedTables.addAll(y.getStringList("closed_tables"));
     }
 
     private void save() {
         YamlConfiguration y = new YamlConfiguration();
         y.set("closed", new ArrayList<>(closed));
+        y.set("closed_tables", new ArrayList<>(closedTables));
         try {
             y.save(file);
         } catch (IOException e) {
@@ -75,6 +80,53 @@ public class Maintenance {
 
     public Set<String> closedGames() {
         return Collections.unmodifiableSet(closed);
+    }
+
+    private static String tableKey(String game, String table) {
+        return (game + ":" + table).toLowerCase(Locale.ROOT);
+    }
+
+    /** ¿Esa mesa concreta está cerrada? (blackjack/poker/baccarat: nombre; ruleta: bloque centro) */
+    public boolean isTableClosed(String game, String table) {
+        return table != null && closedTables.contains(tableKey(game, table));
+    }
+
+    /** Cierra una sola mesa (la devolución de apuestas la hace quien llama). false si ya estaba cerrada. */
+    public boolean closeTable(String game, String table) {
+        if (!closedTables.add(tableKey(game, table)))
+            return false;
+        save();
+        return true;
+    }
+
+    public boolean openTable(String game, String table) {
+        if (!closedTables.remove(tableKey(game, table)))
+            return false;
+        save();
+        return true;
+    }
+
+    public Set<String> closedTables() {
+        return Collections.unmodifiableSet(closedTables);
+    }
+
+    /** Como {@link #allow}, y además que esa mesa no esté cerrada. */
+    public boolean allowTable(Player p, String game, String table) {
+        if (!allow(p, game))
+            return false;
+        if (!isTableClosed(game, table))
+            return true;
+        if (p != null) {
+            String k = p.getUniqueId() + ":table:" + table;
+            long now = System.currentTimeMillis();
+            Long last = lastNotice.get(k);
+            if (last == null || now - last > 5000L) {
+                lastNotice.put(k, now);
+                p.sendMessage(plugin.color(plugin.getMessages().getString("gdx.maintenance.table_closed",
+                        "&c&l⚠ &cEsta mesa está cerrada por mantenimiento. Prueba en otra.")));
+            }
+        }
+        return false;
     }
 
     /** Cierra el juego y devuelve las apuestas en curso. false si ya estaba cerrado. */

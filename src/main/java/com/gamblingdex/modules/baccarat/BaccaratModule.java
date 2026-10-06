@@ -79,7 +79,7 @@ public class BaccaratModule extends GameModule {
 
     private static final class Table {
         final String name;
-        final Location center;
+        Location center;
         final int fx, fz; // hacia dónde mira el dealer (hacia los jugadores)
         final List<String> seats = new ArrayList<>();
         final Set<UUID> seated = new LinkedHashSet<>();
@@ -95,6 +95,8 @@ public class BaccaratModule extends GameModule {
         String resultLine;
         UUID dealer;
         UUID holo;
+        /** Resultados (el más reciente primero): 'B' banca, 'J' jugador, 'E' empate. */
+        final Deque<Character> road = new ArrayDeque<>();
 
         Table(String name, Location center, int fx, int fz) {
             this.name = name;
@@ -147,6 +149,8 @@ public class BaccaratModule extends GameModule {
                     continue;
                 Table t = new Table(name, l, sec.getInt(name + ".fx"), sec.getInt(name + ".fz"));
                 t.seats.addAll(sec.getStringList(name + ".seats"));
+                for (char c : sec.getString(name + ".road", "").toCharArray())
+                    t.road.addLast(c);
                 tables.put(name.toLowerCase(Locale.ROOT), t);
             }
         }
@@ -172,6 +176,8 @@ public class BaccaratModule extends GameModule {
             l.add("&8• &e/gdx station set baccarat [name] &7- Crear mesa (mirando el bloque de la mesa)");
             l.add("&8• &e/gdx baccarat seat <add|remove|list|clear> <table> &7- Asientos (parado encima)");
             l.add("&8• &e/gdx baccarat rename <table> <name...> &7- Título de la mesa (con colores)");
+            l.add("&8• &e/gdx baccarat close <table> &7- Cerrar solo esa mesa (devuelve apuestas) &8| &eopen <table>");
+            l.add("&8• &e/gdx baccarat move <table> &7- Mover la mesa (mirando el bloque nuevo)");
             l.add("&8• &e/gdx station remove &7- Quitar la mesa (mirando el bloque)");
         }
         l.add("");
@@ -204,6 +210,79 @@ public class BaccaratModule extends GameModule {
             ensureDealer(t);
             updateHolo(t);
             player.sendMessage(color("&aMesa renombrada: &r" + title(t)));
+            return true;
+        }
+        if (isAdmin(player) && (a.equals("close") || a.equals("open"))) {
+            Table t = args.length < 2 ? null : tables.get(args[1].toLowerCase(Locale.ROOT));
+            var mt = plugin.getMaintenance();
+            if (t == null || mt == null) {
+                player.sendMessage(color("&cUso: /gdx baccarat " + a + " <table> &7(mesas: &f" + String.join(", ", tableNames()) + "&7)"));
+                return true;
+            }
+            if (a.equals("close")) {
+                if (!mt.closeTable("baccarat", t.name)) {
+                    player.sendMessage(color("&eEsa mesa ya estaba cerrada."));
+                    return true;
+                }
+                if (t.state == State.BETTING || t.state == State.DEALING)
+                    refundAll(t);
+                t.bets.clear();
+                t.playerHand.clear();
+                t.bankerHand.clear();
+                t.dealSteps.clear();
+                t.resultLine = null;
+                t.state = State.WAITING;
+                for (UUID id : t.seated) {
+                    Player sp = Bukkit.getPlayer(id);
+                    if (sp != null)
+                        sp.sendMessage(msg("table_closed_now", "&c&l⚠ &cLa mesa se cerró por mantenimiento. Se devolvieron las apuestas."));
+                }
+                player.sendMessage(color("&aMesa &f" + t.name + " &acerrada. &7Las demás siguen abiertas."));
+            } else {
+                player.sendMessage(color(mt.openTable("baccarat", t.name) ? "&aMesa &f" + t.name + " &aabierta otra vez."
+                        : "&eEsa mesa no estaba cerrada."));
+            }
+            updateHolo(t);
+            return true;
+        }
+        if (isAdmin(player) && a.equals("move")) {
+            Table t = args.length < 2 ? null : tables.get(args[1].toLowerCase(Locale.ROOT));
+            Block target = player.getTargetBlockExact(6);
+            if (t == null || target == null) {
+                player.sendMessage(color("&cUso: /gdx baccarat move <table> &7(mirando el bloque de la mesa nueva)"));
+                return true;
+            }
+            if (t.state != State.WAITING) {
+                player.sendMessage(color("&cHay una mano en curso. Espera a que termine."));
+                return true;
+            }
+            for (Table o : tables.values())
+                if (o != t && BlackjackTables.key(o.center).equals(BlackjackTables.key(target.getLocation()))) {
+                    player.sendMessage(msg("exists", "&cEse bloque ya es una mesa de baccarat."));
+                    return true;
+                }
+            Location old = t.center;
+            int dx = target.getX() - old.getBlockX(), dy = target.getY() - old.getBlockY(), dz = target.getZ() - old.getBlockZ();
+            removeEntities(t);
+            List<String> moved = new ArrayList<>();
+            int missing = 0;
+            for (String key : t.seats) {
+                Location l = BlackjackTables.parseKey(key);
+                if (l == null)
+                    continue;
+                Location nl = new Location(target.getWorld(), l.getBlockX() + dx, l.getBlockY() + dy, l.getBlockZ() + dz);
+                if (nl.getBlock().getType() != l.getBlock().getType())
+                    missing++;
+                moved.add(BlackjackTables.key(nl));
+            }
+            t.center = target.getLocation();
+            t.seats.clear();
+            t.seats.addAll(moved);
+            save();
+            ensureDealer(t);
+            updateHolo(t);
+            player.sendMessage(color("&aMesa &f" + t.name + " &amovida. &7Asientos: &f" + moved.size()
+                    + (missing > 0 ? " &c(" + missing + " no tienen el mismo bloque que antes: revísalos con /gdx baccarat seat list " + t.name + ")" : "")));
             return true;
         }
         if (isAdmin(player) && (a.equals("lista") || a.equals("list"))) {
@@ -263,6 +342,36 @@ public class BaccaratModule extends GameModule {
             }
             default -> p.sendMessage(msg("seat_usage", "&cUso: /gdx baccarat seat <add|remove|list|clear> <table>"));
         }
+    }
+
+    private boolean closed(Table t) {
+        return plugin.getMaintenance() != null && plugin.getMaintenance().isTableClosed("baccarat", t.name);
+    }
+
+    /** Historial de una mesa para el cartel ("B" banca, "J" jugador, "E" empate; el más reciente primero). */
+    public List<Character> road(String table) {
+        Table t = table == null ? null : tables.get(table.toLowerCase(Locale.ROOT));
+        return t == null ? null : new ArrayList<>(t.road);
+    }
+
+    /** La mesa de baccarat más cercana a {@code l} (mismo mundo), o null. */
+    public String nearestTable(Location l) {
+        Table best = null;
+        double bd = Double.MAX_VALUE;
+        for (Table t : tables.values()) {
+            if (t.center.getWorld() == null || !t.center.getWorld().equals(l.getWorld()))
+                continue;
+            double d = t.center.distanceSquared(l);
+            if (d < bd) {
+                bd = d;
+                best = t;
+            }
+        }
+        return best == null ? null : best.name;
+    }
+
+    public List<String> tableNamesList() {
+        return tableNames();
     }
 
     private List<String> tableNames() {
@@ -352,6 +461,10 @@ public class BaccaratModule extends GameModule {
             d.set(k + "fx", t.fx);
             d.set(k + "fz", t.fz);
             d.set(k + "seats", t.seats);
+            StringBuilder road = new StringBuilder();
+            for (char c : t.road)
+                road.append(c);
+            d.set(k + "road", road.toString());
         }
         saveData(d);
     }
@@ -377,7 +490,7 @@ public class BaccaratModule extends GameModule {
             switch (t.state) {
                 case WAITING -> {
                     int min = Math.max(1, config().getInt("min_players", 1));
-                    if (t.seated.size() >= min)
+                    if (t.seated.size() >= min && !closed(t))
                         startBetting(t);
                 }
                 case BETTING -> {
@@ -436,6 +549,10 @@ public class BaccaratModule extends GameModule {
             Player p = Bukkit.getPlayer(id);
             if (p == null)
                 continue;
+            if (closed(t)) {
+                p.sendMessage(msg("table_closed", "&c&l⚠ &cEsta mesa está cerrada por mantenimiento. Prueba en otra."));
+                continue;
+            }
             p.sendMessage(msg("sat", "&aTe sentaste en la mesa de baccarat &f{table}&a.", "table", title(t)));
             if (t.state == State.BETTING)
                 openMenu(p, t);
@@ -579,6 +696,10 @@ public class BaccaratModule extends GameModule {
             default -> msg("win_tie", "&a&lEMPATE");
         };
         t.resultLine = winText + color(" &8(&f" + p + " &8vs &f" + b + "&8)");
+        t.road.addFirst(winner == Spot.PLAYER ? 'J' : winner == Spot.BANKER ? 'B' : 'E');
+        while (t.road.size() > 60)
+            t.road.removeLast();
+        save();
         announce(t, msg("result", "&6&lBaccarat &8» {result} &8| &9Jugador {player} &8- &cBanca {banker}",
                 "result", winText, "player", cardsText(t.playerHand) + color(" &7(" + p + ")"),
                 "banker", cardsText(t.bankerHand) + color(" &7(" + b + ")")));
@@ -1065,8 +1186,10 @@ public class BaccaratModule extends GameModule {
         if (!isAdmin(player))
             return List.of();
         if (args.length == 1)
-            return List.of("seat", "list", "rename");
+            return List.of("seat", "list", "rename", "close", "open", "move");
         String a = args[0].toLowerCase(Locale.ROOT);
+        if (a.equals("close") || a.equals("open") || a.equals("move"))
+            return args.length == 2 ? tableNames() : List.of();
         if (a.equals("rename") || a.equals("renombrar"))
             return args.length == 2 ? tableNames() : args.length == 3 ? List.of("<name...>") : List.of();
         if (!a.equals("seat") && !a.equals("asiento") && !a.equals("asientos"))

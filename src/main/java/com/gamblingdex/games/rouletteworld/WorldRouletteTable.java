@@ -524,6 +524,8 @@ public class WorldRouletteTable {
                 return;
             if (w.getPlayers().isEmpty())
                 return;
+            if (plugin.getMaintenance() != null && plugin.getMaintenance().isTableClosed("ruleta", tableKey))
+                return; // mesa cerrada
 
             startCountdown();
         }, 20L, intervalSeconds * 20L);
