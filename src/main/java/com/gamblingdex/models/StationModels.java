@@ -106,6 +106,9 @@ public class StationModels implements Listener {
         final List<UUID> extraBoxes = new ArrayList<>();
         final Map<String, List<UUID>> chips = new HashMap<>();
         final Map<String, Long> chipAmounts = new HashMap<>();
+        /** Ruleta: casillas ganadoras iluminadas sobre el paño. */
+        final List<UUID> lit = new ArrayList<>();
+        BukkitTask litTask;
 
         Machine(Location station, Kind kind) {
             this.station = station;
@@ -346,6 +349,7 @@ public class StationModels implements Listener {
             m.interaction = null;
         }
         removeAll(m.extraBoxes);
+        clearLit(m);
         for (List<UUID> ids : m.chips.values())
             removeAll(ids);
         m.chips.clear();
@@ -376,7 +380,7 @@ public class StationModels implements Listener {
             for (Interaction i : w.getEntitiesByClass(Interaction.class))
                 if (i.getScoreboardTags().contains(TAG))
                     i.remove();
-            for (org.bukkit.entity.ItemDisplay d : w.getEntitiesByClass(org.bukkit.entity.ItemDisplay.class))
+            for (org.bukkit.entity.Display d : w.getEntitiesByClass(org.bukkit.entity.Display.class))
                 if (d.getScoreboardTags().contains(TAG))
                     d.remove();
         }
@@ -774,6 +778,7 @@ public class StationModels implements Listener {
             m.pending.cancel();
             m.pending = null;
         }
+        clearLit(m);
         for (int n = 0; n <= 37; n++)
             bridge.stop(m.handle, ballAnim(n));
         bridge.play(m.handle, ballAnim(number), 0, 0, true);
@@ -806,6 +811,96 @@ public class StationModels implements Listener {
             }
         }, 1L, 1L);
         return true;
+    }
+
+    /**
+     * La bola cayó: se iluminan en el paño todas las casillas que ganan con ese número
+     * (el número, su color, par/impar, 1-18/19-36, la docena y la columna). Parpadean
+     * unos segundos y se quedan encendidas hasta el siguiente giro.
+     */
+    public void rouletteResult(Location center, int number) {
+        Machine m = machine(center, Kind.ROULETTE);
+        if (m == null)
+            return;
+        clearLit(m);
+        World w = m.station.getWorld();
+        if (w == null)
+            return;
+        List<String> cells = new ArrayList<>();
+        cells.add("N" + number);
+        boolean red = com.gamblingdex.games.rouletteworld.WorldRouletteTables.isRed(number);
+        for (var type : com.gamblingdex.games.rouletteworld.WorldRouletteBetType.values())
+            if (type != com.gamblingdex.games.rouletteworld.WorldRouletteBetType.NUMBER && type.wins(number, null, red))
+                cells.add(type.name());
+        Location base = modelLocation(m);
+        org.bukkit.block.data.BlockData glass = Material.YELLOW_STAINED_GLASS.createBlockData();
+        for (String cell : cells) {
+            double[] r = cellRect(cell);
+            if (r == null)
+                continue;
+            Location a = tableToWorld(m, base, r[0] + 0.3, FELT_Y + 0.08, r[1] + 0.3);
+            Location b = tableToWorld(m, base, r[2] - 0.3, FELT_Y + 0.08, r[3] - 0.3);
+            Location at = new Location(w, Math.min(a.getX(), b.getX()), a.getY(), Math.min(a.getZ(), b.getZ()));
+            org.bukkit.entity.BlockDisplay d = w.spawn(at, org.bukkit.entity.BlockDisplay.class);
+            d.setBlock(glass);
+            d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(), new org.joml.AxisAngle4f(),
+                    new org.joml.Vector3f((float) Math.abs(a.getX() - b.getX()), 0.015f, (float) Math.abs(a.getZ() - b.getZ())),
+                    new org.joml.AxisAngle4f()));
+            d.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+            d.setGlowing(true);
+            d.setGlowColorOverride(org.bukkit.Color.fromRGB(255, 210, 60));
+            d.setPersistent(false);
+            d.addScoreboardTag(TAG);
+            m.lit.add(d.getUniqueId());
+        }
+        // Parpadeo los primeros 3 s
+        m.litTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int t = 0;
+
+            @Override
+            public void run() {
+                t++;
+                boolean on = t >= 12 || t % 2 == 0;
+                for (UUID id : m.lit)
+                    if (Bukkit.getEntity(id) instanceof org.bukkit.entity.BlockDisplay d)
+                        d.setBlock(on ? glass : Material.AIR.createBlockData());
+                if (t >= 12 && m.litTask != null) {
+                    m.litTask.cancel();
+                    m.litTask = null;
+                }
+            }
+        }, 5L, 5L);
+    }
+
+    private static void clearLit(Machine m) {
+        if (m.litTask != null) {
+            m.litTask.cancel();
+            m.litTask = null;
+        }
+        removeAll(m.lit);
+    }
+
+    /** Rectángulo de una casilla en el modelo: {x1, z1, x2, z2} (como el dibujo del paño). */
+    private static double[] cellRect(String cell) {
+        if (cell.equals("N0"))
+            return new double[] { 28, 0, 36, 12 };
+        if (cell.equals("N37"))
+            return new double[] { 28, -12, 36, 0 };
+        if (cell.startsWith("N")) {
+            int n = Integer.parseInt(cell.substring(1)), col = (n - 1) / 3, row = (n - 1) % 3;
+            double x1 = 36 + col * 6, z1 = 4 - row * 8;
+            return new double[] { x1, z1, x1 + 6, z1 + 8 };
+        }
+        if (cell.startsWith("COLUMN_")) {
+            double z1 = 4 - (Integer.parseInt(cell.substring(7)) - 1) * 8;
+            return new double[] { 108, z1, 116, z1 + 8 };
+        }
+        if (cell.startsWith("DOZEN_")) {
+            double x1 = 36 + (Integer.parseInt(cell.substring(6)) - 1) * 24;
+            return new double[] { x1, 12, x1 + 24, 18 };
+        }
+        int i = List.of("LOW", "EVEN", "RED", "BLACK", "ODD", "HIGH").indexOf(cell);
+        return i < 0 ? null : new double[] { 36 + i * 12, 18, 48 + i * 12, 24 };
     }
 
     private static String ballAnim(int number) {

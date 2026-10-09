@@ -723,6 +723,7 @@ public class WorldRouletteTable {
             spinTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 spinTask = null;
                 highlightNumber(winningNumber);
+                models.rouletteResult(center, winningNumber);
                 finishRound(winningNumber);
             }, com.gamblingdex.models.StationModels.ROULETTE_SPIN_TICKS);
             return;

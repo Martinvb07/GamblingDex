@@ -71,6 +71,10 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
   el stack). Click en la rueda = lo mismo que el centro (menú de apuestas).
 - **Las fichas apostadas se ven sobre el paño**, un montón por casilla, y se van al terminar la ronda.
 - Al girar, la bola cae en el número que salió y entonces se ilumina en el anillo y se paga.
+- En el paño se iluminan **todas las casillas ganadoras** (número, color, par/impar, 1-18/19-36,
+  docena y columna): parpadean unos segundos y quedan encendidas hasta el siguiente giro.
+
+  ![casillas ganadoras](previews/roulette_win.png)
 - Opciones en `ruleta.yml → model` (`scale: auto` o un número, `hide_station`...).
 
 ## Fichas en 3D (resource pack)
