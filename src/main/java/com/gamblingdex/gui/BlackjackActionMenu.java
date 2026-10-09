@@ -40,9 +40,9 @@ public class BlackjackActionMenu {
             }
         }
 
-        inv.setItem(4, MenuUtils.createButton("§fTu mano: " + table.describePlayerHand(player.getUniqueId()),
+        inv.setItem(2, MenuUtils.createButton("§fTu mano: " + table.describePlayerHand(player.getUniqueId()),
                 Material.PAPER));
-        inv.setItem(22, MenuUtils.createButton("§cDealer: §f" + table.describeDealerUpCard(), Material.VILLAGER_SPAWN_EGG));
+        inv.setItem(6, MenuUtils.createButton("§cDealer: §f" + table.describeDealerUpCard(), Material.VILLAGER_SPAWN_EGG));
 
         inv.setItem(10, actionButton("§aPedir", Material.LIME_DYE, "hit", List.of("§7Pide una carta.")));
 

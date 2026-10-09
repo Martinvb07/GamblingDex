@@ -55,7 +55,7 @@
     {
       "type": "bitmap",
       "file": "gamblingdex:font/bj_bet_gui.png",
-      "height": 96,
+      "height": 114,
       "ascent": 13,
       "chars": [
         "\ue105"

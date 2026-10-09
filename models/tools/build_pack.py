@@ -300,136 +300,216 @@ RED_B, GREEN_B, GOLD_B, BLUE_B, ORANGE_B, GREY_B = (210, 40, 46), (60, 190, 80),
 
 
 def felt_menu(rows):
-    """Base: borde de madera, franja del titulo y pano verde con textura."""
+    """Base: marco de madera, franja del titulo, filete dorado doble y pano verde con vineta."""
     w, h = 176, 17 + rows * 18 + 7
-    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
     rng = np.random.default_rng(rows * 7 + 1)
-    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=WOOD_D)
-    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=WOOD)
-    for _ in range(500):
-        x, y = int(rng.integers(1, w - 1)), int(rng.integers(1, h - 1))
-        d.point((x, y), fill=[WOOD_D, WOOD_L][int(rng.integers(0, 2))])
-    d.rectangle((3, 3, w - 4, h - 4), fill=GRN)
-    for _ in range(int(w * h / 3)):
-        x, y = int(rng.integers(3, w - 3)), int(rng.integers(3, h - 3))
-        d.point((x, y), fill=[GRN_D, GRN_L, (13, 74, 44)][int(rng.integers(0, 3))])
-    d.rectangle((3, 3, w - 4, 15), fill=(6, 32, 15))
-    d.line([(3, 16), (w - 4, 16)], fill=GOLD)
-    for x in range(5, w - 4, 4):
-        d.point((x, 4), fill=GOLD_L if (x // 4) % 2 else GOLD_D)
-        d.point((x + 2, 14), fill=GOLD_L if (x // 4) % 2 == 0 else GOLD_D)
-    return img, d
+    # Pano: verde con grano fino y mas oscuro hacia los bordes (luz de mesa en el centro)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    dist = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - (h + 17) / 2) / (h / 2)) ** 2)
+    light = np.clip(1.08 - 0.38 * dist ** 2, 0.62, 1.08)
+    grain = rng.normal(0, 0.035, (h, w))
+    base = np.array(GRN, np.float32)
+    px = np.clip(base[None, None, :] * (light + grain)[:, :, None], 0, 255).astype(np.uint8)
+    img = Image.fromarray(np.dstack([px, np.full((h, w), 255, np.uint8)]), 'RGBA')
+    d = ImageDraw.Draw(img)
+    # Marco de madera con vetas horizontales
+    mask = Image.new('L', (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=255)
+    frame = Image.new('RGBA', (w, h), WOOD + (255,))
+    fd = ImageDraw.Draw(frame)
+    for y in range(h):
+        if rng.random() < 0.35:
+            fd.line([(0, y), (w, y)], fill=[WOOD_D, WOOD_L][int(rng.integers(0, 2))])
+    inner = Image.new('L', (w, h), 255)
+    ImageDraw.Draw(inner).rectangle((4, 17, w - 5, h - 5), fill=0)
+    img.paste(frame, (0, 0), inner)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, outline=WOOD_D)
+    # Franja del titulo
+    d.rectangle((4, 3, w - 5, 14), fill=(14, 12, 10))
+    d.line([(4, 3), (w - 5, 3)], fill=(40, 34, 26))
+    # Filete dorado doble alrededor del pano
+    d.rectangle((4, 16, w - 5, h - 5), outline=GOLD_D)
+    d.rectangle((5, 17, w - 6, h - 6), outline=GOLD)
+    d.line([(5, 17), (w - 6, 17)], fill=GOLD_L)
+    img.putalpha(Image.fromarray(np.minimum(np.array(img)[:, :, 3], np.array(mask))))
+    return img, ImageDraw.Draw(img)
 
 
-def button_slot(d, r, c, color, wide=False):
-    """Casilla de boton con marco del color de la accion (y brillo arriba)."""
+# Letras de 3x5 para los rotulos de los botones
+FONT = {
+    'A': ['010', '101', '111', '101', '101'], 'B': ['110', '101', '110', '101', '110'],
+    'C': ['011', '100', '100', '100', '011'], 'D': ['110', '101', '101', '101', '110'],
+    'E': ['111', '100', '110', '100', '111'], 'F': ['111', '100', '110', '100', '100'],
+    'G': ['011', '100', '101', '101', '011'], 'H': ['101', '101', '111', '101', '101'],
+    'I': ['111', '010', '010', '010', '111'], 'J': ['001', '001', '001', '101', '010'],
+    'L': ['100', '100', '100', '100', '111'], 'M': ['101', '111', '111', '101', '101'],
+    'N': ['110', '101', '101', '101', '101'], 'O': ['010', '101', '101', '101', '010'],
+    'P': ['110', '101', '110', '100', '100'], 'Q': ['010', '101', '101', '110', '011'],
+    'R': ['110', '101', '110', '101', '101'], 'S': ['011', '100', '010', '001', '110'],
+    'T': ['111', '010', '010', '010', '010'], 'U': ['101', '101', '101', '101', '111'],
+    'V': ['101', '101', '101', '101', '010'], 'Y': ['101', '101', '010', '010', '010'],
+    'Z': ['111', '001', '010', '100', '111'], '-': ['000', '000', '111', '000', '000'],
+    '+': ['000', '010', '111', '010', '000'], '1': ['010', '110', '010', '010', '111'],
+    '2': ['110', '001', '010', '100', '111'], '3': ['110', '001', '010', '001', '110'],
+    ' ': ['00', '00', '00', '00', '00'],
+}
+
+
+def text_width(s):
+    return sum(len(FONT[ch][0]) + 1 for ch in s) - 1
+
+
+def label(d, s, cx, cy, col=CREAM, plate=True):
+    """Rotulo centrado en (cx, cy) sobre una plaquita oscura con borde dorado."""
+    tw = text_width(s)
+    x0, y0 = cx - tw // 2, cy - 2
+    if plate:
+        d.rounded_rectangle((x0 - 3, y0 - 2, x0 + tw + 2, y0 + 6), radius=2, fill=(10, 30, 18), outline=GOLD_D)
+    for ch in s:
+        g = FONT[ch]
+        for j, row in enumerate(g):
+            for i, b in enumerate(row):
+                if b == '1':
+                    d.point((x0 + i, y0 + j + 1), fill=(0, 0, 0))
+                    d.point((x0 + i, y0 + j), fill=col)
+        x0 += len(g[0]) + 1
+
+
+def slot_center(r, c):
     x1, y1, x2, y2 = slot_box(r, c)
-    pad = 2 if wide else 1
-    d.rounded_rectangle((x1 - pad, y1 - pad, x2 + pad, y2 + pad), radius=3, fill=tuple(int(v * 0.55) for v in color))
-    d.rounded_rectangle((x1 - pad + 1, y1 - pad + 1, x2 + pad - 1, y2 + pad - 1), radius=2, fill=color)
-    bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
-    d.line([(x1, y1 - pad + 1), (x2, y1 - pad + 1)], fill=tuple(min(255, int(v * 1.35)) for v in color))
+    return (x1 + x2 + 1) // 2, (y1 + y2 + 1) // 2
+
+
+def recess(d, r, c):
+    """Hueco de la casilla (donde va el item): oscuro y hundido."""
+    x1, y1, x2, y2 = slot_box(r, c)
+    bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), (14, 14, 18), (70, 66, 80), fill=(34, 32, 40))
+
+
+def button_slot(d, r, c, color):
+    """Boton de color con relieve (2 px alrededor de la casilla)."""
+    x1, y1, x2, y2 = slot_box(r, c)
+    dark = tuple(int(v * 0.45) for v in color)
+    lite = tuple(min(255, int(v * 1.3) + 20) for v in color)
+    d.rounded_rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), radius=2, fill=color, outline=dark)
+    d.line([(x1 + 1, y1), (x2 - 1, y1)], fill=lite)
+    d.line([(x1, y1 + 1), (x1, y2 - 1)], fill=lite)
+    recess(d, r, c)
 
 
 def info_slot(d, r, c, color=GOLD):
     x1, y1, x2, y2 = slot_box(r, c)
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=GOLD_D)
     d.rectangle((x1, y1, x2, y2), fill=color)
-    bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
+    recess(d, r, c)
 
 
-def chip_deco(d, cx, cy, color, mark=(255, 255, 255)):
-    """Fichita decorativa (8 px) para los huecos libres."""
-    d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=tuple(int(v * 0.7) for v in color))
-    d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=color)
-    for dx, dy in ((0, -3), (0, 3), (-3, 0), (3, 0)):
-        d.point((cx + dx, cy + dy), fill=mark)
-    d.ellipse((cx - 1, cy - 1, cx + 1, cy + 1), fill=mark)
-
-
-def card_deco(d, x, y, red=True):
-    """Cartita decorativa (9 x 12)."""
-    d.rounded_rectangle((x, y, x + 8, y + 11), radius=1, fill=(250, 250, 246), outline=(170, 170, 165))
-    col = (204, 26, 40) if red else (26, 26, 30)
-    d.polygon([(x + 4, y + 3), (x + 6, y + 5), (x + 4, y + 8), (x + 2, y + 5)], fill=col)
+def panel(d, r1, c1, r2, c2, fill=(8, 34, 20)):
+    """Panel hundido con filete dorado que agrupa casillas."""
+    x1, y1 = slot_box(r1, c1)[:2]
+    x2, y2 = slot_box(r2, c2)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=fill, outline=GOLD_D)
 
 
 def vitrine(d, r1, r2, c1, c2):
-    """Vitrina de fichas (fieltro rojo con marco dorado) como en el menu de cambio."""
-    vx1, vy1 = slot_box(r1, c1)[0] - 3, slot_box(r1, c1)[1] - 3
-    vx2, vy2 = slot_box(r2, c2)[2] + 3, slot_box(r2, c2)[3] + 3
-    d.rectangle((vx1 - 1, vy1 - 1, vx2 + 1, vy2 + 1), fill=GOLD_D)
-    d.rectangle((vx1, vy1, vx2, vy2), fill=GOLD)
-    d.rectangle((vx1 + 2, vy1 + 2, vx2 - 2, vy2 - 2), fill=(90, 15, 24))
+    """Vitrina de fichas: fieltro rojo con marco dorado, casillas marcadas."""
+    x1, y1 = slot_box(r1, c1)[:2]
+    x2, y2 = slot_box(r2, c2)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=GOLD_D)
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=GOLD)
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=(96, 16, 26))
     for r in range(r1, r2 + 1):
         for c in range(c1, c2 + 1):
-            bevel(d, slot_box(r, c), (60, 8, 16), (130, 30, 40))
+            bx1, by1, bx2, by2 = slot_box(r, c)
+            bevel(d, (bx1 + 1, by1 + 1, bx2 - 1, by2 - 1), (62, 8, 16), (138, 34, 44), fill=(80, 12, 22))
+
+
+def suit_icon(d, cx, cy, suit, col):
+    shapes = {
+        'heart': ['01010', '11111', '11111', '01110', '00100'],
+        'diamond': ['00100', '01110', '11111', '01110', '00100'],
+        'spade': ['00100', '01110', '11111', '00100', '01110'],
+        'club': ['01110', '01110', '11111', '00100', '01110'],
+    }
+    for j, row in enumerate(shapes[suit]):
+        for i, b in enumerate(row):
+            if b == '1':
+                d.point((cx - 2 + i, cy - 2 + j), fill=col)
+
+
+def suits_row(d, cx, cy):
+    """Los cuatro palos centrados (adorno discreto)."""
+    for i, (s, col) in enumerate((('spade', CREAM), ('heart', (214, 40, 50)), ('club', CREAM), ('diamond', (214, 40, 50)))):
+        suit_icon(d, cx - 15 + i * 10, cy, s, col)
 
 
 def poker_action_background():
     img, d = felt_menu(6)
-    # linea dorada ovalada del pano
-    d.rounded_rectangle((12, 22, 163, 122), radius=40, outline=GOLD_D)
-    # fila 1: tus cartas (blanco), mesa (dorado), jugadores (azul)
-    info_slot(d, 1, 2, (240, 240, 232)); info_slot(d, 1, 4, GOLD); info_slot(d, 1, 6, BLUE_B)
-    card_deco(d, 9, 21, True); card_deco(d, 157, 21, False)
-    # fila 3: retirarse, pasar/igualar, subir, all-in
-    button_slot(d, 3, 2, RED_B, True); button_slot(d, 3, 4, GREEN_B, True)
-    button_slot(d, 3, 6, GOLD_B, True); button_slot(d, 3, 8, ORANGE_B, True)
-    # fila 4: ajustar la subida
-    x1 = slot_box(4, 1)[0] - 2; x2 = slot_box(4, 8)[2] + 2; y1 = slot_box(4, 1)[1] - 2; y2 = slot_box(4, 1)[3] + 2
-    d.rectangle((x1, y1, x2, y2), fill=(6, 32, 15))
-    for c, col in ((1, RED_B), (2, RED_B), (3, GOLD_B), (4, GOLD_B), (5, GOLD_B), (6, GOLD_B), (7, GREEN_B), (8, GREEN_B)):
-        info_slot(d, 4, c, tuple(int(v * 0.85) for v in col))
-    # fila 5: cerrar + fichas de adorno
+    # fila 0: rotulos de la info; fila 1: tus cartas, mesa, jugadores
+    panel(d, 1, 2, 1, 6)
+    for c, txt, col in ((2, 'CARTAS', (240, 240, 232)), (4, 'MESA', GOLD), (6, 'JUGADORES', BLUE_B)):
+        info_slot(d, 1, c, col)
+        label(d, txt, slot_center(0, c)[0], slot_center(0, c)[1] + 2)
+    for c in (3, 5):
+        suit_icon(d, *slot_center(1, c), 'spade' if c == 3 else 'heart', GOLD_D)
+    # fila 3: acciones (28, 30, 32, 34) con su nombre encima (fila 2)
+    for c, txt, col in ((1, 'RETIRAR', RED_B), (3, 'IGUALAR', GREEN_B), (5, 'SUBIR', GOLD_B), (7, 'ALL-IN', ORANGE_B)):
+        button_slot(d, 3, c, col)
+        label(d, txt, slot_center(2, c)[0], slot_center(2, c)[1] + 2)
+    # fila 4: ajuste de la subida (36..44), 40 = a cuanto subes
+    panel(d, 4, 0, 4, 8, fill=(6, 26, 15))  # 1 px por fuera de las casillas
+    for c in range(9):
+        col = RED_B if c < 2 else GREEN_B if c > 6 else (200, 200, 196)
+        if c == 4:
+            continue
+        info_slot(d, 4, c, tuple(int(v * 0.8) for v in col))
+    button_slot(d, 4, 4, GOLD_B)
+    # fila 5: cerrar
     button_slot(d, 5, 4, GREY_B)
-    for i, col in enumerate([(196, 28, 40), (36, 78, 196), (52, 168, 60), (34, 34, 40)]):
-        chip_deco(d, 30 + i * 11, 113, col)
-        chip_deco(d, 115 + i * 11, 113, col)
     return img
 
 
 def poker_buyin_background():
     img, d = felt_menu(4)
-    vitrine(d, 1, 2, 1, 7)
-    info_slot(d, 2, 4, GOLD)          # 22 = info (en la vitrina)
-    info_slot(d, 2, 6, BLUE_B)        # 24 = consejo
-    button_slot(d, 3, 4, GREY_B)      # 31 = cerrar
-    for i, col in enumerate([(196, 28, 40), (36, 78, 196), (52, 168, 60)]):
-        chip_deco(d, 24 + i * 11, 77, col)
-        chip_deco(d, 130 + i * 11, 77, col)
+    label(d, 'ELIGE TUS FICHAS', 88, slot_center(0, 4)[1] + 1)
+    vitrine(d, 1, 2, 2, 6)
+    info_slot(d, 3, 2, GOLD)      # 29 = tus fichas
+    button_slot(d, 3, 4, GREY_B)  # 31 = cerrar
+    info_slot(d, 3, 6, BLUE_B)    # 33 = propina
     return img
 
 
 def bj_action_background():
     img, d = felt_menu(3)
-    d.arc((20, -40, 155, 60), 20, 160, fill=GOLD_D)   # arco del seguro
-    info_slot(d, 0, 4, (240, 240, 232))               # 4 = tu mano
-    info_slot(d, 2, 4, (200, 120, 60))                # 22 = dealer
-    button_slot(d, 1, 1, GREEN_B, True)               # 10 pedir
-    button_slot(d, 1, 3, GOLD_B, True)                # 12 doblar
-    button_slot(d, 1, 5, BLUE_B, True)                # 14 dividir
-    button_slot(d, 1, 7, RED_B, True)                 # 16 plantarse
-    card_deco(d, 12, 57, True); card_deco(d, 22, 57, False)
-    card_deco(d, 145, 57, False); card_deco(d, 155, 57, True)
+    # fila 0: tu mano (2) contra el dealer (6)
+    info_slot(d, 0, 2, (240, 240, 232))
+    info_slot(d, 0, 6, (200, 120, 60))
+    label(d, 'VS', 88, slot_center(0, 4)[1], col=GOLD_L, plate=False)
+    suit_icon(d, slot_center(0, 3)[0], slot_center(0, 3)[1], 'spade', GOLD_D)
+    suit_icon(d, slot_center(0, 5)[0], slot_center(0, 5)[1], 'heart', GOLD_D)
+    # fila 1: pedir, doblar, dividir, plantarse; fila 2: sus nombres
+    for c, txt, col in ((1, 'PEDIR', GREEN_B), (3, 'DOBLAR', GOLD_B), (5, 'DIVIDIR', BLUE_B), (7, 'PLANTAR', RED_B)):
+        button_slot(d, 1, c, col)
+        label(d, txt, slot_center(2, c)[0], slot_center(2, c)[1] + 1)
     return img
 
 
 def bj_bet_background():
-    img, d = felt_menu(4)
-    vitrine(d, 1, 2, 1, 7)
-    info_slot(d, 2, 4, GOLD)           # 22 info
-    info_slot(d, 2, 5, (240, 240, 232))  # 23 tabla de pagos
-    info_slot(d, 2, 6, RED_B)          # 24 retirar
-    info_slot(d, 2, 7, GREEN_B)        # 25 repetir
-    button_slot(d, 2, 8, GREY_B)       # 26 cerrar
+    img, d = felt_menu(5)
+    label(d, 'HAZ TU APUESTA', 88, slot_center(0, 4)[1] + 1)
+    vitrine(d, 1, 2, 2, 6)
+    info_slot(d, 2, 0, GOLD)              # 18 info
+    info_slot(d, 2, 8, (240, 240, 232))   # 26 tabla de pagos
     # fila 3: los 3 circulos de apuesta (principal, parejas, 21+3)
     for c, col in ((2, GOLD_B), (4, (190, 90, 220)), (6, (60, 200, 210))):
-        x1, y1, x2, y2 = slot_box(3, c)
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        d.ellipse((cx - 11, cy - 11, cx + 11, cy + 11), outline=(242, 242, 234), width=1)
-        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=tuple(int(v * 0.35) for v in col), outline=col)
-        bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
+        cx, cy = slot_center(3, c)
+        d.ellipse((cx - 11, cy - 11, cx + 10, cy + 10), outline=(242, 242, 234))
+        d.ellipse((cx - 10, cy - 10, cx + 9, cy + 9), fill=tuple(int(v * 0.35) for v in col), outline=col)
+        recess(d, 3, c)
+    # fila 4: retirar (37), cerrar (40), repetir (43)
+    button_slot(d, 4, 1, RED_B)
+    button_slot(d, 4, 4, GREY_B)
+    button_slot(d, 4, 7, GREEN_B)
     return img
 
 

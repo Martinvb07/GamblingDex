@@ -53,7 +53,7 @@ public class PokerBuyInMenu {
             return;
         }
 
-        int[] tokenSlots = { 10, 11, 12, 13, 14, 15, 16, 19, 20, 21 };
+        int[] tokenSlots = { 11, 12, 13, 14, 15, 20, 21, 22, 23, 24 }; // 2 filas de 5, centradas
         int idx = 0;
         TokenManager tokenManager = plugin.getTokenManager();
         for (Map.Entry<Material, Integer> entry : TokenManager.getDenoms().entrySet()) {
@@ -105,7 +105,7 @@ public class PokerBuyInMenu {
             im.setLore(lore);
             info.setItemMeta(im);
         }
-        inv.setItem(22, info);
+        inv.setItem(29, info);
         addTipButton(inv, player);
 
         ItemStack close = MenuUtils.createButton("§7Cerrar", Material.BARRIER);
@@ -157,7 +157,7 @@ public class PokerBuyInMenu {
             }
             inv.setItem(13, info);
         }
-        inv.setItem(22, MenuUtils.createButton("§7Tus fichas (tokens): §e"
+        inv.setItem(29, MenuUtils.createButton("§7Tus fichas (tokens): §e"
                 + PokerTable.units(com.gamblingdex.economy.TokenWallet.balance(player)), Material.SUNFLOWER));
         addTipButton(inv, player);
 
@@ -185,7 +185,7 @@ public class PokerBuyInMenu {
             meta.getPersistentDataContainer().set(new NamespacedKey(plugin, KEY_ACTION), PersistentDataType.STRING, "tip");
             tip.setItemMeta(meta);
         }
-        inv.setItem(24, tip);
+        inv.setItem(33, tip);
     }
 
     private int countTokens(Player player, Material mat) {
