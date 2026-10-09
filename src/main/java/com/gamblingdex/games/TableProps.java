@@ -81,9 +81,11 @@ public final class TableProps {
         Placed back = single(at, yaw, cardItem(BACK), scale, null, false, mo);
         Player o = Bukkit.getPlayer(owner);
         if (o != null)
-            for (UUID id : back.ids)
-                if (Bukkit.getEntity(id) instanceof Entity e)
+            for (UUID id : back.ids) {
+                Entity e = Bukkit.getEntity(id);
+                if (e != null)
                     o.hideEntity(plugin, e);
+            }
         back.ids.addAll(single(at, yaw, cardItem(face), scale, owner, false, mo).ids);
         return back;
     }
