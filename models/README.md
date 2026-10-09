@@ -24,6 +24,8 @@ respetando parejas y tríos.
    `plugins/ModelEngine/blueprints/gamblingdex/` (si no estaba).
 2. `/meg reload`. El modelo aparece encima de cada estación de slots (se puede clickear).
 3. `/gdx station rotate` mirando la estación para girarla 90°.
+   A quien ve el modelo se le esconden la mesa de encantamientos y el holograma (solo en su
+   pantalla) y la máquina queda en el suelo (`slots.yml → model.hide_station`).
 4. Opciones en `slots.yml → model` (altura, hitbox, radio del sonido, desactivar).
 
 ## Fichas en 3D (resource pack)
@@ -31,8 +33,9 @@ respetando parejas y tríos.
 ![fichas](previews/chips.png)
 
 Cada ficha (amarilla 1, roja 10, azul 50, verde 100, morada 500, naranja 1.000, rosa 5.000,
-negra 10.000, gris 50.000, blanca 100.000) se ve como una ficha de casino con canto a rayas,
-en la mano, el inventario, el suelo y los marcos. Las de 10.000 o más llevan marcas doradas.
+negra 10.000, gris 50.000, blanca 100.000) es una ficha de casino fina, con el aro más alto que
+el centro (hundido, con el valor impreso) y 8 marcas en relieve. Acostada en el suelo, en la mano
+y en el inventario, y de frente en los marcos. Las de 10.000 o más llevan marcas doradas.
 
 Se activa con `resource_pack.custom_chips: true` (usa `custom_model_data` 7701 sobre los tintes;
 si ya tienes tu propio modelo en `currency.token.custom-model-data`, se respeta el tuyo).

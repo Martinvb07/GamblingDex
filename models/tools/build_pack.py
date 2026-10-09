@@ -251,87 +251,147 @@ def sounds():
 # custom_model_data = CHIP_CMD (1.20.4-1.21.3: overrides; 1.21.4+: items/*.json).
 # ----------------------------------------------------------------------------
 CHIP_CMD = 7701
-# tinte, nombre, color base, color de las marcas del canto
+# tinte, nombre, valor impreso, color base, color de las marcas del canto
 CHIPS = [
-    ('yellow_dye', 'yellow', (236, 196, 36), (255, 255, 255)),
-    ('red_dye', 'red', (196, 28, 40), (255, 255, 255)),
-    ('blue_dye', 'blue', (36, 78, 196), (255, 255, 255)),
-    ('lime_dye', 'green', (52, 168, 60), (255, 255, 255)),
-    ('purple_dye', 'purple', (118, 46, 168), (255, 255, 255)),
-    ('orange_dye', 'orange', (232, 118, 20), (255, 255, 255)),
-    ('pink_dye', 'pink', (226, 104, 164), (255, 255, 255)),
-    ('black_dye', 'black', (34, 34, 40), (240, 196, 48)),
-    ('gray_dye', 'gray', (128, 128, 140), (240, 196, 48)),
-    ('white_dye', 'white', (236, 236, 236), (226, 170, 30)),
+    ('yellow_dye', 'yellow', '1', (232, 190, 30), (255, 255, 255)),
+    ('red_dye', 'red', '10', (190, 24, 36), (255, 255, 255)),
+    ('blue_dye', 'blue', '50', (30, 72, 184), (255, 255, 255)),
+    ('lime_dye', 'green', '100', (34, 140, 58), (255, 255, 255)),
+    ('purple_dye', 'purple', '500', (108, 40, 160), (255, 255, 255)),
+    ('orange_dye', 'orange', '1K', (226, 110, 16), (255, 255, 255)),
+    ('pink_dye', 'pink', '5K', (214, 92, 152), (255, 255, 255)),
+    ('black_dye', 'black', '10K', (30, 30, 34), (232, 186, 52)),
+    ('gray_dye', 'gray', '50K', (118, 120, 132), (232, 186, 52)),
+    ('white_dye', 'white', '100K', (238, 238, 236), (206, 150, 24)),
 ]
-# Silueta redonda (en pixeles 0..16): union de 3 rectangulos [x1, y1, x2, y2]
-CHIP_RECTS = [(2, 5, 14, 11), (3, 3, 13, 13), (5, 2, 11, 14)]
+
+# Ficha de casino acostada: 14 de diametro y 2.6 de grueso. Textura 32x32: cara redonda en el centro (px 2..30) y la franja
+# del canto en las filas 0-1 (fuera del circulo).
+CHIP_R = 7.0      # radio en unidades del modelo (= 14 px de textura)
+CHIP_H = 2.6      # grosor (ficha gruesa, el canto a rayas se ve bien)
+# Canto: union de rectangulos (medio ancho x, medio ancho z) que siguen el circulo
+CHIP_RIM = [(7.0, 2.4), (6.6, 3.6), (6.1, 4.5), (5.3, 5.3), (4.5, 6.1), (3.6, 6.6), (2.4, 7.0)]
+
+DIGITS = {
+    '0': ['111', '101', '101', '101', '111'], '1': ['010', '110', '010', '010', '111'],
+    '5': ['111', '100', '111', '001', '111'], 'K': ['101', '101', '110', '101', '101'],
+}
 
 
 def shade(c, f):
     return tuple(max(0, min(255, int(v * f))) for v in c)
 
 
-def chip_texture(base, mark):
-    img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+def chip_texture(base, mark, label):
+    import math
+    n = 32
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
     px = img.load()
-    inside = lambda x, y: any(x1 <= x < x2 and y1 <= y < y2 for x1, y1, x2, y2 in CHIP_RECTS)
-    edge = lambda x, y: inside(x, y) and not all(inside(x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-    for y in range(2, 14):
-        for x in range(2, 14):
-            if not inside(x, y):
+    cx = cy = 15.5
+    light = shade(base, 1.18) if sum(base) < 600 else (250, 248, 240)
+    inlay = tuple(int(v * 0.25 + 255 * 0.75) for v in base)  # centro claro, tenido del color
+    for y in range(n):
+        for x in range(n):
+            dx, dy = x - cx, y - cy
+            r = math.hypot(dx, dy)
+            if r > 14.2:
                 continue
-            px[x, y] = shade(base, 0.72) + (255,) if edge(x, y) else base + (255,)
-    # Marcas del canto (8 alrededor) en el anillo exterior
-    for x, y in [(7, 2), (8, 2), (7, 13), (8, 13), (2, 7), (2, 8), (13, 7), (13, 8),
-                 (4, 3), (3, 4), (11, 3), (12, 4), (3, 11), (4, 12), (12, 11), (11, 12)]:
-        px[x, y] = mark + (255,)
-    # Anillo interior punteado y centro
-    for x, y in [(5, 5), (6, 4), (9, 4), (10, 5), (11, 6), (11, 9), (10, 10), (9, 11), (6, 11), (5, 10), (4, 9), (4, 6)]:
-        px[x, y] = shade(mark, 0.9) + (255,)
-    for y in range(5, 11):
-        for x in range(5, 11):
-            if (x, y) in ((5, 5), (10, 5), (5, 10), (10, 10)):
-                continue
-            px[x, y] = shade(base, 1.12) + (255,)
-    # Rombo central (el "diamante" del casino)
-    for x, y in [(7, 6), (8, 6), (6, 7), (7, 7), (8, 7), (9, 7), (6, 8), (7, 8), (8, 8), (9, 8), (7, 9), (8, 9)]:
-        px[x, y] = mark + (255,)
-    px[7, 7] = (255, 255, 255, 255)
-    # Franja del canto (filas 0-1): color base con marcas cada 3 px
-    for x in range(16):
-        c = mark if x % 4 == 1 else shade(base, 0.85)
+            ang = (math.degrees(math.atan2(dy, dx)) + 360) % 360
+            c = base
+            if r > 13.2:
+                c = shade(base, 0.7)                       # borde
+            elif r > 10.6:
+                # 8 marcas rectangulares en el aro exterior
+                c = mark if ((ang + 7) % 45) < 14 else base
+                if ((ang + 7) % 45) < 14 and r > 12.6:
+                    c = shade(mark, 0.85)
+            elif r > 9.6:
+                c = shade(base, 0.82)
+            elif r > 8.9:
+                c = mark if int(ang // 10) % 2 == 0 else shade(base, 1.1)  # anillo punteado
+            elif r > 8.2:
+                c = shade(base, 0.85)
+            else:
+                c = inlay
+            px[x, y] = c + (255,)
+    # Valor en el centro (fuente 3x5)
+    w = len(label) * 4 - 1
+    x0, y0 = int(16 - w / 2), 14
+    ink = shade(base, 0.6) if sum(base) < 700 else (40, 40, 40)
+    if sum(base) < 150:
+        ink = (20, 20, 22)
+    for i, ch in enumerate(label):
+        for ry, row in enumerate(DIGITS[ch]):
+            for rx, bit in enumerate(row):
+                if bit == '1':
+                    px[x0 + i * 4 + rx, y0 + ry] = ink + (255,)
+    # Franja del canto (filas 0-1): color base con marcas como el aro
+    for x in range(n):
+        c = mark if x % 6 in (0, 1) else base
         px[x, 0] = c + (255,)
-        px[x, 1] = shade(c, 0.8) + (255,)
+        px[x, 1] = shade(c, 0.75) + (255,)
     return img
 
 
+# Ficha fina con el centro hundido: aro octogonal (8 barras) mas alto que el centro y
+# 8 marcas en relieve encima del aro (como las fichas de casino de verdad).
+CHIP_APO = 7.0       # apotema exterior del aro
+CHIP_APO_IN = 4.8    # apotema interior (borde del centro hundido)
+CHIP_CENTER_H = 1.0  # altura del centro
+CHIP_RIM_H = 1.6     # altura del aro
+CHIP_MARK_H = 1.9    # altura de las marcas
+
+
 def chip_model():
-    els = [{
-        'name': 'cara', 'from': [2, 2, 7], 'to': [14, 14, 9],
-        'faces': {'north': {'uv': [2, 2, 14, 14], 'texture': '#chip'},
-                  'south': {'uv': [14, 2, 2, 14], 'texture': '#chip'}}}]
-    for i, (x1, y1, x2, y2) in enumerate(CHIP_RECTS):
-        rim = lambda a, b: {'uv': [a, 0, b, 2], 'texture': '#chip'}
-        els.append({'name': 'canto_%d' % i, 'from': [x1, y1, 7.05], 'to': [x2, y2, 8.95],
-                    'faces': {'up': rim(x1, x2), 'down': rim(x1, x2), 'east': rim(y1, y2), 'west': rim(y1, y2)}})
+    import math
+    c = 8.0
+    tex = lambda uv: {'uv': uv, 'texture': '#chip'}
+    base_uv, mark_uv = tex([1.5, 0, 2.5, 0.5]), tex([0, 0, 0.5, 0.5])
+    side = 2 * CHIP_APO * math.tan(math.pi / 8)  # lado del octogono
+    els = []
+
+    def oriented(name, k, radial, tang, y, faces):
+        """Pieza en la direccion k*45 grados: radial = (desde, hasta) del centro, tang = medio ancho."""
+        rot = 45 if k % 2 else 0
+        a = math.radians(k * 45 - rot)
+        dx, dz = round(math.cos(a)), round(math.sin(a))
+        if dx:
+            fx = sorted([c + dx * radial[0], c + dx * radial[1]]); fz = [c - tang, c + tang]
+        else:
+            fz = sorted([c + dz * radial[0], c + dz * radial[1]]); fx = [c - tang, c + tang]
+        el = {'name': name, 'from': [fx[0], y[0], fz[0]], 'to': [fx[1], y[1], fz[1]], 'faces': faces}
+        if rot:
+            el['rotation'] = {'angle': rot, 'axis': 'y', 'origin': [c, 0, c]}
+        els.append(el)
+
+    # Centro hundido con el valor (la textura se mapea igual que la cara: x,z -> u,v)
+    h = CHIP_APO_IN + 0.05
+    els.append({'name': 'centro', 'from': [c - h, 0, c - h], 'to': [c + h, CHIP_CENTER_H, c + h],
+                'faces': {'up': tex([c - h, c - h, c + h, c + h]), 'down': tex([c - h, c - h, c + h, c + h])}})
+    all6 = ('north', 'south', 'east', 'west', 'up', 'down')
+    for k in range(8):
+        oriented('aro_%d' % k, k, (CHIP_APO_IN, CHIP_APO), side / 2 + 0.01, (0, CHIP_RIM_H), {f: base_uv for f in all6})
+        oriented('marca_%d' % k, k, (CHIP_APO_IN - 0.05, CHIP_APO + 0.12), 0.85, (-0.05, CHIP_MARK_H), {f: mark_uv for f in all6})
     return {
         'credit': 'GamblingDex',
-        'texture_size': [16, 16],
+        'texture_size': [32, 32],
         'textures': {'chip': 'gamblingdex:item/chip_red', 'particle': 'gamblingdex:item/chip_red'},
         'elements': els,
-        'display': {
-            'gui': {'rotation': [18, -22, 0], 'scale': [1.05, 1.05, 1.05]},
-            'ground': {'translation': [0, 2, 0], 'scale': [0.5, 0.5, 0.5]},
-            'fixed': {'rotation': [0, 180, 0]},
-            'head': {'translation': [0, 13, 7], 'scale': [0.8, 0.8, 0.8]},
-            'thirdperson_righthand': {'rotation': [70, 0, 0], 'translation': [0, 1.5, 2], 'scale': [0.5, 0.5, 0.5]},
-            'thirdperson_lefthand': {'rotation': [70, 0, 0], 'translation': [0, 1.5, 2], 'scale': [0.5, 0.5, 0.5]},
-            'firstperson_righthand': {'rotation': [0, -20, 10], 'translation': [1.5, 3.5, 1], 'scale': [0.6, 0.6, 0.6]},
-            'firstperson_lefthand': {'rotation': [0, -20, 10], 'translation': [1.5, 3.5, 1], 'scale': [0.6, 0.6, 0.6]},
-        },
+        'display': CHIP_DISPLAY,
     }
 
+
+# Como se ve en cada sitio (la ficha esta acostada: cara hacia arriba)
+CHIP_DISPLAY = {
+    'gui': {'rotation': [-55, 0, 0], 'translation': [0, 1, 0], 'scale': [1.15, 1.15, 1.15]},
+    'ground': {'translation': [0, 1, 0], 'scale': [0.45, 0.45, 0.45]},
+    'fixed': {'rotation': [90, 180, 0], 'scale': [0.9, 0.9, 0.9]},
+    'head': {'translation': [0, 14.5, 0], 'scale': [0.7, 0.7, 0.7]},
+    'thirdperson_righthand': {'rotation': [50, 0, 0], 'translation': [0, 3, 1.5], 'scale': [0.35, 0.35, 0.35]},
+    'thirdperson_lefthand': {'rotation': [50, 0, 0], 'translation': [0, 3, 1.5], 'scale': [0.35, 0.35, 0.35]},
+    'firstperson_righthand': {'rotation': [50, -20, 0], 'translation': [-1, 5, 0], 'scale': [0.5, 0.5, 0.5]},
+    'firstperson_lefthand': {'rotation': [50, 20, 0], 'translation': [-1, 5, 0], 'scale': [0.5, 0.5, 0.5]},
+}
 
 def write_json(path, data):
     mkdir(os.path.dirname(path))
@@ -342,8 +402,8 @@ def write_json(path, data):
 def chips():
     write_json(os.path.join(NS, 'models', 'item', 'chip.json'), chip_model())
     mc = os.path.join(PACK, 'assets', 'minecraft')
-    for dye, name, base, mark in CHIPS:
-        chip_texture(base, mark).save(os.path.join(mkdir_p(os.path.join(NS, 'textures', 'item')), 'chip_%s.png' % name))
+    for dye, name, label, base, mark in CHIPS:
+        chip_texture(base, mark, label).save(os.path.join(mkdir_p(os.path.join(NS, 'textures', 'item')), 'chip_%s.png' % name))
         model = 'gamblingdex:item/chip_' + name
         write_json(os.path.join(NS, 'models', 'item', 'chip_%s.json' % name),
                    {'parent': 'gamblingdex:item/chip', 'textures': {'chip': model, 'particle': model}})

@@ -406,6 +406,18 @@ public class StationManager {
                 + newFormat + " holo=" + holo;
     }
 
+    /** Holograma (TextDisplay) de una estación, o null. */
+    public UUID getHologramId(Location location) {
+        if (location == null)
+            return null;
+        String id = stations.getString("stations." + key(location) + ".holo");
+        try {
+            return id == null ? null : UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** Tema de una estación de slots (null = clásico). */
     public String getTheme(Location location) {
         if (location == null)
