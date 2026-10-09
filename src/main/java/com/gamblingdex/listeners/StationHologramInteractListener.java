@@ -43,7 +43,7 @@ public class StationHologramInteractListener implements Listener {
                 if (plugin.getMaintenance() == null || plugin.getMaintenance().allow(player, "slots"))
                     plugin.getSlotsController().open(player, plugin.getStationManager().getTheme(stationLoc), stationLoc);
             }
-            case EXCHANGE -> plugin.getExchangeMenu().open(player);
+            case EXCHANGE -> plugin.getExchangeMenu().open(player, stationLoc);
             default -> {
             }
         }

@@ -156,3 +156,23 @@ holo_height: 2.3
 # Después de editar: /gdx reload
 table_names:
   # Mesa1: "&6&l✦ &#FFD700&lBLACKJACK VIP &6&l✦"
+
+# Cartas y fichas en 3D sobre la mesa (necesita el resource pack y
+# resource_pack.custom_cards: true en config.yml): las cartas salen del zapato y quedan en
+# escalera delante de cada jugador, la segunda del dealer se da vuelta en su turno, la apuesta
+# va en el círculo y al resolver el pago llega desde la bandeja (o el dealer se lleva las fichas).
+visuals:
+  enabled: true
+  table_height: 1.0           # sin la mesa 3D: altura del paño sobre los pies del dealer
+
+# Mesa de blackjack en 3D con ModelEngine (opcional): media luna delante del dealer, con
+# "BLACKJACK PAGA 3 A 2", círculos de apuesta, bandeja de fichas y zapato de cartas. Mira
+# hacia donde mira el dealer; para girarla (con el dealer): mira el centro y usa
+# /gdx station rotate. Para la mesa a tamaño completo, los asientos deberían estar a
+# unos 3-4 bloques del dealer.
+model:
+  enabled: true
+  id: blackjack_table         # nombre del modelo en ModelEngine
+  scale: auto                 # auto = el borde llega justo delante de los asientos; o un número
+  hide_station: never         # el dealer está parado sobre el bloque del centro
+  y_offset: 1.0               # a los pies del dealer

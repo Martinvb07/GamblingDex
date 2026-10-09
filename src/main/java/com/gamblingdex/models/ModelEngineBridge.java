@@ -113,6 +113,15 @@ public final class ModelEngineBridge {
         }
     }
 
+    /** Tamaño del modelo (1 = como en Blockbench). Devuelve false si ModelEngine no lo permite. */
+    public boolean setScale(Handle h, double scale) {
+        if (h == null)
+            return false;
+        boolean ok = tryCall(h.active, "setScale", scale);
+        tryCall(h.active, "setHitboxScale", scale);
+        return ok;
+    }
+
     public boolean isRemoved(Handle h) {
         if (h == null)
             return true;

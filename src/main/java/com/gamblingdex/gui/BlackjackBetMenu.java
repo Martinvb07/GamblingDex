@@ -40,12 +40,12 @@ public class BlackjackBetMenu {
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(new BlackjackBetMenuHolder(table.getTableKey()), 36,
-                "§6§lBlackjack §8- §eApuesta");
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new BlackjackBetMenuHolder(table.getTableKey()), 45,
+                com.gamblingdex.pack.CasinoPack.BJ_BET_BG, "§6§lBlackjack §8- §eApuesta");
 
-        // Border panes
+        // Border panes (con el fondo del pack no hacen falta)
         int lastRowStart = inv.getSize() - 9;
-        for (int i = 0; i < inv.getSize(); i++) {
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             if (i < 9 || i >= lastRowStart || i % 9 == 0 || i % 9 == 8) {
                 inv.setItem(i, MenuUtils.createButton("", Material.WHITE_STAINED_GLASS_PANE));
             } else {
@@ -54,7 +54,7 @@ public class BlackjackBetMenu {
         }
 
         // Denomination buttons
-        int[] tokenSlots = { 10, 11, 12, 13, 14, 15, 16, 19, 20, 21 };
+        int[] tokenSlots = { 11, 12, 13, 14, 15, 20, 21, 22, 23, 24 }; // 2 filas de 5, centradas
         int idx = 0;
         TokenManager tokenManager = plugin.getTokenManager();
 
@@ -131,15 +131,15 @@ public class BlackjackBetMenu {
             infoMeta.setLore(lore);
             info.setItemMeta(infoMeta);
         }
-        inv.setItem(22, info);
+        inv.setItem(18, info);
 
         // Tabla de pagos
-        inv.setItem(23, paytable());
+        inv.setItem(26, paytable());
 
         // Clear bet
-        inv.setItem(24, actionButton("§cRetirar apuestas", Material.REDSTONE, "clear"));
+        inv.setItem(37, actionButton("§cRetirar apuestas", Material.REDSTONE, "clear"));
         // Close
-        inv.setItem(26, actionButton("§7Cerrar", Material.BARRIER, "close"));
+        inv.setItem(40, actionButton("§7Cerrar", Material.BARRIER, "close"));
         // Repetir la apuesta de la ronda anterior
         long last = table.lastBetTotal(id);
         if (last > 0) {
@@ -158,7 +158,7 @@ public class BlackjackBetMenu {
                 rm.setLore(lore);
                 repeat.setItemMeta(rm);
             }
-            inv.setItem(25, repeat);
+            inv.setItem(43, repeat);
         }
 
         // Selector de apuesta (fila inferior)

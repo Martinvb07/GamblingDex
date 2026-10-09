@@ -40,5 +40,47 @@
       "gamblingdex:slots/coin"
     ],
     "subtitle": "subtitles.gamblingdex.slots.coin"
+  },
+  "poker.card": {
+    "sounds": [
+      "gamblingdex:poker/card"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.card"
+  },
+  "poker.chips": {
+    "sounds": [
+      "gamblingdex:poker/chips"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.chips"
+  },
+  "poker.flip": {
+    "sounds": [
+      "gamblingdex:poker/flip"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.flip"
+  },
+  "poker.win": {
+    "sounds": [
+      "gamblingdex:poker/win"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.win"
+  },
+  "roulette.spin": {
+    "sounds": [
+      "gamblingdex:roulette/spin"
+    ],
+    "subtitle": "subtitles.gamblingdex.roulette.spin"
+  },
+  "exchange.buy": {
+    "sounds": [
+      "gamblingdex:exchange/buy"
+    ],
+    "subtitle": "subtitles.gamblingdex.exchange.buy"
+  },
+  "exchange.sell": {
+    "sounds": [
+      "gamblingdex:exchange/sell"
+    ],
+    "subtitle": "subtitles.gamblingdex.exchange.sell"
   }
 }

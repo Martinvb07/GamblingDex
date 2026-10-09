@@ -120,6 +120,20 @@ exchange:
     command: "eco take {player} {money}"
   sell:
     command: "eco give {player} {money}" # Fallback si use_vault=false
+  # Cajero de fichas en 3D con ModelEngine (opcional), igual que la máquina de slots:
+  # aparece en cada estación de cambio, se puede clickear y anima la compra (caen fichas)
+  # y la venta (entra un billete). Las animaciones y sonidos los ven todos los que estén cerca.
+  # Girarlo: mira la estación y usa /gdx station rotate.
+  model:
+    enabled: true
+    id: exchange_machine        # nombre del modelo en ModelEngine
+    hide_station: auto          # auto | always | never (esconder el telar y el holograma a quien ve el modelo)
+    y_offset_hidden: 0.0        # altura de la máquina con el telar escondido (en el suelo)
+    y_offset: 1.0               # con hide_station: never, la máquina va encima del telar
+    holo_extra_height: 2.1      # con hide_station: never, cuánto sube el holograma
+    hitbox_width: 1.0
+    hitbox_height: 2.0
+    sound_radius: 12
 
 # ======================
 # STATIONS (HOLOGRAMAS)
@@ -215,6 +229,8 @@ resource_pack:
   custom_sounds: false     # sonidos propios de los slots (palanca, rodillos, premio, jackpot)
   custom_chips: false      # fichas en 3D (en la mano, el inventario, el suelo y los marcos).
                            # Las que ya tengan los jugadores se actualizan al entrar al server.
+  custom_cards: false      # póker: cartas, fichas y botón del dealer en 3D sobre la mesa
+  custom_chairs: false     # taburetes de casino en los asientos de póker y blackjack (click derecho = sentarse)
   modelengine_pack: ""     # ruta al pack de ModelEngine si no está en plugins/ModelEngine/resource pack
   send:
     enabled: false         # mandar el pack a cada jugador al entrar
@@ -222,3 +238,13 @@ resource_pack:
     sha1: ""               # el SHA-1 que muestra /gdx pack (si cambias el zip, cámbialo)
     required: false        # true = quien lo rechace no puede entrar
     prompt: "&6GamblingDex &7usa un resource pack para los menús y sonidos del casino."
+
+# ======================
+# SILLAS (taburetes de casino)
+# ======================
+# Con resource_pack.custom_chairs: true sale un taburete en cada asiento de las mesas de
+# póker y blackjack. Click derecho = sentarse (cuenta como estar en el asiento), shift = pararse.
+chairs:
+  enabled: true
+  scale: 1.0          # tamaño del taburete
+  sit_height: 0.45    # altura a la que queda sentado el jugador (súbela o bájala si se ve hundido o flotando)

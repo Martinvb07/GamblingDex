@@ -239,6 +239,45 @@ public class BlackjackTable {
         return getMinBet() > 1 || getMaxBet() > 0;
     }
 
+    /** Una mano para dibujarla sobre la mesa 3D. result: null = sin resolver. */
+    public record HandView(List<Card> cards, long bet, boolean doubled, String result) {
+    }
+
+    /** Un jugador de la ronda: dónde está sentado, sus manos y apuestas. */
+    public record PlayerView(UUID id, Location seat, List<HandView> hands, long mainBet, long pairsBet, long plus3Bet) {
+    }
+
+    /** Lo que hay sobre la mesa ahora (BlackjackVisuals). */
+    public record VisualState(State state, List<Card> dealer, boolean dealerHidden, List<PlayerView> players,
+            boolean resultsShown) {
+    }
+
+    public VisualState visualState() {
+        Set<UUID> ids = new LinkedHashSet<>();
+        ids.addAll(bets.keySet());
+        ids.addAll(hands.keySet());
+        List<PlayerView> players = new ArrayList<>();
+        for (UUID id : ids) {
+            Location seat = null;
+            String key = assignedSeatByPlayer.get(id);
+            if (key != null)
+                seat = BlackjackTables.parseKey(key);
+            if (seat == null) {
+                Player p = Bukkit.getPlayer(id);
+                if (p != null)
+                    seat = p.getLocation().getBlock().getLocation();
+            }
+            List<HandView> hv = new ArrayList<>();
+            for (Hand h : handsOf(id))
+                hv.add(new HandView(List.copyOf(h.cards()), h.bet(), h.isDoubled(), h.result()));
+            players.add(new PlayerView(id, seat, hv, bets.getOrDefault(id, 0L), pairsBets.getOrDefault(id, 0L),
+                    plus3Bets.getOrDefault(id, 0L)));
+        }
+        List<Card> dealer = dealerHand == null ? List.of() : List.copyOf(dealerHand.cards());
+        boolean hidden = state == State.PLAYING && dealer.size() >= 2;
+        return new VisualState(state, dealer, hidden, players, resultsShown);
+    }
+
     public Float getDealerYaw() {
         return dealerYaw;
     }
@@ -249,6 +288,12 @@ public class BlackjackTable {
         Entity e = w == null || dealerId == null ? null : w.getEntity(dealerId);
         if (e instanceof Villager v && !v.isDead() && yaw != null)
             v.setRotation(yaw, 0f);
+    }
+
+    /** Guarda la mesa (nombre, dealer, hacia dónde mira...) en blackjack_tables. */
+    public void persist() {
+        if (persistDisplaysCallback != null)
+            persistDisplaysCallback.run();
     }
 
     /** Yaw para que el dealer mire hacia {@code target} (por ejemplo, el admin que creó la mesa). */
@@ -958,6 +1003,11 @@ public class BlackjackTable {
         Block feet = player.getLocation().getBlock();
         Block below = feet.getRelative(BlockFace.DOWN);
 
+        // Sentado en la silla de un asiento de esta mesa
+        String sitting = com.gamblingdex.games.Chairs.sittingKey(player);
+        if (sitting != null && seatKeys.contains(sitting))
+            return true;
+
         if (mode.equals("manual")) {
             if (seatKeys.isEmpty())
                 return false;
@@ -995,6 +1045,10 @@ public class BlackjackTable {
 
         if (seatKeys.isEmpty())
             return null;
+
+        String sitting = com.gamblingdex.games.Chairs.sittingKey(player);
+        if (sitting != null && seatKeys.contains(sitting))
+            return sitting;
 
         Block feet = player.getLocation().getBlock();
         Block below = feet.getRelative(BlockFace.DOWN);

@@ -64,3 +64,17 @@ item:
     - "&7Click derecho para abrir"
     - "&7la &cRuleta&7."
     - "&8────────────────────────"
+
+# Mesa de ruleta en 3D con ModelEngine (opcional): rueda con la bola que cae en el número
+# que sale + paño con el tablero y fichas de decoración. Va dentro del anillo, que sigue
+# sirviendo para apostar. Click en una casilla del paño = elegirla (y con fichas en la mano,
+# apostar ahí); las fichas apostadas se ven sobre el paño. Girarla: mira el centro y usa
+# /gdx station rotate.
+model:
+  enabled: true
+  id: roulette_table          # nombre del modelo en ModelEngine
+  scale: auto                 # auto = lo más grande que quepa dentro del anillo; o un número (1 = 9.5 bloques de largo)
+  hide_station: auto          # auto | always | never (esconder la piedra imán del centro a quien ve la mesa)
+  y_offset_hidden: 0.0
+  y_offset: 1.0
+  sound_radius: 16

@@ -327,6 +327,16 @@ public class WorldRouletteTable {
                 Map.of("number", WorldRouletteTables.formatNumber(number))));
     }
 
+    /** Total apostado en cada casilla ("N17", "RED", "DOZEN_1"...), para poner las fichas en la mesa 3D. */
+    public Map<String, Long> betTotalsByCell() {
+        Map<String, Long> out = new HashMap<>();
+        for (Map<String, WorldRouletteBet> m : bets.values())
+            for (WorldRouletteBet b : m.values())
+                out.merge(b.getType() == WorldRouletteBetType.NUMBER ? "N" + b.getNumber() : b.getType().name(),
+                        b.getAmount(), Long::sum);
+        return out;
+    }
+
     public boolean hasBet(UUID playerId) {
         Map<String, WorldRouletteBet> m = bets.get(playerId);
         return m != null && !m.isEmpty();
@@ -704,6 +714,20 @@ public class WorldRouletteTable {
         }
 
         int winningNumber = sequence.get(ThreadLocalRandom.current().nextInt(sequence.size()));
+
+        // Con la rueda 3D (ModelEngine) la bola cae en el ganador; al caer se ilumina y se paga.
+        var models = plugin.getStationModels();
+        if (models != null && models.rouletteSpin(center, winningNumber)) {
+            if (spinTask != null)
+                spinTask.cancel();
+            spinTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                spinTask = null;
+                highlightNumber(winningNumber);
+                models.rouletteResult(center, winningNumber);
+                finishRound(winningNumber);
+            }, com.gamblingdex.models.StationModels.ROULETTE_SPIN_TICKS);
+            return;
+        }
 
         // La luz arranca en un número al azar, da vueltas rápido unos
         // segundos y frena de a poco hasta parar EXACTAMENTE en el ganador.

@@ -104,3 +104,21 @@ tournament:
 # Después de editar: /gdx reload
 table_names:
   # Mesa1: "&#00FFAA&l♠ Mesa High Roller ♠"
+
+# Cartas, fichas y botón del dealer en 3D sobre la mesa (necesita el resource pack y
+# resource_pack.custom_cards: true en config.yml). Las cartas de la mesa salen en el centro;
+# las tuyas, delante de tu asiento: tú las ves boca arriba y los demás el dorso (en el
+# showdown se dan vuelta). También se ven las apuestas, el bote y el botón del dealer.
+visuals:
+  enabled: true
+
+# Mesa de póker en 3D con ModelEngine (opcional): redonda, con paño, borde acolchado y
+# bandeja del dealer. Se ajusta sola al tamaño de los asientos. Girarla: mira el centro y
+# usa /gdx station rotate.
+model:
+  enabled: true
+  id: poker_table             # nombre del modelo en ModelEngine
+  scale: auto                 # auto = el borde llega justo delante de los asientos; o un número
+  hide_station: auto          # auto | always | never (esconder el bloque del centro a quien ve la mesa)
+  y_offset_hidden: 0.0
+  y_offset: 1.0

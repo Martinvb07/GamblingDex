@@ -39,10 +39,12 @@ public class PokerActionMenu {
             return;
         UUID id = player.getUniqueId();
 
-        Inventory inv = Bukkit.createInventory(new PokerActionMenuHolder(table.getTableKey()), 54,
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new PokerActionMenuHolder(table.getTableKey()), 54,
+                com.gamblingdex.pack.CasinoPack.POKER_ACTION_BG,
                 "§6§lPóker §8- §aTu turno §8(§f" + table.getTurnSecondsLeft() + "s§8)");
 
-        for (int i = 0; i < inv.getSize(); i++) {
+        // Con el fondo del pack no hace falta el relleno de cristales
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             boolean border = i < 9 || i >= 45 || i % 9 == 0 || i % 9 == 8;
             inv.setItem(i, MenuUtils.createButton(" ",
                     border ? Material.GREEN_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE));
@@ -69,15 +71,15 @@ public class PokerActionMenu {
         inv.setItem(15, info(Material.PLAYER_HEAD, "§b§lJugadores", seatsLore));
 
         // --- Acciones principales ---
-        inv.setItem(29, button(Material.RED_CONCRETE, "§c§lRetirarse",
+        inv.setItem(28, button(Material.RED_CONCRETE, "§c§lRetirarse",
                 List.of("§7Tiras tus cartas y pierdes", "§7lo que ya apostaste en esta mano."), "fold", null));
 
         if (toCall <= 0) {
-            inv.setItem(31, button(Material.LIME_CONCRETE, "§a§lPasar",
+            inv.setItem(30, button(Material.LIME_CONCRETE, "§a§lPasar",
                     List.of("§7No apuestas nada y sigues en la mano."), "check", null));
         } else {
             boolean callAllIn = toCall >= stack;
-            inv.setItem(31, button(Material.LIME_CONCRETE,
+            inv.setItem(30, button(Material.LIME_CONCRETE,
                     callAllIn ? "§a§lPagar §e" + u(toCall) + " §6(ALL-IN)" : "§a§lPagar §e" + u(toCall),
                     List.of("§7Igualas la apuesta actual."), "check", null));
         }
@@ -87,28 +89,31 @@ public class PokerActionMenu {
         boolean betWord = table.isBetSituation();
         String verb = betWord ? "Apostar" : "Subir a";
         if (canRaise) {
-            inv.setItem(33, button(Material.GOLD_BLOCK, "§6§l" + verb + " §e" + u(target),
+            inv.setItem(32, button(Material.GOLD_BLOCK, "§6§l" + verb + " §e" + u(target),
                     List.of("§7Confirma tu " + (betWord ? "apuesta" : "subida") + ".",
                             "§7Ajusta el monto en la fila de abajo.",
                             "§8Mín: " + u(table.getMinRaiseTo(id)) + " §8| Máx: " + u(table.getMaxRaiseTo(id))),
                     "raise", null));
         } else {
-            inv.setItem(33, info(Material.GRAY_DYE, "§8" + verb + " (no disponible)",
+            inv.setItem(32, info(Material.GRAY_DYE, "§8" + verb + " (no disponible)",
                     List.of("§7Solo puedes pagar o retirarte.")));
         }
 
         List<String> allInLore = new ArrayList<>(List.of("§7Apuestas todas tus fichas."));
         if (!canRaise && stack > toCall)
             allInLore.add("§8(no puedes subir: contará como pago)");
-        inv.setItem(35, button(Material.TNT, "§4§lALL-IN §e" + u(stack), allInLore, "allin", null));
+        inv.setItem(34, button(Material.TNT, "§4§lALL-IN §e" + u(stack), allInLore, "allin", null));
 
         // --- Ajuste de la subida ---
         if (canRaise) {
-            inv.setItem(37, button(Material.RED_DYE, "§c-5 BB", List.of("§7Resta " + u(bb * 5)), "adjust",
+            inv.setItem(36, button(Material.RED_DYE, "§c-5 BB", List.of("§7Resta " + u(bb * 5)), "adjust",
                     -bb * 5));
-            inv.setItem(38, button(Material.RED_DYE, "§c-1 BB", List.of("§7Resta " + u(bb)), "adjust", -bb));
-            inv.setItem(39, preset(table, id, "§fMínimo", table.getMinRaiseTo(id), target));
-            inv.setItem(40, preset(table, id, "§f½ Bote", table.getPotRaiseTo(id, 0.5), target));
+            inv.setItem(37, button(Material.RED_DYE, "§c-1 BB", List.of("§7Resta " + u(bb)), "adjust", -bb));
+            inv.setItem(38, preset(table, id, "§fMínimo", table.getMinRaiseTo(id), target));
+            inv.setItem(39, preset(table, id, "§f½ Bote", table.getPotRaiseTo(id, 0.5), target));
+            // En el centro de la tira: a cuánto vas a subir
+            inv.setItem(40, info(Material.GOLD_INGOT, "§6§lSubir a §e" + u(target),
+                    List.of("§7Ajusta con los botones de los lados.")));
             inv.setItem(41, preset(table, id, "§f¾ Bote", table.getPotRaiseTo(id, 0.75), target));
             inv.setItem(42, preset(table, id, "§fBote", table.getPotRaiseTo(id, 1.0), target));
             inv.setItem(43, button(Material.LIME_DYE, "§a+1 BB", List.of("§7Suma " + u(bb)), "adjust", bb));

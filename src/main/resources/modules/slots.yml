@@ -130,8 +130,13 @@ item:
 model:
   enabled: true
   id: slot_machine            # nombre del modelo en ModelEngine
-  y_offset: 0.75              # altura sobre el bloque de la estación (la mesa de encantamientos mide 0.75)
-  holo_extra_height: 2.1      # cuánto sube el holograma para quedar encima de la máquina
+  # A quien ve el modelo (tiene el pack) se le esconden la mesa de encantamientos y el holograma
+  # (solo en su pantalla; la estación sigue igual). auto = a todos si el pack es obligatorio o no
+  # lo manda GamblingDex; si es opcional, solo a quien lo aceptó. always | never
+  hide_station: auto
+  y_offset_hidden: 0.0        # altura de la máquina cuando la mesa está escondida (en el suelo)
+  y_offset: 0.75              # con hide_station: never, la máquina va encima de la mesa (mide 0.75)
+  holo_extra_height: 2.1      # con hide_station: never, cuánto sube el holograma
   hitbox_width: 1.0
   hitbox_height: 2.0
   sound_radius: 12            # los que estén cerca oyen la máquina

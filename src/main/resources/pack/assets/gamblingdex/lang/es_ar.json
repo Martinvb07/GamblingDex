@@ -5,5 +5,12 @@
   "subtitles.gamblingdex.slots.win": "Premio en la tragamonedas",
   "subtitles.gamblingdex.slots.jackpot": "¡Jackpot!",
   "subtitles.gamblingdex.slots.lose": "Sin premio",
-  "subtitles.gamblingdex.slots.coin": "Monedas"
+  "subtitles.gamblingdex.slots.coin": "Monedas",
+  "subtitles.gamblingdex.exchange.buy": "Fichas cayendo",
+  "subtitles.gamblingdex.exchange.sell": "Caja registradora",
+  "subtitles.gamblingdex.roulette.spin": "Bola de la ruleta",
+  "subtitles.gamblingdex.poker.card": "Carta repartida",
+  "subtitles.gamblingdex.poker.chips": "Fichas",
+  "subtitles.gamblingdex.poker.flip": "Carta dada vuelta",
+  "subtitles.gamblingdex.poker.win": "Bote al ganador"
 }

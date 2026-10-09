@@ -830,19 +830,39 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (action.equals("rotate") || action.equals("girar")) {
                     Block target = player.getTargetBlockExact(6);
                     var sm = GamblingDexPlugin.getInstance().getStationManager();
-                    if (target == null || sm.getStationType(target) != GameItemType.SLOTS) {
+                    GameItemType rotType = target == null ? null : sm.getStationType(target);
+                    var pokerAt = target == null || GamblingDexPlugin.getInstance().getPokerManager() == null ? null
+                            : GamblingDexPlugin.getInstance().getPokerManager().getByBlock(target);
+                    boolean pokerCenter = pokerAt != null && pokerAt.isCenter(target);
+                    var bjAt = target == null || GamblingDexPlugin.getInstance().getBlackjackManager() == null ? null
+                            : GamblingDexPlugin.getInstance().getBlackjackManager().getByBlock(target);
+                    if (bjAt != null && bjAt.isCenter(target)) {
+                        // Blackjack: gira al dealer y su mesa va con él
+                        float now = com.gamblingdex.games.blackjack.BlackjackVisuals.facing(bjAt, null,
+                                target.getLocation().add(0.5, 1, 0.5));
+                        bjAt.setDealerYaw((now + 90f) % 360f);
+                        bjAt.persist();
+                        var bjModels = GamblingDexPlugin.getInstance().getStationModels();
+                        if (bjModels != null)
+                            bjModels.respawn(target.getLocation());
+                        player.sendMessage(GamblingDexPlugin.getInstance().color("&aDealer y mesa girados: &f"
+                                + Math.round((now + 90f) % 360f) + "°"));
+                        return true;
+                    }
+                    if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE
+                            && rotType != GameItemType.ROULETTE && !pokerCenter) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots a menos de 6 bloques."));
+                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;
                     sm.setModelYaw(target.getLocation(), yaw);
-                    var models = GamblingDexPlugin.getInstance().getSlotsModels();
+                    var models = GamblingDexPlugin.getInstance().getStationModels();
                     if (models != null)
                         models.respawn(target.getLocation());
                     player.sendMessage(GamblingDexPlugin.getInstance().color("&aModelo de la máquina girado: &f"
                             + Math.round(sm.getModelYaw(target.getLocation())) + "°"
-                            + (models == null || !models.active() ? " &7(ModelEngine no está activo)" : "")));
+                            + (models == null || (!pokerCenter && !models.active(rotType)) ? " &7(ModelEngine no está activo)" : "")));
                     return true;
                 }
 

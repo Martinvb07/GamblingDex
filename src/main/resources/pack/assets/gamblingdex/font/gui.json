@@ -15,6 +15,51 @@
       "chars": [
         "\ue100"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/exchange_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue101"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/poker_action_gui.png",
+      "height": 132,
+      "ascent": 13,
+      "chars": [
+        "\ue102"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/poker_buyin_gui.png",
+      "height": 96,
+      "ascent": 13,
+      "chars": [
+        "\ue103"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/bj_action_gui.png",
+      "height": 78,
+      "ascent": 13,
+      "chars": [
+        "\ue104"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/bj_bet_gui.png",
+      "height": 114,
+      "ascent": 13,
+      "chars": [
+        "\ue105"
+      ]
     }
   ]
 }

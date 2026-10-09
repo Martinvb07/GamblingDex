@@ -1,0 +1,398 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "entries": [
+      {
+        "threshold": 7800,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_a"
+        }
+      },
+      {
+        "threshold": 7801,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_2"
+        }
+      },
+      {
+        "threshold": 7802,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_3"
+        }
+      },
+      {
+        "threshold": 7803,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_4"
+        }
+      },
+      {
+        "threshold": 7804,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_5"
+        }
+      },
+      {
+        "threshold": 7805,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_6"
+        }
+      },
+      {
+        "threshold": 7806,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_7"
+        }
+      },
+      {
+        "threshold": 7807,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_8"
+        }
+      },
+      {
+        "threshold": 7808,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_9"
+        }
+      },
+      {
+        "threshold": 7809,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_10"
+        }
+      },
+      {
+        "threshold": 7810,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_j"
+        }
+      },
+      {
+        "threshold": 7811,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_q"
+        }
+      },
+      {
+        "threshold": 7812,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/clubs_k"
+        }
+      },
+      {
+        "threshold": 7813,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_a"
+        }
+      },
+      {
+        "threshold": 7814,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_2"
+        }
+      },
+      {
+        "threshold": 7815,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_3"
+        }
+      },
+      {
+        "threshold": 7816,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_4"
+        }
+      },
+      {
+        "threshold": 7817,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_5"
+        }
+      },
+      {
+        "threshold": 7818,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_6"
+        }
+      },
+      {
+        "threshold": 7819,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_7"
+        }
+      },
+      {
+        "threshold": 7820,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_8"
+        }
+      },
+      {
+        "threshold": 7821,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_9"
+        }
+      },
+      {
+        "threshold": 7822,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_10"
+        }
+      },
+      {
+        "threshold": 7823,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_j"
+        }
+      },
+      {
+        "threshold": 7824,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_q"
+        }
+      },
+      {
+        "threshold": 7825,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/diamonds_k"
+        }
+      },
+      {
+        "threshold": 7826,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_a"
+        }
+      },
+      {
+        "threshold": 7827,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_2"
+        }
+      },
+      {
+        "threshold": 7828,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_3"
+        }
+      },
+      {
+        "threshold": 7829,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_4"
+        }
+      },
+      {
+        "threshold": 7830,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_5"
+        }
+      },
+      {
+        "threshold": 7831,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_6"
+        }
+      },
+      {
+        "threshold": 7832,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_7"
+        }
+      },
+      {
+        "threshold": 7833,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_8"
+        }
+      },
+      {
+        "threshold": 7834,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_9"
+        }
+      },
+      {
+        "threshold": 7835,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_10"
+        }
+      },
+      {
+        "threshold": 7836,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_j"
+        }
+      },
+      {
+        "threshold": 7837,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_q"
+        }
+      },
+      {
+        "threshold": 7838,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/hearts_k"
+        }
+      },
+      {
+        "threshold": 7839,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_a"
+        }
+      },
+      {
+        "threshold": 7840,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_2"
+        }
+      },
+      {
+        "threshold": 7841,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_3"
+        }
+      },
+      {
+        "threshold": 7842,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_4"
+        }
+      },
+      {
+        "threshold": 7843,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_5"
+        }
+      },
+      {
+        "threshold": 7844,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_6"
+        }
+      },
+      {
+        "threshold": 7845,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_7"
+        }
+      },
+      {
+        "threshold": 7846,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_8"
+        }
+      },
+      {
+        "threshold": 7847,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_9"
+        }
+      },
+      {
+        "threshold": 7848,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_10"
+        }
+      },
+      {
+        "threshold": 7849,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_j"
+        }
+      },
+      {
+        "threshold": 7850,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_q"
+        }
+      },
+      {
+        "threshold": 7851,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/spades_k"
+        }
+      },
+      {
+        "threshold": 7852,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/back"
+        }
+      },
+      {
+        "threshold": 7853,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/dealer"
+        }
+      },
+      {
+        "threshold": 7854,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/stool"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/paper"
+    }
+  }
+}
