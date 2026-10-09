@@ -43,7 +43,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private GameItemManager gameItemManager;
     private SlotsController slotsController;
-    private com.gamblingdex.models.SlotsMachineModels slotsModels;
+    private com.gamblingdex.models.StationModels stationModels;
     private com.gamblingdex.pack.ResourcePackManager resourcePackManager;
     private SlotsStatsManager slotsStatsManager;
     private RouletteStatsManager rouletteStatsManager;
@@ -152,8 +152,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             pokerManager.reload();
         if (moduleManager != null)
             moduleManager.reloadAll();
-        if (slotsModels != null)
-            slotsModels.start();
+        if (stationModels != null)
+            stationModels.start();
         if (tokenManager != null) // fichas 3D on/off (resource_pack.custom_chips)
             for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
                 tokenManager.refreshChipModels(p.getInventory());
@@ -229,7 +229,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         this.gameItemManager = new GameItemManager(this);
         this.slotsController = new SlotsController(this);
-        this.slotsModels = new com.gamblingdex.models.SlotsMachineModels(this);
+        this.stationModels = new com.gamblingdex.models.StationModels(this);
         this.resourcePackManager = new com.gamblingdex.pack.ResourcePackManager(this);
         this.slotsStatsManager = new SlotsStatsManager(this);
 
@@ -255,7 +255,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         registerCommands();
         registerListeners();
-        slotsModels.start();
+        stationModels.start();
         new com.gamblingdex.games.JackpotBell(this).start();
         this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
@@ -342,8 +342,8 @@ public class GamblingDexPlugin extends JavaPlugin {
         } catch (Throwable ignored) {
         }
         try {
-            if (slotsModels != null)
-                slotsModels.shutdown();
+            if (stationModels != null)
+                stationModels.shutdown();
         } catch (Throwable ignored) {
         }
         try {
@@ -407,7 +407,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         pm.registerEvents(new ExchangeMenuListener(this), this);
         pm.registerEvents(new RouletteBetMenuListener(this), this);
         pm.registerEvents(new SlotsMenuListener(this), this);
-        pm.registerEvents(slotsModels, this);
+        pm.registerEvents(stationModels, this);
         pm.registerEvents(resourcePackManager, this);
         pm.registerEvents(new com.gamblingdex.listeners.PokerListener(this), this);
         pm.registerEvents(new com.gamblingdex.listeners.TokenMenuListener(this, tokenManager), this);
@@ -446,9 +446,9 @@ public class GamblingDexPlugin extends JavaPlugin {
         return gameItemManager;
     }
 
-    /** Máquinas de slots en 3D (ModelEngine, opcional). */
-    public com.gamblingdex.models.SlotsMachineModels getSlotsModels() {
-        return slotsModels;
+    /** Máquinas en 3D de las estaciones (ModelEngine, opcional). */
+    public com.gamblingdex.models.StationModels getStationModels() {
+        return stationModels;
     }
 
     /** Resource pack del casino (fondo de menús y sonidos). */

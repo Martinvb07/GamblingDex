@@ -28,6 +28,30 @@ respetando parejas y tríos.
    pantalla) y la máquina queda en el suelo (`slots.yml → model.hide_station`).
 4. Opciones en `slots.yml → model` (altura, hitbox, radio del sonido, desactivar).
 
+## Cajero de fichas en 3D (ModelEngine R4)
+
+![cajero](previews/exchange_machine.png)
+
+`exchange_machine.bbmodel`: mueble verde y dorado con cartel "CAMBIO", pantalla, ranura de
+billetes y una bandeja con montones de fichas.
+
+| Animación | Qué hace |
+|---|---|
+| `idle` | Bombillos del cartel titilando (en bucle) |
+| `buy` | La pantalla destella y cae un montón de fichas a la bandeja |
+| `sell` | Entra un billete por la ranura y la pantalla destella |
+
+Se instala igual que la tragamonedas (se copia solo a `plugins/ModelEngine/blueprints/gamblingdex/`,
+luego `/meg reload` y `/gdx pack`). Opciones en `config.yml → exchange.model`.
+Con el pack, el menú de cambio también tiene fondo propio y suena una lluvia de fichas al
+comprar y una caja registradora al vender.
+
+![menú de cambio](previews/exchange_gui.png)
+
+> **Todas las máquinas**: las animaciones y los sonidos salen del modelo, así que los ven y oyen
+> todos los que estén cerca (no solo el que juega). Para añadir una máquina nueva basta con
+> sumarla a `StationModels.Kind`.
+
 ## Fichas en 3D (resource pack)
 
 ![fichas](previews/chips.png)
@@ -72,8 +96,9 @@ cd models && node tools/render_chips.mjs previews/chips   # capturas + chip.bbmo
 git clone --depth 1 https://github.com/JannisX11/blockbench.git && cd blockbench
 npm install --ignore-scripts && npm run build-web && python3 -m http.server 8765 &
 cd models && VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/slot_machine.js slot_machine.bbmodel previews/
-cp slot_machine.bbmodel ../src/main/resources/models/
+VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/exchange_machine.js exchange_machine.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en
-`SlotsMachineModels.java`.
+`StationModels.java`.

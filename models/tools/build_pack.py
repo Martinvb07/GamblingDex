@@ -24,6 +24,7 @@ NS = os.path.join(PACK, 'assets', 'gamblingdex')
 CH_BACK_8 = ''      # -8 px: del inicio del titulo al borde izquierdo del menu
 CH_BACK_169 = ''    # -169 px: tras el fondo (176+1) vuelve a x=8 para el texto
 CH_SLOTS_BG = ''    # fondo del menu de slots
+CH_EXCHANGE_BG = '\uE101' # fondo del menu de cambio
 
 
 def mkdir(p):
@@ -203,6 +204,8 @@ def mix(total, *parts):
 
 
 def write_ogg(path, sig):
+    if os.path.exists(path) and not os.environ.get('FORCE_SOUNDS'):
+        return  # libvorbis no da el mismo archivo dos veces: solo se regenera con FORCE_SOUNDS=1
     mkdir(os.path.dirname(path))
     with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
         tmp = f.name
@@ -216,6 +219,71 @@ def write_ogg(path, sig):
 
 
 C5, E5, G5, C6, E6, G6 = 523.25, 659.25, 783.99, 1046.5, 1318.5, 1568.0
+
+
+# ----------------------------------------------------------------------------
+# Fondo del menu de cambio (ExchangeMenu): verde y dorado como el cajero 3D
+# 0..8 luces (4 = tu info) | 11 COMPRAR, 15 VENDER | 19..25, 28..34 fichas
+# 37..43 cantidad (40 = cantidad) | 45 cerrar, 47 todo, 49 CONFIRMAR, 51 vender todas, 53 tasas
+# ----------------------------------------------------------------------------
+GRN, GRN_D, GRN_L = (16, 88, 52), (10, 60, 34), (28, 112, 68)
+
+
+def exchange_background():
+    w, h = 176, 130
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(13)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=GOLD_D)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=GOLD)
+    d.rectangle((3, 3, w - 4, h - 4), fill=GRN)
+    for _ in range(900):
+        x, y = rng.integers(3, w - 3), rng.integers(3, h - 3)
+        d.point((int(x), int(y)), fill=[GRN_D, GRN_L, (13, 74, 44)][rng.integers(0, 3)])
+    # Franja del titulo con bombillos verdes
+    d.rectangle((3, 3, w - 4, 15), fill=(6, 32, 15))
+    d.line([(3, 16), (w - 4, 16)], fill=GOLD)
+    for x in range(5, w - 4, 4):
+        d.point((x, 4), fill=(92, 255, 122) if (x // 4) % 2 else (40, 140, 60))
+        d.point((x + 2, 14), fill=(92, 255, 122) if (x // 4) % 2 == 0 else (40, 140, 60))
+    # Fila 0: bombillos; 4 = tu info
+    for c in range(9):
+        x1, y1, x2, y2 = slot_box(0, c)
+        if c == 4:
+            d.rectangle((x1 - 2, y1 - 1, x2 + 2, y2 + 1), fill=GOLD_L)
+            bevel(d, (x1, y1, x2, y2), DARK, DARK_L, fill=(40, 36, 48))
+            continue
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=GOLD_D)
+        d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=(92, 255, 122) if c % 2 else (40, 140, 60))
+        d.point((cx - 1, cy - 1), fill=(220, 255, 220))
+    # Fila 1: pestañas COMPRAR (verde) y VENDER (naranja)
+    for c, frame in ((2, (60, 200, 90)), (6, (240, 150, 40))):
+        x1, y1, x2, y2 = slot_box(1, c)
+        d.rectangle((x1 - 3, y1 - 1, x2 + 3, y2 + 1), fill=frame)
+        bevel(d, (x1, y1, x2, y2), DARK, DARK_L, fill=(40, 36, 48))
+    # Filas 2-3: vitrina de fichas (columnas 1..7) con fieltro rojo
+    vx1, vy1 = slot_box(2, 1)[0] - 3, slot_box(2, 1)[1] - 3
+    vx2, vy2 = slot_box(3, 7)[2] + 3, slot_box(3, 7)[3] + 3
+    d.rectangle((vx1 - 1, vy1 - 1, vx2 + 1, vy2 + 1), fill=GOLD_D)
+    d.rectangle((vx1, vy1, vx2, vy2), fill=GOLD)
+    d.rectangle((vx1 + 2, vy1 + 2, vx2 - 2, vy2 - 2), fill=(90, 15, 24))
+    for r in (2, 3):
+        for c in range(1, 8):
+            x1, y1, x2, y2 = slot_box(r, c)
+            bevel(d, (x1, y1, x2, y2), (60, 8, 16), (130, 30, 40))
+    # Fila 4: cantidad (37..43), 40 destacada
+    x1, y1, _, _ = slot_box(4, 1)
+    _, _, x2, y2 = slot_box(4, 7)
+    d.rectangle((x1 - 2, y1 - 1, x2 + 2, y2 + 1), fill=(6, 32, 15))
+    for c in range(1, 8):
+        item_slot(d, 4, c, frame=GOLD_L if c == 4 else GOLD_D)
+    # Fila 5: cerrar, todo, CONFIRMAR, vender todas, tasas
+    for c, frame in ((0, (200, 50, 50)), (2, GOLD_D), (4, (60, 200, 90)), (6, GOLD_D), (8, GOLD_D)):
+        item_slot(d, 5, c, frame=frame)
+    x1, y1, x2, y2 = slot_box(5, 4)
+    d.rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), outline=GOLD_L)
+    return img
 
 
 def sounds():
@@ -242,6 +310,21 @@ def sounds():
     s['lose'] = mix(0.7, (0, tone(392.0, 0.3, 'square', r=0.12, vol=0.35)), (0.18, tone(311.1, 0.5, 'square', r=0.2, vol=0.35)))
     # Moneda (al subir/bajar la apuesta)
     s['coin'] = mix(0.35, (0, tone(1975.5, 0.3, 'bell', r=0.08, vol=0.5)), (0.06, tone(2637.0, 0.3, 'bell', r=0.1, vol=0.5)))
+    return s
+
+
+def exchange_sounds():
+    s = {}
+    # Comprar: fichas cayendo a la bandeja (clics de plastico) + campanita
+    rng = np.random.default_rng(21)
+    clicks = [(0.05 + i * 0.045 + float(rng.uniform(0, 0.02)),
+               mix(0.05, (0, noise(0.02, 0.005, 0.8, 0.5, 30 + i)), (0, tone(float(rng.uniform(2400, 3400)), 0.03, 'bell', r=0.01, vol=0.5))))
+              for i in range(9)]
+    s['buy'] = mix(0.9, *clicks, (0.5, tone(1568.0, 0.4, 'bell', r=0.15, vol=0.35)))
+    # Vender: caja registradora (cajon + "ka-ching")
+    s['sell'] = mix(1.1, (0, noise(0.12, 0.05, 0.6, 0.15, 40)), (0.0, tone(180, 0.15, r=0.05, vol=0.6)),
+                    (0.12, noise(0.05, 0.02, 0.8, 0.4, 41)),
+                    (0.2, tone(2093.0, 0.8, 'bell', r=0.35, vol=0.6)), (0.26, tone(2637.0, 0.8, 'bell', r=0.35, vol=0.5)))
     return s
 
 
@@ -423,6 +506,8 @@ def mkdir_p(p):
     return p
 
 
+EXCHANGE_SUBTITLES = {'buy': 'Fichas cayendo', 'sell': 'Caja registradora'}
+
 SUBTITLES = {
     'lever': 'Palanca de la tragamonedas', 'reel_tick': 'Rodillos girando', 'reel_stop': 'Rodillo se detiene',
     'win': 'Premio en la tragamonedas', 'jackpot': '¡Jackpot!', 'lose': 'Sin premio', 'coin': 'Monedas',
@@ -443,10 +528,14 @@ def main():
     mkdir(tex)
     bg = slots_background()
     bg.save(os.path.join(tex, 'slots_gui.png'))
+    ex_bg = exchange_background()
+    ex_bg.save(os.path.join(tex, 'exchange_gui.png'))
     font = {'providers': [
         {'type': 'space', 'advances': {CH_BACK_8: -8, CH_BACK_169: -169}},
         {'type': 'bitmap', 'file': 'gamblingdex:font/slots_gui.png', 'height': bg.height, 'ascent': 13,
          'chars': [CH_SLOTS_BG]},
+        {'type': 'bitmap', 'file': 'gamblingdex:font/exchange_gui.png', 'height': ex_bg.height, 'ascent': 13,
+         'chars': [CH_EXCHANGE_BG]},
     ]}
     mkdir(os.path.join(NS, 'font'))
     with open(os.path.join(NS, 'font', 'gui.json'), 'w', encoding='utf-8') as f:
@@ -457,10 +546,15 @@ def main():
     for name, sig in sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'slots', name + '.ogg'), sig)
         sj['slots.' + name] = {'sounds': ['gamblingdex:slots/' + name], 'subtitle': 'subtitles.gamblingdex.slots.' + name}
+    for name, sig in exchange_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'exchange', name + '.ogg'), sig)
+        sj['exchange.' + name] = {'sounds': ['gamblingdex:exchange/' + name],
+                                  'subtitle': 'subtitles.gamblingdex.exchange.' + name}
     with open(os.path.join(NS, 'sounds.json'), 'w', encoding='utf-8') as f:
         json.dump(sj, f, indent=2)
     mkdir(os.path.join(NS, 'lang'))
     lang = {'subtitles.gamblingdex.slots.' + k: v for k, v in SUBTITLES.items()}
+    lang.update({'subtitles.gamblingdex.exchange.' + k: v for k, v in EXCHANGE_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)

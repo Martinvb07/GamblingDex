@@ -120,6 +120,20 @@ exchange:
     command: "eco take {player} {money}"
   sell:
     command: "eco give {player} {money}" # Fallback si use_vault=false
+  # Cajero de fichas en 3D con ModelEngine (opcional), igual que la máquina de slots:
+  # aparece en cada estación de cambio, se puede clickear y anima la compra (caen fichas)
+  # y la venta (entra un billete). Las animaciones y sonidos los ven todos los que estén cerca.
+  # Girarlo: mira la estación y usa /gdx station rotate.
+  model:
+    enabled: true
+    id: exchange_machine        # nombre del modelo en ModelEngine
+    hide_station: auto          # auto | always | never (esconder el telar y el holograma a quien ve el modelo)
+    y_offset_hidden: 0.0        # altura de la máquina con el telar escondido (en el suelo)
+    y_offset: 1.0               # con hide_station: never, la máquina va encima del telar
+    holo_extra_height: 2.1      # con hide_station: never, cuánto sube el holograma
+    hitbox_width: 1.0
+    hitbox_height: 2.0
+    sound_radius: 12
 
 # ======================
 # STATIONS (HOLOGRAMAS)

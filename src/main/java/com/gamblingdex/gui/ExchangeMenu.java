@@ -4,6 +4,7 @@ import com.gamblingdex.GamblingDexPlugin;
 import com.gamblingdex.economy.TokenManager;
 import com.gamblingdex.economy.TokenWallet;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -49,6 +50,7 @@ public class ExchangeMenu {
         Material token;
         int amount = 1;
         long lastAction;
+        Location station; // cajero desde el que se abrió (para animar su modelo 3D)
 
         Session(UUID player) {
             this.player = player;
@@ -67,22 +69,35 @@ public class ExchangeMenu {
     }
 
     public void open(Player player) {
-        open(player, false);
+        open(player, false, null);
+    }
+
+    /** Abre el menú desde un cajero (su modelo 3D se anima al comprar y vender). */
+    public void open(Player player, Location station) {
+        open(player, false, station);
     }
 
     public void open(Player player, boolean selling) {
+        open(player, selling, null);
+    }
+
+    public void open(Player player, boolean selling, Location station) {
         Session s = new Session(player.getUniqueId());
         s.selling = selling;
+        s.station = station == null ? null : station.clone();
         List<Material> denoms = new ArrayList<>(TokenManager.getDenoms().keySet());
         if (!denoms.isEmpty())
             s.token = denoms.get(0);
         String raw = plugin.getConfig().getString("gui.exchange.title", DEFAULT_TITLE);
         if (raw == null || raw.equals("§e§lCAMBIO") || raw.equals("&e&lCAMBIO")) // título de la versión anterior
             raw = DEFAULT_TITLE;
-        s.inv = Bukkit.createInventory(s, 54, plugin.color(raw));
+        s.inv = customGui()
+                ? Bukkit.createInventory(s, 54, com.gamblingdex.pack.CasinoPack.titleWithBackground(
+                        com.gamblingdex.pack.CasinoPack.EXCHANGE_BG, plugin.color(raw)))
+                : Bukkit.createInventory(s, 54, plugin.color(raw));
         render(player, s);
         player.openInventory(s.inv);
-        player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+        com.gamblingdex.pack.CasinoPack.sound(player, "slots.coin", Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
     }
 
     // ------------------------------------------------------------------
@@ -125,7 +140,8 @@ public class ExchangeMenu {
             s.amount = clampAmount(p, s, s.amount);
 
         Material light = s.selling ? Material.ORANGE_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
-        for (int i = 0; i < 9; i++)
+        boolean custom = customGui(); // el fondo del resource pack ya dibuja las luces y los marcos
+        for (int i = 0; i < 9 && !custom; i++)
             inv.setItem(i, Icons.of(i % 2 == 0 ? light : Material.YELLOW_STAINED_GLASS_PANE, " ", null));
         inv.setItem(S_HEAD, head(p));
 
@@ -199,7 +215,8 @@ public class ExchangeMenu {
         String perm = plugin.getConfig().getString("exchange.rates_item_permission", "gamblingdex.admin");
         if (showRates && (perm == null || perm.isBlank() || p.hasPermission(perm)))
             inv.setItem(S_RATES, Icons.of(Material.PAPER, "&bTasa", List.of("&71 ficha = &a$" + money(rate()))));
-        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        if (!custom)
+            Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
 
     private ItemStack token(Material mat, int amount, List<String> lore, boolean glow) {
@@ -294,7 +311,7 @@ public class ExchangeMenu {
             case S_SELL_ALL -> {
                 if (!s.selling || debounce(s))
                     return;
-                sellAll(p);
+                sellAll(p, s);
                 render(p, s);
             }
             case S_CLOSE -> p.closeInventory();
@@ -348,7 +365,7 @@ public class ExchangeMenu {
         p.sendMessage(plugin.getMessages().format("messages.exchange.buy.success",
                 "&a¡Has comprado &e{amount}&a ficha(s) por &e{money}&a!",
                 Map.of("amount", fmt(s.amount), "money", money(cost))));
-        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        machine(p, s, true, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.2f);
     }
 
     private void sell(Player p, Session s) {
@@ -400,10 +417,10 @@ public class ExchangeMenu {
         p.sendMessage(plugin.getMessages().format("messages.exchange.sell.success",
                 "&aVendiste &e{amount}&a fichas por &e{money}&a de dinero del server.",
                 Map.of("amount", fmt(sold), "money", money(money))));
-        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.0f);
+        machine(p, s, false, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f);
     }
 
-    private void sellAll(Player p) {
+    private void sellAll(Player p, Session s) {
         var lock = plugin.getBonusLock();
         long keep = lock == null ? 0 : Math.min(lock.locked(p.getUniqueId()), TokenWallet.balance(p));
         if (keep > 0 && lock.sellable(p) <= 0) {
@@ -430,7 +447,30 @@ public class ExchangeMenu {
         }
         p.sendMessage(plugin.getMessages().format("messages.exchange.sell_all.success",
                 "&aVendiste TODO por &e{money}&a de dinero del server.", Map.of("money", money(money))));
-        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.4f);
+        machine(p, s, false, Sound.ENTITY_PLAYER_LEVELUP, 1.4f);
+    }
+
+    // ------------------------------------------------------------------
+    // Resource pack y cajero 3D
+    // ------------------------------------------------------------------
+
+    private boolean customGui() {
+        return plugin.getResourcePackManager() != null && plugin.getResourcePackManager().customGui();
+    }
+
+    /**
+     * Compra o venta hecha: sonido para el jugador y, si se abrió desde un cajero, su
+     * animación (fichas que caen / billete que entra) y el sonido para los que están cerca.
+     */
+    private void machine(Player p, Session s, boolean buy, Sound vanilla, float pitch) {
+        String key = buy ? "exchange.buy" : "exchange.sell";
+        com.gamblingdex.pack.CasinoPack.sound(p, key, vanilla, 0.8f, pitch);
+        var models = plugin.getStationModels();
+        if (s.station == null || models == null || !models.active(com.gamblingdex.items.GameItemType.EXCHANGE))
+            return;
+        models.exchange(s.station, buy);
+        com.gamblingdex.pack.CasinoPack.soundNear(s.station.clone().add(0.5, 1.2, 0.5), p, key, vanilla, 0.7f, pitch,
+                plugin.getConfig().getDouble("exchange.model.sound_radius", 12));
     }
 
     // ------------------------------------------------------------------

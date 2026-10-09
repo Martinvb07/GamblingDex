@@ -156,9 +156,10 @@ public class SlotsController {
 
     // ------------------------------------------------------------------
 
+    /** Vuelve a abrir el menú (p. ej. después de elegir la apuesta): sigue en la misma máquina. */
     public void open(Player player) {
         SlotsState s = states.get(player.getUniqueId());
-        open(player, s == null ? null : s.theme);
+        open(player, s == null ? null : s.theme, s == null ? null : s.station);
     }
 
     /** Abre las slots con el tema de la estación (null = clásico). */
@@ -372,8 +373,8 @@ public class SlotsController {
         }
         sfx(p, "lever", Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
         machineSound(s, p, "lever", Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
-        if (plugin.getSlotsModels() != null)
-            plugin.getSlotsModels().spin(s.station, s.result);
+        if (plugin.getStationModels() != null)
+            plugin.getStationModels().spin(s.station, s.result);
         s.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> frame(p, inv, s), 2L, 2L);
     }
 
@@ -447,8 +448,8 @@ public class SlotsController {
             }
             machineSound(s, p, "jackpot", Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
         }
-        if (plugin.getSlotsModels() != null)
-            plugin.getSlotsModels().result(s.station, payout > 0);
+        if (plugin.getStationModels() != null)
+            plugin.getStationModels().result(s.station, payout > 0);
         try {
             plugin.getSlotsStatsManager().recordPayout(p.getUniqueId(), payout);
         } catch (Throwable ignored) {
@@ -523,8 +524,8 @@ public class SlotsController {
 
     /** El mismo sonido saliendo de la máquina, para los que miran (el que juega ya lo oye en el menú). */
     private void machineSound(SlotsState s, Player spinner, String key, Sound vanilla, float volume, float pitch) {
-        if (s.station == null || s.station.getWorld() == null || plugin.getSlotsModels() == null
-                || !plugin.getSlotsModels().active())
+        if (s.station == null || s.station.getWorld() == null || plugin.getStationModels() == null
+                || !plugin.getStationModels().active(com.gamblingdex.items.GameItemType.SLOTS))
             return;
         Location at = s.station.clone().add(0.5, 1.5, 0.5);
         double r = plugin.getConfig().getDouble("games.slots.model.sound_radius", 12);

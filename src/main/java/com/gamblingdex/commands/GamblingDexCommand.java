@@ -830,19 +830,20 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (action.equals("rotate") || action.equals("girar")) {
                     Block target = player.getTargetBlockExact(6);
                     var sm = GamblingDexPlugin.getInstance().getStationManager();
-                    if (target == null || sm.getStationType(target) != GameItemType.SLOTS) {
+                    GameItemType rotType = target == null ? null : sm.getStationType(target);
+                    if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots a menos de 6 bloques."));
+                                .color("&cMira una estación de slots o de cambio a menos de 6 bloques."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;
                     sm.setModelYaw(target.getLocation(), yaw);
-                    var models = GamblingDexPlugin.getInstance().getSlotsModels();
+                    var models = GamblingDexPlugin.getInstance().getStationModels();
                     if (models != null)
                         models.respawn(target.getLocation());
                     player.sendMessage(GamblingDexPlugin.getInstance().color("&aModelo de la máquina girado: &f"
                             + Math.round(sm.getModelYaw(target.getLocation())) + "°"
-                            + (models == null || !models.active() ? " &7(ModelEngine no está activo)" : "")));
+                            + (models == null || !models.active(rotType) ? " &7(ModelEngine no está activo)" : "")));
                     return true;
                 }
 

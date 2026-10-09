@@ -40,5 +40,17 @@
       "gamblingdex:slots/coin"
     ],
     "subtitle": "subtitles.gamblingdex.slots.coin"
+  },
+  "exchange.buy": {
+    "sounds": [
+      "gamblingdex:exchange/buy"
+    ],
+    "subtitle": "subtitles.gamblingdex.exchange.buy"
+  },
+  "exchange.sell": {
+    "sounds": [
+      "gamblingdex:exchange/sell"
+    ],
+    "subtitle": "subtitles.gamblingdex.exchange.sell"
   }
 }
