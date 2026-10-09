@@ -2209,6 +2209,8 @@ public class PokerTable {
                 removeSeatDisplay(i);
             }
             String text = seats.get(i).player != null && owner == null ? "" : seatText(i);
+            if (seats.get(i).player == null && chairsOn())
+                text = ""; // con sillas no hace falta el cartel de "asiento libre": se ve la silla
             if (text.isEmpty()) {
                 removeSeatDisplay(i);
                 continue;
@@ -2233,6 +2235,11 @@ public class PokerTable {
             td.setText(plugin.color(text));
         }
         updateInfoBar();
+    }
+
+    private boolean chairsOn() {
+        return plugin.getConfig().getBoolean("resource_pack.custom_chairs", false)
+                && plugin.getConfig().getBoolean("chairs.enabled", true);
     }
 
     private Player seatOwnerOnline(int i) {

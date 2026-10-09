@@ -39,6 +39,8 @@ public class Chairs implements Listener {
     private final GamblingDexPlugin plugin;
     /** Asiento (clave del bloque) -> taburete + zona clickeable. */
     private final Map<String, UUID[]> chairs = new HashMap<>();
+    /** Losas de los asientos que reemplaza la silla (se esconden en la pantalla de cada uno). */
+    private final Map<String, Location> pads = new HashMap<>();
     private BukkitTask task;
 
     public Chairs(GamblingDexPlugin plugin) {
@@ -68,6 +70,9 @@ public class Chairs implements Listener {
         for (UUID[] ids : chairs.values())
             removeIds(ids);
         chairs.clear();
+        for (Location pad : pads.values())
+            showPad(pad);
+        pads.clear();
     }
 
     /** Clave del asiento (bloque) donde está sentado el jugador, o null. */
@@ -116,6 +121,9 @@ public class Chairs implements Listener {
                     && l.getWorld().isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4);
             if (!seats.containsKey(e.getKey()) || !loaded || Bukkit.getEntity(e.getValue()[0]) == null) {
                 removeIds(e.getValue());
+                Location pad = pads.remove(e.getKey());
+                if (pad != null)
+                    showPad(pad);
                 it.remove();
             }
         }
@@ -125,8 +133,14 @@ public class Chairs implements Listener {
             Location l = BlackjackTables.parseKey(e.getKey());
             if (l == null || l.getWorld() == null || !l.getWorld().isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4))
                 continue;
-            chairs.put(e.getKey(), spawnChair(l, e.getValue()));
+            chairs.put(e.getKey(), spawnChair(e.getKey(), l, e.getValue()));
         }
+        // La losa del asiento no se ve: la silla va en su lugar (se repite: el cliente la
+        // vuelve a ver si se recarga el chunk)
+        for (Location pad : pads.values())
+            for (Player p : pad.getWorld().getPlayers())
+                if (p.getLocation().distanceSquared(pad) < 48 * 48)
+                    p.sendBlockChange(pad, org.bukkit.Material.AIR.createBlockData());
         // Asientos vacíos (alguien se paró): se quitan
         for (World w : Bukkit.getWorlds())
             for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class))
@@ -143,9 +157,36 @@ public class Chairs implements Listener {
         return h > 0 ? h : 1.0;
     }
 
-    private UUID[] spawnChair(Location seat, Location tableCenter) {
+    /** Losa (o bloque bajo) del asiento: la silla la reemplaza. null si el asiento es un bloque entero. */
+    private static Block pad(Block seat) {
+        Block above = seat.getRelative(BlockFace.UP);
+        if (partial(above))
+            return above;
+        return partial(seat) ? seat : null;
+    }
+
+    private static boolean partial(Block b) {
+        if (b.isPassable())
+            return false;
+        double h = b.getBoundingBox().getHeight();
+        return h > 0 && h < 1;
+    }
+
+    private static void showPad(Location pad) {
+        if (pad.getWorld() == null)
+            return;
+        for (Player p : pad.getWorld().getPlayers())
+            if (p.getLocation().distanceSquared(pad) < 64 * 64)
+                p.sendBlockChange(pad, pad.getBlock().getBlockData());
+    }
+
+    private UUID[] spawnChair(String key, Location seat, Location tableCenter) {
         World w = seat.getWorld();
-        Location at = seat.clone().add(0.5, surface(seat.getBlock()), 0.5);
+        Block pad = pad(seat.getBlock());
+        Location at = pad != null ? pad.getLocation().add(0.5, 0, 0.5) // en el suelo, en lugar de la losa
+                : seat.clone().add(0.5, surface(seat.getBlock()), 0.5);
+        if (pad != null)
+            pads.put(key, pad.getLocation());
         float yaw = tableCenter == null ? 0f : TableProps.yawFacing(tableCenter.clone().add(0.5, 0, 0.5)
                 .toVector().subtract(at.toVector()).setY(0));
         float scale = (float) plugin.getConfig().getDouble("chairs.scale", 1.0);
