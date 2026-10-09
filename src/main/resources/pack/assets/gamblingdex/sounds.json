@@ -53,6 +53,18 @@
     ],
     "subtitle": "subtitles.gamblingdex.poker.chips"
   },
+  "poker.flip": {
+    "sounds": [
+      "gamblingdex:poker/flip"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.flip"
+  },
+  "poker.win": {
+    "sounds": [
+      "gamblingdex:poker/win"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.win"
+  },
   "roulette.spin": {
     "sounds": [
       "gamblingdex:roulette/spin"

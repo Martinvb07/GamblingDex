@@ -542,10 +542,19 @@ def poker_sounds():
     s['chips'] = mix(0.5, *[(0.02 + i * 0.05 + float(rng.uniform(0, 0.02)),
                              mix(0.05, (0, noise(0.02, 0.005, 0.8, 0.5, 60 + i)),
                                  (0, tone(float(rng.uniform(2600, 3600)), 0.03, 'bell', r=0.01, vol=0.5)))) for i in range(6)])
+    # Carta que se da vuelta: chasquido corto de carton
+    s['flip'] = mix(0.18, (0, noise(0.05, 0.012, 0.9, 0.6, 70)), (0.03, noise(0.02, 0.006, 0.5, 0.25, 71)),
+                    (0.0, tone(1400, 0.04, 'sine', r=0.01, vol=0.25)))
+    # Bote al ganador: fichas arrastrandose por el pano + clics + campanita
+    sweep = [(0.05 + i * 0.06 + float(rng.uniform(0, 0.03)),
+              mix(0.05, (0, noise(0.02, 0.005, 0.7, 0.5, 80 + i)), (0, tone(float(rng.uniform(2400, 3600)), 0.03, 'bell', r=0.01, vol=0.45))))
+             for i in range(12)]
+    s['win'] = mix(1.4, (0, noise(0.8, 0.35, 0.35, 0.08, 90)), *sweep,
+                   (0.8, tone(1568.0, 0.5, 'bell', r=0.2, vol=0.45)), (0.92, tone(2093.0, 0.5, 'bell', r=0.25, vol=0.4)))
     return s
 
 
-POKER_SUBTITLES = {'card': 'Carta repartida', 'chips': 'Fichas'}
+POKER_SUBTITLES = {'card': 'Carta repartida', 'chips': 'Fichas', 'flip': 'Carta dada vuelta', 'win': 'Bote al ganador'}
 
 EXCHANGE_SUBTITLES = {'buy': 'Fichas cayendo', 'sell': 'Caja registradora'}
 

@@ -92,7 +92,11 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
   - Tus 2 cartas quedan delante de tu asiento: **tú las ves boca arriba, los demás el dorso**;
     en el showdown se voltean para todos.
   - Las apuestas se deslizan desde cada asiento, el bote queda junto a las cartas y el botón
-    del dealer va delante de quien lo tiene. Sonido de cartas y fichas para los que están cerca.
+    del dealer va delante de quien lo tiene.
+  - Al terminar la mano, **las fichas del bote se deslizan hasta el ganador** (si son varios,
+    se reparten entre ellos).
+  - Sonidos para los que están cerca: carta repartida, carta que se da vuelta, fichas y bote
+    al ganador.
 
 ## Fichas en 3D (resource pack)
 

@@ -10,5 +10,7 @@
   "subtitles.gamblingdex.exchange.sell": "Caja registradora",
   "subtitles.gamblingdex.roulette.spin": "Bola de la ruleta",
   "subtitles.gamblingdex.poker.card": "Carta repartida",
-  "subtitles.gamblingdex.poker.chips": "Fichas"
+  "subtitles.gamblingdex.poker.chips": "Fichas",
+  "subtitles.gamblingdex.poker.flip": "Carta dada vuelta",
+  "subtitles.gamblingdex.poker.win": "Bote al ganador"
 }

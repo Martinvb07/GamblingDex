@@ -53,6 +53,8 @@ public class PokerVisuals {
         final Map<String, Placed> placed = new HashMap<>();
         int boardCount, holeCount;
         long betTotal;
+        /** Ya se mandó el bote al ganador en esta mano. */
+        boolean potSent;
     }
 
     /** Displays de una cosa puesta y lo que muestran (para no rehacerlos si no cambió). */
@@ -244,8 +246,20 @@ public class PokerVisuals {
             }
         }
 
+        // Mano resuelta: las fichas del bote se deslizan hasta el (o los) ganadores
+        if (st.winners().isEmpty())
+            view.potSent = false;
+        else if (!view.potSent) {
+            view.potSent = true;
+            Placed pot = view.placed.remove("pot");
+            if (pot != null)
+                sendPotToWinners(pot, lay, st);
+            CasinoPack.soundNear(lay.center().clone().add(0, 1, 0), null, "poker.win", Sound.ENTITY_PLAYER_LEVELUP,
+                    0.8f, 1.4f, 12);
+        }
+
         // Bote (al lado de las cartas de la mesa, hacia el dealer)
-        if (st.pot() > 0) {
+        if (st.pot() > 0 && !view.potSent) {
             Location at = point(lay, lay.across().clone().multiply(-0.55 * s), 0);
             want.put("pot", "p" + st.pot());
             spawners.put("pot", () -> view.placed.put("pot", chips(at, st.pot(), s, Motion.NONE)));
@@ -280,6 +294,32 @@ public class PokerVisuals {
         view.boardCount = board.size();
         view.holeCount = holeCount;
         view.betTotal = betTotal;
+    }
+
+    /** Desliza cada ficha del bote hacia un ganador (si son varios, se reparten) y luego las quita. */
+    private void sendPotToWinners(Placed pot, Layout lay, PokerTable.VisualState st) {
+        List<Vector> targets = new ArrayList<>();
+        for (int seat : st.winners().keySet()) {
+            Location sl = seat < st.seatLocations().size() ? st.seatLocations().get(seat) : null;
+            if (sl == null || sl.getWorld() != lay.center().getWorld())
+                continue;
+            Vector toSeat = new Vector(sl.getX() + 0.5 - lay.center().getX(), 0, sl.getZ() + 0.5 - lay.center().getZ());
+            if (toSeat.lengthSquared() < 1e-4)
+                continue;
+            toSeat.normalize();
+            targets.add(toSeat.multiply(lay.edge(toSeat) * 0.75));
+        }
+        Vector potPos = lay.across().clone().multiply(-0.55 * lay.scale());
+        int i = 0;
+        for (UUID id : pot.ids) {
+            if (!(Bukkit.getEntity(id) instanceof ItemDisplay d) || targets.isEmpty())
+                continue;
+            Vector move = targets.get(i++ % targets.size()).clone().subtract(potPos);
+            Transformation t = d.getTransformation();
+            Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d,
+                    new Vector3f((float) move.getX(), 0, (float) move.getZ()), t.getLeftRotation(), t.getScale(), 12), 2L);
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, () -> remove(pot), 40L);
     }
 
     /** Showdown: se quita la carta de antes justo cuando aparece la nueva (que se da vuelta). */
@@ -374,7 +414,11 @@ public class PokerVisuals {
             at1 += SLIDE_TICKS + 1;
         }
         if (mo.flip())
-            Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d, new Vector3f(), rest, size, FLIP_TICKS), at1);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                animate(d, new Vector3f(), rest, size, FLIP_TICKS);
+                if (d.isValid())
+                    CasinoPack.soundNear(d.getLocation(), null, "poker.flip", Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.7f, 12);
+            }, at1);
         p.ids.add(d.getUniqueId());
         return p;
     }

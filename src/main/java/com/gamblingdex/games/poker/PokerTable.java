@@ -2010,7 +2010,7 @@ public class PokerTable {
      */
     public record VisualState(List<Card> board, Map<Integer, List<Card>> hole, Set<Integer> revealed,
             Map<Integer, Long> streetBets, long pot, int button, List<Location> seatLocations,
-            Map<Integer, UUID> owners) {
+            Map<Integer, UUID> owners, Map<Integer, Long> winners) {
     }
 
     public VisualState visualState() {
@@ -2034,7 +2034,7 @@ public class PokerTable {
                 owners.put(i, seats.get(i).player);
         }
         return new VisualState(List.copyOf(board), h, shown, new HashMap<>(streetBet), getPot(),
-                state == State.WAITING ? -1 : button, locs, owners);
+                state == State.WAITING ? -1 : button, locs, owners, new HashMap<>(lastWin));
     }
 
     public long getPot() {

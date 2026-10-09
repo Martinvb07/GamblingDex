@@ -74,6 +74,8 @@ assets/gamblingdex/sounds/exchange/buy.ogg
 assets/gamblingdex/sounds/exchange/sell.ogg
 assets/gamblingdex/sounds/poker/card.ogg
 assets/gamblingdex/sounds/poker/chips.ogg
+assets/gamblingdex/sounds/poker/flip.ogg
+assets/gamblingdex/sounds/poker/win.ogg
 assets/gamblingdex/sounds/roulette/spin.ogg
 assets/gamblingdex/sounds/slots/coin.ogg
 assets/gamblingdex/sounds/slots/jackpot.ogg
