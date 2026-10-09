@@ -53,6 +53,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     private BlackjackManager blackjackManager;
 
     private PokerManager pokerManager;
+    private com.gamblingdex.games.poker.PokerVisuals pokerVisuals;
 
     private com.gamblingdex.modules.ModuleManager moduleManager;
 
@@ -150,6 +151,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             blackjackManager.reload();
         if (pokerManager != null)
             pokerManager.reload();
+        if (pokerVisuals != null)
+            pokerVisuals.start();
         if (moduleManager != null)
             moduleManager.reloadAll();
         if (stationModels != null)
@@ -247,6 +250,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.blackjackManager = new BlackjackManager(this);
 
         this.pokerManager = new PokerManager(this);
+        this.pokerVisuals = new com.gamblingdex.games.poker.PokerVisuals(this);
 
         this.stationManager = new StationManager(this);
 
@@ -256,6 +260,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         registerCommands();
         registerListeners();
         stationModels.start();
+        pokerVisuals.start();
         new com.gamblingdex.games.JackpotBell(this).start();
         this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
@@ -344,6 +349,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         try {
             if (stationModels != null)
                 stationModels.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (pokerVisuals != null)
+                pokerVisuals.stop();
         } catch (Throwable ignored) {
         }
         try {

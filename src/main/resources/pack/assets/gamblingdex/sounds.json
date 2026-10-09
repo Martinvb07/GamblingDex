@@ -41,6 +41,18 @@
     ],
     "subtitle": "subtitles.gamblingdex.slots.coin"
   },
+  "poker.card": {
+    "sounds": [
+      "gamblingdex:poker/card"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.card"
+  },
+  "poker.chips": {
+    "sounds": [
+      "gamblingdex:poker/chips"
+    ],
+    "subtitle": "subtitles.gamblingdex.poker.chips"
+  },
   "roulette.spin": {
     "sounds": [
       "gamblingdex:roulette/spin"

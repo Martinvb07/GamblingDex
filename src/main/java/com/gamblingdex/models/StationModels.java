@@ -46,7 +46,9 @@ public class StationModels implements Listener {
     public enum Kind {
         SLOTS(GameItemType.SLOTS, "games.slots.model", "slot_machine", 0.75, 1.0, 2.0),
         EXCHANGE(GameItemType.EXCHANGE, "exchange.model", "exchange_machine", 1.0, 1.0, 2.0),
-        ROULETTE(GameItemType.ROULETTE, "roulette_world.model", "roulette_table", 1.0, 3.75, 0.95);
+        ROULETTE(GameItemType.ROULETTE, "roulette_world.model", "roulette_table", 1.0, 3.75, 0.95),
+        /** Las mesas de póker no son estaciones: sus centros salen de PokerManager. */
+        POKER(null, "poker.model", "poker_table", 1.0, 3.75, 1.0);
 
         final GameItemType type;
         final String path, defaultId;
@@ -135,6 +137,18 @@ public class StationModels implements Listener {
 
     private double cfg(Kind k, String key, double def) {
         return plugin.getConfig().getDouble(k.path + "." + key, def);
+    }
+
+    /** Centros de las estaciones de este tipo. */
+    private List<Location> locationsFor(Kind kind) {
+        if (kind.type != null)
+            return plugin.getStationManager().locationsOf(kind.type);
+        List<Location> out = new ArrayList<>();
+        if (kind == Kind.POKER && plugin.getPokerManager() != null)
+            for (var t : plugin.getPokerManager().getTables())
+                if (t.getCenter() != null)
+                    out.add(t.getCenter());
+        return out;
     }
 
     /** ¿Hay máquinas 3D de este tipo? (ModelEngine instalado y activado en la config) */
@@ -259,7 +273,7 @@ public class StationModels implements Listener {
         for (Kind kind : Kind.values()) {
             if (!configEnabled(kind))
                 continue;
-            for (Location loc : sm.locationsOf(kind.type)) {
+            for (Location loc : locationsFor(kind)) {
                 World w = loc.getWorld();
                 if (w == null)
                     continue;
@@ -313,11 +327,17 @@ public class StationModels implements Listener {
             bridge.play(m.handle, "idle", 0, 0, false);
             if (m.kind == Kind.ROULETTE)
                 m.scale = rouletteScale(m);
+            else if (m.kind == Kind.POKER)
+                m.scale = pokerScale(m);
             if (m.scale != 1 && !bridge.setScale(m.handle, m.scale))
                 m.scale = 1;
         }
         if (m.kind == Kind.ROULETTE) {
-            spawnTableBoxes(m, at);
+            spawnTableBoxes(m, at, TABLE_X1, TABLE_X2, TABLE_HALF_Z, FELT_Y + 2);
+            return;
+        }
+        if (m.kind == Kind.POKER) {
+            spawnTableBoxes(m, at, -54, 54, 30, 16.2);
             return;
         }
         if (m.interaction == null || Bukkit.getEntity(m.interaction) == null) {
@@ -325,8 +345,8 @@ public class StationModels implements Listener {
             if (w == null)
                 return;
             Interaction box = w.spawn(at, Interaction.class);
-            box.setInteractionWidth((float) cfg(m.kind, "hitbox_width", m.kind.hitWidth));
-            box.setInteractionHeight((float) cfg(m.kind, "hitbox_height", m.kind.hitHeight));
+            box.setInteractionWidth((float) cfg(m.kind, "hitbox_width", m.kind.hitWidth * m.scale));
+            box.setInteractionHeight((float) cfg(m.kind, "hitbox_height", m.kind.hitHeight * m.scale));
             box.setResponsive(true);
             box.setPersistent(false);
             box.addScoreboardTag(TAG);
@@ -580,7 +600,8 @@ public class StationModels implements Listener {
         return base.clone().add((x * rx - z * fx) * k, y * k, (x * rz - z * fz) * k);
     }
 
-    private void spawnTableBoxes(Machine m, Location base) {
+    /** Zonas clickeables a lo largo de una mesa (X de x1 a x2, ancho 2*halfZ, en unidades del modelo). */
+    private void spawnTableBoxes(Machine m, Location base, double x1, double x2, double halfZ, double height) {
         boolean ok = !m.extraBoxes.isEmpty();
         for (UUID id : m.extraBoxes)
             ok &= Bukkit.getEntity(id) != null;
@@ -590,13 +611,13 @@ public class StationModels implements Listener {
         World w = base.getWorld();
         if (w == null)
             return;
-        double width = 2 * TABLE_HALF_Z, step = width;
-        for (double x = TABLE_X1 + width / 2; x - width / 2 < TABLE_X2; x += step) {
-            Location at = tableToWorld(m, base, Math.min(x, TABLE_X2 - width / 2), 0, 0);
+        double width = 2 * halfZ, step = width;
+        for (double x = x1 + width / 2; x - width / 2 < x2; x += step) {
+            Location at = tableToWorld(m, base, Math.min(x, x2 - width / 2), 0, 0);
             at.setYaw(0);
             Interaction box = w.spawn(at, Interaction.class);
             box.setInteractionWidth((float) (width * m.scale / 16.0));
-            box.setInteractionHeight((float) ((FELT_Y + 2) * m.scale / 16.0));
+            box.setInteractionHeight((float) (height * m.scale / 16.0));
             box.setResponsive(true);
             box.setPersistent(false);
             box.addScoreboardTag(TAG);
@@ -756,6 +777,56 @@ public class StationModels implements Listener {
             ids.add(d.getUniqueId());
         }
         return ids;
+    }
+
+    // ------------------------------------------------------------------
+    // Mesa de póker (models/tools/poker_table.js): rectangular, paño de 96 x 48 (x ±48,
+    // z ±24) a 14 de alto y borde acolchado hasta x ±54 / z ±30. Las cartas y fichas las
+    // pone PokerVisuals encima.
+    // ------------------------------------------------------------------
+
+    /** Dónde está el paño de una mesa de póker con modelo 3D (para poner cartas y fichas). */
+    public record TableSurface(Location base, double feltY, double scale, double halfX, double halfZ) {
+    }
+
+    /**
+     * La mesa crece o se achica (igual en todo) para que el borde quede medio bloque
+     * delante del asiento más cercano.
+     */
+    private double pokerScale(Machine m) {
+        String cfgScale = plugin.getConfig().getString(Kind.POKER.path + ".scale", "auto");
+        try {
+            if (cfgScale != null && !cfgScale.equalsIgnoreCase("auto"))
+                return Math.max(0.3, Math.min(2.0, Double.parseDouble(cfgScale)));
+        } catch (NumberFormatException ignored) {
+        }
+        var poker = plugin.getPokerManager() == null ? null : plugin.getPokerManager().getByBlock(m.station.getBlock());
+        double yaw = Math.toRadians(plugin.getStationManager().getModelYaw(m.station));
+        double ax = -Math.cos(yaw), az = -Math.sin(yaw), px = Math.sin(yaw), pz = -Math.cos(yaw); // ejes X y Z del modelo
+        double best = 1.6;
+        boolean any = false;
+        if (poker != null)
+            for (Location seat : poker.visualState().seatLocations()) {
+                if (seat == null || seat.getWorld() != m.station.getWorld())
+                    continue;
+                double dx = seat.getX() - m.station.getX(), dz = seat.getZ() - m.station.getZ(), dist = Math.hypot(dx, dz);
+                if (dist < 0.5)
+                    continue;
+                double lx = Math.abs((dx * ax + dz * az) / dist), lz = Math.abs((dx * px + dz * pz) / dist);
+                double edge = Math.min(lx < 1e-6 ? 1e9 : 54 / lx, lz < 1e-6 ? 1e9 : 30 / lz); // unidades hasta el borde
+                best = Math.min(best, (dist - 0.5) * 16.0 / edge);
+                any = true;
+            }
+        return any ? Math.max(0.4, best) : 1.0;
+    }
+
+    public TableSurface pokerSurface(Location center) {
+        Machine m = machine(center, Kind.POKER);
+        if (m == null)
+            return null;
+        Location base = modelLocation(m);
+        return new TableSurface(base, base.getY() + 14.05 * m.scale / 16.0, m.scale, 48 * m.scale / 16.0,
+                24 * m.scale / 16.0);
     }
 
     // ------------------------------------------------------------------
@@ -990,7 +1061,7 @@ public class StationModels implements Listener {
         Long last = lastClick.put(p.getUniqueId(), now);
         if (last != null && now - last < 300)
             return; // el mismo click llega por la Interaction y por ModelEngine
-        if (plugin.getStationManager().getStationType(m.station) != m.kind.type)
+        if (m.kind.type != null && plugin.getStationManager().getStationType(m.station) != m.kind.type)
             return;
         switch (m.kind) {
             case SLOTS -> {
@@ -1001,6 +1072,12 @@ public class StationModels implements Listener {
             case ROULETTE -> {
                 if (!tableClick(p, m))
                     openRoulette(p, m.station);
+            }
+            case POKER -> {
+                var poker = plugin.getPokerManager() == null ? null
+                        : plugin.getPokerManager().getByBlock(m.station.getBlock());
+                if (poker != null)
+                    poker.openMenu(p);
             }
         }
     }

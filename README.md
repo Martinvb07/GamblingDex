@@ -306,7 +306,7 @@ Mira el bloque y usa `/gdx station set slots` o `/gdx station set exchange`.
 
 ## 🎨 Modelos 3D, menús y sonidos (opcional)
 
-Máquina de slots, cajero de cambio y mesa de ruleta en 3D con ModelEngine (palanca y rodillos que paran en el resultado real, fichas que caen al comprar), fichas de casino en 3D, menú con fondo dibujado y sonidos propios con un resource pack. Comandos: `/gdx pack` (genera el pack y lo junta con el de ModelEngine) y `/gdx station rotate`. Guía completa en [models/README.md](models/README.md).
+Máquina de slots, cajero de cambio, mesa de ruleta y mesa de póker (con cartas que se reparten y se dan vuelta) en 3D (palanca y rodillos que paran en el resultado real, fichas que caen al comprar), fichas de casino en 3D, menú con fondo dibujado y sonidos propios con un resource pack. Comandos: `/gdx pack` (genera el pack y lo junta con el de ModelEngine) y `/gdx station rotate`. Guía completa en [models/README.md](models/README.md).
 
 ## ⚙️ Configuración
 

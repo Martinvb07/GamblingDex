@@ -532,7 +532,189 @@ def roulette_sounds():
 
 ROULETTE_SUBTITLES = {'spin': 'Bola de la ruleta'}
 
+
+def poker_sounds():
+    s = {}
+    # Carta repartida: "fsst" corto (ruido filtrado que cae) + golpecito sobre el pano
+    s['card'] = mix(0.25, (0, noise(0.12, 0.04, 0.7, 0.35, 50)), (0.08, noise(0.03, 0.01, 0.6, 0.15, 51)))
+    # Fichas: varios clics de plastico
+    rng = np.random.default_rng(52)
+    s['chips'] = mix(0.5, *[(0.02 + i * 0.05 + float(rng.uniform(0, 0.02)),
+                             mix(0.05, (0, noise(0.02, 0.005, 0.8, 0.5, 60 + i)),
+                                 (0, tone(float(rng.uniform(2600, 3600)), 0.03, 'bell', r=0.01, vol=0.5)))) for i in range(6)])
+    return s
+
+
+POKER_SUBTITLES = {'card': 'Carta repartida', 'chips': 'Fichas'}
+
 EXCHANGE_SUBTITLES = {'buy': 'Fichas cayendo', 'sell': 'Caja registradora'}
+
+# ----------------------------------------------------------------------------
+# Baraja (poker): 52 cartas + dorso, como modelo de item sobre el papel.
+# custom_model_data = CARD_CMD + palo*13 + valor (palo: treboles, diamantes, corazones,
+# picas; valor: A,2..10,J,Q,K, igual que Card.Suit/Card.Rank) y CARD_CMD + 52 = dorso.
+# ----------------------------------------------------------------------------
+CARD_CMD = 7800
+CW, CHH = 40, 56
+RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+SUITS = ['clubs', 'diamonds', 'hearts', 'spades']
+FONT5 = dict(DIGITS)
+FONT5.update({'2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '111', '001', '111'],
+              '4': ['101', '101', '111', '001', '001'], '6': ['111', '100', '111', '101', '111'],
+              '7': ['111', '001', '010', '010', '010'], '8': ['111', '101', '111', '101', '111'],
+              '9': ['111', '101', '111', '001', '111'], 'A': ['010', '101', '111', '101', '101'],
+              'J': ['001', '001', '001', '101', '111'], 'Q': ['111', '101', '101', '111', '011'],
+              'K': ['101', '110', '100', '110', '101']})
+SUIT_SMALL = {
+    'hearts': ['.X.X.', 'XXXXX', 'XXXXX', '.XXX.', '..X..'],
+    'diamonds': ['..X..', '.XXX.', 'XXXXX', '.XXX.', '..X..'],
+    'clubs': ['..X..', '.XXX.', 'XXXXX', 'X.X.X', '.XXX.'],
+    'spades': ['..X..', '.XXX.', 'XXXXX', 'XXXXX', '.X.X.'],
+}
+SUIT_BIG = {
+    'hearts': ['..XX...XX..', '.XXXX.XXXX.', 'XXXXXXXXXXX', 'XXXXXXXXXXX', 'XXXXXXXXXXX', '.XXXXXXXXX.',
+               '..XXXXXXX..', '...XXXXX...', '....XXX....', '.....X.....'],
+    'diamonds': ['.....X.....', '....XXX....', '...XXXXX...', '..XXXXXXX..', '.XXXXXXXXX.', 'XXXXXXXXXXX',
+                 '.XXXXXXXXX.', '..XXXXXXX..', '...XXXXX...', '....XXX....', '.....X.....'],
+    'clubs': ['....XXX....', '...XXXXX...', '...XXXXX...', '.XX.XXX.XX.', 'XXXXXXXXXXX', 'XXXXXXXXXXX',
+              '.XX..X..XX.', '.....X.....', '....XXX....', '...XXXXX...'],
+    'spades': ['.....X.....', '....XXX....', '...XXXXX...', '..XXXXXXX..', '.XXXXXXXXX.', 'XXXXXXXXXXX',
+               'XXXXXXXXXXX', '.XX.XXX.XX.', '.....X.....', '....XXX....'],
+}
+
+
+def card_base():
+    img = Image.new('RGBA', (CW, CHH), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, CW - 1, CHH - 1), radius=4, fill=(250, 250, 246), outline=(170, 170, 165))
+    return img, d
+
+
+def draw_glyph(img, rows, x0, y0, col, sc=1, flip=False):
+    px = img.load()
+    h = len(rows)
+    for ry, row in enumerate(rows):
+        for rx, ch in enumerate(row):
+            if ch in 'X1':
+                for a in range(sc):
+                    for b in range(sc):
+                        if flip:
+                            px[x0 - rx * sc - a, y0 - ry * sc - b] = col
+                        else:
+                            px[x0 + rx * sc + a, y0 + ry * sc + b] = col
+
+
+def card_face(rank, suit):
+    img, d = card_base()
+    red = suit in ('hearts', 'diamonds')
+    col = (204, 26, 40, 255) if red else (26, 26, 30, 255)
+    # esquina arriba-izquierda: valor + palo chico (y la de abajo-derecha girada)
+    x = 3
+    for ch in rank:
+        draw_glyph(img, FONT5[ch], x, 3, col, 2)
+        x += 8 if ch != '1' else 7
+    draw_glyph(img, SUIT_SMALL[suit], 3, 15, col, 1)
+    x = CW - 4
+    for ch in rank:
+        draw_glyph(img, FONT5[ch], x, CHH - 4, col, 2, flip=True)
+        x -= 8 if ch != '1' else 7
+    draw_glyph(img, SUIT_SMALL[suit], CW - 4, CHH - 16, col, 1, flip=True)
+    big = SUIT_BIG[suit]
+    if rank in ('J', 'Q', 'K'):
+        frame = {'J': (40, 90, 200), 'Q': (200, 40, 120), 'K': (220, 160, 30)}[rank]
+        d.rectangle((9, 12, CW - 10, CHH - 13), outline=frame + (255,), width=2)
+        d.rectangle((11, 14, CW - 12, CHH - 15), fill=tuple(int(c * 0.15 + 255 * 0.85) for c in frame) + (255,))
+        draw_glyph(img, FONT5[rank], CW // 2 - 4, 18, frame + (255,), 3)
+        draw_glyph(img, SUIT_SMALL[suit], CW // 2 - 5, 37, col, 2)
+    else:
+        sc = 2 if rank == 'A' else 1
+        w = len(big[0]) * sc
+        draw_glyph(img, big, CW // 2 - w // 2, CHH // 2 - len(big) * sc // 2, col, sc)
+    return img
+
+
+def card_back():
+    img, d = card_base()
+    d.rounded_rectangle((3, 3, CW - 4, CHH - 4), radius=3, fill=(150, 18, 30))
+    px = img.load()
+    for y in range(5, CHH - 5):
+        for x in range(5, CW - 5):
+            if (x + y) % 6 == 0 or (x - y) % 6 == 0:
+                px[x, y] = (200, 50, 60, 255)
+    d.rectangle((3, 3, CW - 4, CHH - 4), outline=(232, 186, 52), width=1)
+    cx, cy = CW // 2, CHH // 2
+    d.polygon([(cx, cy - 9), (cx + 7, cy), (cx, cy + 9), (cx - 7, cy)], fill=(232, 186, 52), outline=(120, 80, 10))
+    d.polygon([(cx, cy - 5), (cx + 4, cy), (cx, cy + 5), (cx - 4, cy)], fill=(150, 18, 30))
+    return img
+
+
+def card_model():
+    # Carta acostada (10 x 14, grosor 0.3): arriba la cara, abajo el dorso
+    return {
+        'credit': 'GamblingDex', 'texture_size': [CW, CHH],
+        'textures': {'front': 'gamblingdex:item/card/back', 'back': 'gamblingdex:item/card/back',
+                     'particle': 'gamblingdex:item/card/back'},
+        'elements': [{'name': 'carta', 'from': [3, 0, 1], 'to': [13, 0.3, 15], 'faces': {
+            'up': {'uv': [0, 0, 16, 16], 'texture': '#front'},
+            'down': {'uv': [16, 0, 0, 16], 'texture': '#back'},
+            'north': {'uv': [0, 0, 16, 1], 'texture': '#back'}, 'south': {'uv': [0, 0, 16, 1], 'texture': '#back'},
+            'east': {'uv': [0, 0, 16, 1], 'texture': '#back'}, 'west': {'uv': [0, 0, 16, 1], 'texture': '#back'}}}],
+        'display': {
+            'gui': {'rotation': [-75, 0, 0], 'scale': [1.1, 1.1, 1.1]},
+            'ground': {'translation': [0, 1, 0], 'scale': [0.5, 0.5, 0.5]},
+            'fixed': {'rotation': [90, 180, 0]},
+            'firstperson_righthand': {'rotation': [50, -20, 0], 'translation': [-1, 5, 0], 'scale': [0.5, 0.5, 0.5]},
+            'thirdperson_righthand': {'rotation': [50, 0, 0], 'translation': [0, 3, 1.5], 'scale': [0.35, 0.35, 0.35]},
+        },
+    }
+
+
+def cards():
+    texd = mkdir_p(os.path.join(NS, 'textures', 'item', 'card'))
+    card_back().save(os.path.join(texd, 'back.png'))
+    write_json(os.path.join(NS, 'models', 'item', 'card.json'), card_model())
+    entries, overrides = [], []
+    names = []
+    for si, suit in enumerate(SUITS):
+        for ri, rank in enumerate(RANKS):
+            name = '%s_%s' % (suit, rank.lower())
+            card_face(rank, suit).save(os.path.join(texd, name + '.png'))
+            names.append((CARD_CMD + si * 13 + ri, name))
+    names.append((CARD_CMD + 52, 'back'))
+    for cmd, name in names:
+        model = 'gamblingdex:item/card/' + name
+        write_json(os.path.join(NS, 'models', 'item', 'card', name + '.json'), {
+            'parent': 'gamblingdex:item/card',
+            'textures': {'front': model, 'back': 'gamblingdex:item/card/back', 'particle': model}})
+    # Boton del dealer: una ficha blanca con una D (mismo modelo que las fichas)
+    import math
+    btn = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    bp = btn.load()
+    for y in range(32):
+        for x in range(32):
+            r = math.hypot(x - 15.5, y - 15.5)
+            if r <= 14.2:
+                bp[x, y] = (40, 40, 44, 255) if r > 13.2 else ((232, 186, 52, 255) if r > 11.8 else (248, 248, 244, 255))
+    for x in range(32):
+        bp[x, 0] = (248, 248, 244, 255) if x % 6 > 1 else (232, 186, 52, 255)
+        bp[x, 1] = (210, 210, 205, 255)
+    draw_glyph(btn, ['110', '101', '101', '101', '110'], 11, 9, (20, 20, 24, 255), 3)
+    btn.save(os.path.join(texd, 'dealer.png'))
+    write_json(os.path.join(NS, 'models', 'item', 'card', 'dealer.json'), {
+        'parent': 'gamblingdex:item/chip',
+        'textures': {'chip': 'gamblingdex:item/card/dealer', 'particle': 'gamblingdex:item/card/dealer'}})
+    names.append((CARD_CMD + 53, 'dealer'))
+    for cmd, name in names:
+        model = 'gamblingdex:item/card/' + name
+        overrides.append({'predicate': {'custom_model_data': cmd}, 'model': model})
+        entries.append({'threshold': cmd, 'model': {'type': 'minecraft:model', 'model': model}})
+    mc = os.path.join(PACK, 'assets', 'minecraft')
+    write_json(os.path.join(mc, 'models', 'item', 'paper.json'), {
+        'parent': 'minecraft:item/generated', 'textures': {'layer0': 'minecraft:item/paper'}, 'overrides': overrides})
+    write_json(os.path.join(mc, 'items', 'paper.json'), {'model': {
+        'type': 'minecraft:range_dispatch', 'property': 'minecraft:custom_model_data', 'index': 0,
+        'entries': entries, 'fallback': {'type': 'minecraft:model', 'model': 'minecraft:item/paper'}}})
+
 
 SUBTITLES = {
     'lever': 'Palanca de la tragamonedas', 'reel_tick': 'Rodillos girando', 'reel_stop': 'Rodillo se detiene',
@@ -572,6 +754,9 @@ def main():
     for name, sig in sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'slots', name + '.ogg'), sig)
         sj['slots.' + name] = {'sounds': ['gamblingdex:slots/' + name], 'subtitle': 'subtitles.gamblingdex.slots.' + name}
+    for name, sig in poker_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'poker', name + '.ogg'), sig)
+        sj['poker.' + name] = {'sounds': ['gamblingdex:poker/' + name], 'subtitle': 'subtitles.gamblingdex.poker.' + name}
     for name, sig in roulette_sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'roulette', name + '.ogg'), sig)
         sj['roulette.' + name] = {'sounds': ['gamblingdex:roulette/' + name],
@@ -586,11 +771,13 @@ def main():
     lang = {'subtitles.gamblingdex.slots.' + k: v for k, v in SUBTITLES.items()}
     lang.update({'subtitles.gamblingdex.exchange.' + k: v for k, v in EXCHANGE_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.roulette.' + k: v for k, v in ROULETTE_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.poker.' + k: v for k, v in POKER_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)
 
     chips()
+    cards()
 
     # Icono del pack: el fondo del menu recortado
     icon = Image.new('RGBA', (64, 64), (26, 10, 16, 255))

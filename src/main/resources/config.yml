@@ -229,6 +229,7 @@ resource_pack:
   custom_sounds: false     # sonidos propios de los slots (palanca, rodillos, premio, jackpot)
   custom_chips: false      # fichas en 3D (en la mano, el inventario, el suelo y los marcos).
                            # Las que ya tengan los jugadores se actualizan al entrar al server.
+  custom_cards: false      # póker: cartas, fichas y botón del dealer en 3D sobre la mesa
   modelengine_pack: ""     # ruta al pack de ModelEngine si no está en plugins/ModelEngine/resource pack
   send:
     enabled: false         # mandar el pack a cada jugador al entrar

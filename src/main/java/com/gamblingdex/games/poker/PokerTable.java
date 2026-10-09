@@ -2003,6 +2003,40 @@ public class PokerTable {
         return Math.max(0, countdown);
     }
 
+    /**
+     * Lo que hay sobre la mesa ahora, para dibujarlo en 3D (PokerVisuals): cartas de la
+     * mesa, cartas de cada asiento que sigue en la mano (solo las ya repartidas), cuáles se
+     * mostraron en el showdown, lo apostado en esta calle, el bote y el botón del dealer.
+     */
+    public record VisualState(List<Card> board, Map<Integer, List<Card>> hole, Set<Integer> revealed,
+            Map<Integer, Long> streetBets, long pot, int button, List<Location> seatLocations,
+            Map<Integer, UUID> owners) {
+    }
+
+    public VisualState visualState() {
+        Map<Integer, List<Card>> h = new HashMap<>();
+        Set<Integer> shown = new HashSet<>();
+        if (state != State.WAITING)
+            for (Integer seat : hole.keySet()) {
+                if (folded.contains(seat))
+                    continue;
+                List<Card> cards = visibleHole(seat);
+                if (cards != null && !cards.isEmpty())
+                    h.put(seat, List.copyOf(cards));
+                if (revealAll || showdownText.containsKey(seat))
+                    shown.add(seat);
+            }
+        List<Location> locs = new ArrayList<>();
+        Map<Integer, UUID> owners = new HashMap<>();
+        for (int i = 0; i < seats.size(); i++) {
+            locs.add(BlackjackTables.parseKey(seats.get(i).key));
+            if (seats.get(i).player != null)
+                owners.put(i, seats.get(i).player);
+        }
+        return new VisualState(List.copyOf(board), h, shown, new HashMap<>(streetBet), getPot(),
+                state == State.WAITING ? -1 : button, locs, owners);
+    }
+
     public long getPot() {
         long t = 0L;
         for (long v : contributed.values())

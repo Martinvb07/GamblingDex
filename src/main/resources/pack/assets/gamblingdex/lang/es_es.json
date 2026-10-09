@@ -8,5 +8,7 @@
   "subtitles.gamblingdex.slots.coin": "Monedas",
   "subtitles.gamblingdex.exchange.buy": "Fichas cayendo",
   "subtitles.gamblingdex.exchange.sell": "Caja registradora",
-  "subtitles.gamblingdex.roulette.spin": "Bola de la ruleta"
+  "subtitles.gamblingdex.roulette.spin": "Bola de la ruleta",
+  "subtitles.gamblingdex.poker.card": "Carta repartida",
+  "subtitles.gamblingdex.poker.chips": "Fichas"
 }

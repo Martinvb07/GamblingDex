@@ -1,0 +1,7 @@
+{
+  "parent": "gamblingdex:item/chip",
+  "textures": {
+    "chip": "gamblingdex:item/card/dealer",
+    "particle": "gamblingdex:item/card/dealer"
+  }
+}

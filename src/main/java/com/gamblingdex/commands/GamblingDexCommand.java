@@ -831,10 +831,13 @@ public class GamblingDexCommand implements CommandExecutor {
                     Block target = player.getTargetBlockExact(6);
                     var sm = GamblingDexPlugin.getInstance().getStationManager();
                     GameItemType rotType = target == null ? null : sm.getStationType(target);
+                    var pokerAt = target == null || GamblingDexPlugin.getInstance().getPokerManager() == null ? null
+                            : GamblingDexPlugin.getInstance().getPokerManager().getByBlock(target);
+                    boolean pokerCenter = pokerAt != null && pokerAt.isCenter(target);
                     if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE
-                            && rotType != GameItemType.ROULETTE) {
+                            && rotType != GameItemType.ROULETTE && !pokerCenter) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta (a menos de 6 bloques)."));
+                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;
@@ -844,7 +847,7 @@ public class GamblingDexCommand implements CommandExecutor {
                         models.respawn(target.getLocation());
                     player.sendMessage(GamblingDexPlugin.getInstance().color("&aModelo de la máquina girado: &f"
                             + Math.round(sm.getModelYaw(target.getLocation())) + "°"
-                            + (models == null || !models.active(rotType) ? " &7(ModelEngine no está activo)" : "")));
+                            + (models == null || (!pokerCenter && !models.active(rotType)) ? " &7(ModelEngine no está activo)" : "")));
                     return true;
                 }
 

@@ -77,6 +77,23 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
   ![casillas ganadoras](previews/roulette_win.png)
 - Opciones en `ruleta.yml → model` (`scale: auto` o un número, `hide_station`...).
 
+## Póker: mesa en 3D, cartas, fichas y botón del dealer
+
+![mesa de póker](previews/poker_table.png)
+![baraja](previews/cards.png)
+
+- `poker_table.bbmodel` (ModelEngine): mesa rectangular con paño, borde acolchado, esquinas
+  achaflanadas, los huecos de las 5 cartas y la bandeja del dealer con fichas. Se ajusta sola
+  para que el borde quede justo delante de los asientos (`poker.yml → model.scale`).
+- **Cartas y fichas en 3D** (resource pack, `resource_pack.custom_cards: true`; funcionan
+  también sin ModelEngine, sobre la mesa de bloques): baraja completa de 52 cartas + dorso.
+  - Cada carta sale de la bandeja del dealer y se desliza a su sitio.
+  - Flop, turn y river llegan boca abajo y **se dan vuelta** en el centro.
+  - Tus 2 cartas quedan delante de tu asiento: **tú las ves boca arriba, los demás el dorso**;
+    en el showdown se voltean para todos.
+  - Las apuestas se deslizan desde cada asiento, el bote queda junto a las cartas y el botón
+    del dealer va delante de quien lo tiene. Sonido de cartas y fichas para los que están cerca.
+
 ## Fichas en 3D (resource pack)
 
 ![fichas](previews/chips.png)
@@ -123,7 +140,8 @@ npm install --ignore-scripts && npm run build-web && python3 -m http.server 8765
 cd models && VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/slot_machine.js slot_machine.bbmodel previews/
 VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/exchange_machine.js exchange_machine.bbmodel previews/
 VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_table.js roulette_table.bbmodel previews/
-cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel ../src/main/resources/models/
+VIEWS='[["angle",[0,60,110],[0,8,0]]]' node tools/render.mjs tools/poker_table.js poker_table.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en

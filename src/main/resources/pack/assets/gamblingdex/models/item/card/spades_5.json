@@ -1,0 +1,8 @@
+{
+  "parent": "gamblingdex:item/card",
+  "textures": {
+    "front": "gamblingdex:item/card/spades_5",
+    "back": "gamblingdex:item/card/back",
+    "particle": "gamblingdex:item/card/spades_5"
+  }
+}
