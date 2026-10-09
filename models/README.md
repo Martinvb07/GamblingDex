@@ -52,6 +52,27 @@ comprar y una caja registradora al vender.
 > todos los que estén cerca (no solo el que juega). Para añadir una máquina nueva basta con
 > sumarla a `StationModels.Kind`.
 
+## Mesa de ruleta en 3D (ModelEngine R4)
+
+![ruleta](previews/roulette_table.png)
+
+`roulette_table.bbmodel`: rueda americana (0 y 00) con plato giratorio, torreta, pista con
+deflectores y la bola, más el paño con el tablero de apuestas (números, 0/00, docenas,
+columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (bandeja del crupier).
+
+| Animación | Qué hace |
+|---|---|
+| `idle` | El plato gira despacio (en bucle) |
+| `ball_<N>` | La bola corre en contra del plato, frena, rebota y se queda en el número N (0..36 o 00). 7 s |
+
+- La mesa se pone en el centro de cada ruleta y se achica sola para caber **dentro del anillo**,
+  que sigue sirviendo para apostar como siempre.
+- **Click en una casilla del paño** = elegirla (con fichas en la mano, apostar ahí; shift = todo
+  el stack). Click en la rueda = lo mismo que el centro (menú de apuestas).
+- **Las fichas apostadas se ven sobre el paño**, un montón por casilla, y se van al terminar la ronda.
+- Al girar, la bola cae en el número que salió y entonces se ilumina en el anillo y se paga.
+- Opciones en `ruleta.yml → model` (`scale: auto` o un número, `hide_station`...).
+
 ## Fichas en 3D (resource pack)
 
 ![fichas](previews/chips.png)
@@ -97,7 +118,8 @@ git clone --depth 1 https://github.com/JannisX11/blockbench.git && cd blockbench
 npm install --ignore-scripts && npm run build-web && python3 -m http.server 8765 &
 cd models && VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/slot_machine.js slot_machine.bbmodel previews/
 VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/exchange_machine.js exchange_machine.bbmodel previews/
-cp slot_machine.bbmodel exchange_machine.bbmodel ../src/main/resources/models/
+VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_table.js roulette_table.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en

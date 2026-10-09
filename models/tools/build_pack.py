@@ -506,6 +506,32 @@ def mkdir_p(p):
     return p
 
 
+def roulette_sounds():
+    # La bola: rueda 4.6 s (zumbido que baja de tono y de volumen), golpea los deflectores,
+    # rebota en las casillas (5.3, 5.75, 6.3 s) y se queda (7 s). Igual que ball_N del modelo.
+    n = int(SR * 7.4)
+    t = np.arange(n) / SR
+    rng = np.random.default_rng(31)
+    roll = rng.uniform(-1, 1, n)
+    y = np.zeros(n)
+    a = 0.12
+    for i in range(1, n):
+        y[i] = y[i - 1] + a * (roll[i] - y[i - 1])
+    speed = np.clip(1 - t / 5.0, 0, 1)
+    rumble = y / np.abs(y).max() * (0.25 + 0.5 * speed) * (t < 5.0) * (0.6 + 0.4 * np.sin(2 * np.pi * (3 + 9 * speed) * t))
+    hum = np.sin(2 * np.pi * (180 + 260 * speed) * t) * 0.08 * speed
+    out = rumble + hum
+    hits = [(1.2, 0.5), (2.6, 0.45), (3.9, 0.5), (4.75, 0.6), (5.3, 1.0), (5.55, 0.5), (5.75, 0.9), (6.0, 0.45),
+            (6.3, 0.8), (6.6, 0.4), (7.0, 0.6)]
+    parts = [(0, out)]
+    for when, vol in hits:
+        parts.append((when, mix(0.12, (0, noise(0.03, 0.01, 0.9 * vol, 0.5, int(when * 100))),
+                                (0, tone(2600 + when * 80, 0.06, 'bell', r=0.015, vol=0.6 * vol)))))
+    return {'spin': mix(7.4, *parts)}
+
+
+ROULETTE_SUBTITLES = {'spin': 'Bola de la ruleta'}
+
 EXCHANGE_SUBTITLES = {'buy': 'Fichas cayendo', 'sell': 'Caja registradora'}
 
 SUBTITLES = {
@@ -546,6 +572,10 @@ def main():
     for name, sig in sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'slots', name + '.ogg'), sig)
         sj['slots.' + name] = {'sounds': ['gamblingdex:slots/' + name], 'subtitle': 'subtitles.gamblingdex.slots.' + name}
+    for name, sig in roulette_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'roulette', name + '.ogg'), sig)
+        sj['roulette.' + name] = {'sounds': ['gamblingdex:roulette/' + name],
+                                  'subtitle': 'subtitles.gamblingdex.roulette.' + name}
     for name, sig in exchange_sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'exchange', name + '.ogg'), sig)
         sj['exchange.' + name] = {'sounds': ['gamblingdex:exchange/' + name],
@@ -555,6 +585,7 @@ def main():
     mkdir(os.path.join(NS, 'lang'))
     lang = {'subtitles.gamblingdex.slots.' + k: v for k, v in SUBTITLES.items()}
     lang.update({'subtitles.gamblingdex.exchange.' + k: v for k, v in EXCHANGE_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.roulette.' + k: v for k, v in ROULETTE_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)

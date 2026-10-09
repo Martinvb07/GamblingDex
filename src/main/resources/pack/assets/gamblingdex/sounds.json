@@ -41,6 +41,12 @@
     ],
     "subtitle": "subtitles.gamblingdex.slots.coin"
   },
+  "roulette.spin": {
+    "sounds": [
+      "gamblingdex:roulette/spin"
+    ],
+    "subtitle": "subtitles.gamblingdex.roulette.spin"
+  },
   "exchange.buy": {
     "sounds": [
       "gamblingdex:exchange/buy"

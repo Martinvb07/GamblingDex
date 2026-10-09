@@ -27,7 +27,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Máquinas en 3D con ModelEngine sobre las estaciones: la tragamonedas
- * (models/slot_machine.bbmodel) y el cajero de cambio (models/exchange_machine.bbmodel).
+ * (models/slot_machine.bbmodel), el cajero de cambio (models/exchange_machine.bbmodel)
+ * y la rueda de la ruleta (models/roulette_wheel.bbmodel).
  * Para cada estación pone el modelo, recibe los clicks, esconde el bloque y el
  * holograma a quien ve el modelo y lo anima cuando alguien juega desde ahí.
  * Las animaciones van en el modelo compartido: las ven todos los que estén cerca.
@@ -43,19 +44,24 @@ public class StationModels implements Listener {
 
     /** Cada tipo de estación con máquina 3D: dónde está su config y su modelo por defecto. */
     public enum Kind {
-        SLOTS(GameItemType.SLOTS, "games.slots.model", "slot_machine", 0.75),
-        EXCHANGE(GameItemType.EXCHANGE, "exchange.model", "exchange_machine", 1.0);
+        SLOTS(GameItemType.SLOTS, "games.slots.model", "slot_machine", 0.75, 1.0, 2.0),
+        EXCHANGE(GameItemType.EXCHANGE, "exchange.model", "exchange_machine", 1.0, 1.0, 2.0),
+        ROULETTE(GameItemType.ROULETTE, "roulette_world.model", "roulette_table", 1.0, 3.75, 0.95);
 
         final GameItemType type;
         final String path, defaultId;
         /** Altura del bloque de la estación (la máquina va encima si no se esconde). */
         final double blockHeight;
+        /** Tamaño por defecto de la zona clickeable. */
+        final double hitWidth, hitHeight;
 
-        Kind(GameItemType type, String path, String defaultId, double blockHeight) {
+        Kind(GameItemType type, String path, String defaultId, double blockHeight, double hitWidth, double hitHeight) {
             this.type = type;
             this.path = path;
             this.defaultId = defaultId;
             this.blockHeight = blockHeight;
+            this.hitWidth = hitWidth;
+            this.hitHeight = hitHeight;
         }
 
         static Kind of(GameItemType type) {
@@ -84,7 +90,7 @@ public class StationModels implements Listener {
     /** Estaciones a las que cada jugador no les ve el bloque ni el holograma (los tapa el modelo). */
     private final Map<UUID, Set<String>> hiddenFor = new HashMap<>();
     private final Map<Kind, Integer> failedSpawns = new EnumMap<>(Kind.class);
-    private BukkitTask syncTask;
+    private BukkitTask syncTask, chipTask;
     private boolean meListener;
 
     private static final class Machine {
@@ -94,6 +100,12 @@ public class StationModels implements Listener {
         UUID interaction;
         long spinStartTick = -1;
         BukkitTask pending;
+        /** Ruleta: tamaño del modelo (la mesa se achica para caber dentro del anillo). */
+        double scale = 1;
+        /** Ruleta: más zonas clickeables (la mesa es larga) y las fichas apostadas sobre el paño. */
+        final List<UUID> extraBoxes = new ArrayList<>();
+        final Map<String, List<UUID>> chips = new HashMap<>();
+        final Map<String, Long> chipAmounts = new HashMap<>();
 
         Machine(Location station, Kind kind) {
             this.station = station;
@@ -185,6 +197,7 @@ public class StationModels implements Listener {
         registerModelEngineClicks();
         // ModelEngine carga los modelos un poco después de arrancar: se reintenta cada 2 s.
         syncTask = Bukkit.getScheduler().runTaskTimer(plugin, this::sync, 40L, 40L);
+        chipTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateChips, 60L, 10L);
         plugin.getLogger().info("[Modelos] ModelEngine detectado: máquinas en 3D " + ids + ".");
     }
 
@@ -216,6 +229,10 @@ public class StationModels implements Listener {
         if (syncTask != null) {
             syncTask.cancel();
             syncTask = null;
+        }
+        if (chipTask != null) {
+            chipTask.cancel();
+            chipTask = null;
         }
         for (Machine m : machines.values())
             despawn(m);
@@ -291,14 +308,22 @@ public class StationModels implements Listener {
             }
             failedSpawns.remove(m.kind);
             bridge.play(m.handle, "idle", 0, 0, false);
+            if (m.kind == Kind.ROULETTE)
+                m.scale = rouletteScale(m);
+            if (m.scale != 1 && !bridge.setScale(m.handle, m.scale))
+                m.scale = 1;
+        }
+        if (m.kind == Kind.ROULETTE) {
+            spawnTableBoxes(m, at);
+            return;
         }
         if (m.interaction == null || Bukkit.getEntity(m.interaction) == null) {
             World w = at.getWorld();
             if (w == null)
                 return;
             Interaction box = w.spawn(at, Interaction.class);
-            box.setInteractionWidth((float) cfg(m.kind, "hitbox_width", 1.0));
-            box.setInteractionHeight((float) cfg(m.kind, "hitbox_height", 2.0));
+            box.setInteractionWidth((float) cfg(m.kind, "hitbox_width", m.kind.hitWidth));
+            box.setInteractionHeight((float) cfg(m.kind, "hitbox_height", m.kind.hitHeight));
             box.setResponsive(true);
             box.setPersistent(false);
             box.addScoreboardTag(TAG);
@@ -320,6 +345,20 @@ public class StationModels implements Listener {
                 e.remove();
             m.interaction = null;
         }
+        removeAll(m.extraBoxes);
+        for (List<UUID> ids : m.chips.values())
+            removeAll(ids);
+        m.chips.clear();
+        m.chipAmounts.clear();
+    }
+
+    private static void removeAll(List<UUID> ids) {
+        for (UUID id : ids) {
+            Entity e = Bukkit.getEntity(id);
+            if (e != null)
+                e.remove();
+        }
+        ids.clear();
     }
 
     private Location modelLocation(Machine m) {
@@ -333,10 +372,14 @@ public class StationModels implements Listener {
     }
 
     private void removeOrphanInteractions() {
-        for (World w : Bukkit.getWorlds())
+        for (World w : Bukkit.getWorlds()) {
             for (Interaction i : w.getEntitiesByClass(Interaction.class))
                 if (i.getScoreboardTags().contains(TAG))
                     i.remove();
+            for (org.bukkit.entity.ItemDisplay d : w.getEntitiesByClass(org.bukkit.entity.ItemDisplay.class))
+                if (d.getScoreboardTags().contains(TAG))
+                    d.remove();
+        }
     }
 
     private Machine machine(Location station, Kind kind) {
@@ -503,8 +546,289 @@ public class StationModels implements Listener {
     }
 
     // ------------------------------------------------------------------
+    // Mesa de ruleta: tamaño, zonas clickeables, casillas del tablero y fichas
+    // Medidas del modelo (models/tools/roulette_table.js), en unidades (16 = 1 bloque):
+    // la rueda en el origen y la mesa hacia +X de -30 a 122, Z de -30 a 30, paño a 12.4.
+    // ------------------------------------------------------------------
+
+    private static final double TABLE_X1 = -30, TABLE_X2 = 122, TABLE_HALF_Z = 30, FELT_Y = 12.4;
+
+    /** La mesa se achica para quedar dentro del anillo de la ruleta (que sigue sirviendo para apostar). */
+    private double rouletteScale(Machine m) {
+        String cfgScale = plugin.getConfig().getString(Kind.ROULETTE.path + ".scale", "auto");
+        try {
+            if (cfgScale != null && !cfgScale.equalsIgnoreCase("auto"))
+                return Math.max(0.2, Math.min(2.0, Double.parseDouble(cfgScale)));
+        } catch (NumberFormatException ignored) {
+        }
+        var manager = plugin.getWorldRouletteManager();
+        var table = manager == null ? null : manager.getByCenter(m.station.getBlock());
+        int radius = table == null ? 6 : table.getRadius();
+        double room = radius - 0.75; // bloques libres desde el centro hasta el anillo
+        return Math.max(0.3, Math.min(1.0, room / (TABLE_X2 / 16.0)));
+    }
+
+    /** Pasa un punto del modelo (unidades, sin escalar) a coordenadas del mundo. */
+    private Location tableToWorld(Machine m, Location base, double x, double y, double z) {
+        double yaw = Math.toRadians(base.getYaw()), k = m.scale / 16.0;
+        // El frente del modelo (-Z) mira hacia donde mira la entidad; +X queda a su derecha.
+        double rx = -Math.cos(yaw), rz = -Math.sin(yaw), fx = -Math.sin(yaw), fz = Math.cos(yaw);
+        return base.clone().add((x * rx - z * fx) * k, y * k, (x * rz - z * fz) * k);
+    }
+
+    private void spawnTableBoxes(Machine m, Location base) {
+        boolean ok = !m.extraBoxes.isEmpty();
+        for (UUID id : m.extraBoxes)
+            ok &= Bukkit.getEntity(id) != null;
+        if (ok)
+            return;
+        removeAll(m.extraBoxes);
+        World w = base.getWorld();
+        if (w == null)
+            return;
+        double width = 2 * TABLE_HALF_Z, step = width;
+        for (double x = TABLE_X1 + width / 2; x - width / 2 < TABLE_X2; x += step) {
+            Location at = tableToWorld(m, base, Math.min(x, TABLE_X2 - width / 2), 0, 0);
+            at.setYaw(0);
+            Interaction box = w.spawn(at, Interaction.class);
+            box.setInteractionWidth((float) (width * m.scale / 16.0));
+            box.setInteractionHeight((float) ((FELT_Y + 2) * m.scale / 16.0));
+            box.setResponsive(true);
+            box.setPersistent(false);
+            box.addScoreboardTag(TAG);
+            m.extraBoxes.add(box.getUniqueId());
+        }
+    }
+
+    /** Casilla del tablero en (x, z) del modelo: "N17", "RED", "DOZEN_1"... o null. */
+    private static String cellAt(double x, double z) {
+        if (z >= -12 && z < 12) {
+            int row = z >= 4 ? 0 : z >= -4 ? 1 : 2;
+            if (x >= 28 && x < 36)
+                return z < 0 ? "N37" : "N0";
+            if (x >= 36 && x < 108)
+                return "N" + ((int) ((x - 36) / 6) * 3 + row + 1);
+            if (x >= 108 && x < 116)
+                return "COLUMN_" + (row + 1);
+        }
+        if (x >= 36 && x < 108 && z >= 12 && z < 18)
+            return "DOZEN_" + ((int) ((x - 36) / 24) + 1);
+        if (x >= 36 && x < 108 && z >= 18 && z < 24)
+            return new String[] { "LOW", "EVEN", "RED", "BLACK", "ODD", "HIGH" }[(int) ((x - 36) / 12)];
+        return null;
+    }
+
+    /** Centro de una casilla en el modelo (para poner las fichas). */
+    private static double[] cellCenter(String cell) {
+        if (cell.startsWith("N")) {
+            int n = Integer.parseInt(cell.substring(1));
+            if (n == 0)
+                return new double[] { 32, 6 };
+            if (n == 37)
+                return new double[] { 32, -6 };
+            int col = (n - 1) / 3, row = (n - 1) % 3;
+            return new double[] { 39 + col * 6, 8 - row * 8 };
+        }
+        if (cell.startsWith("COLUMN_"))
+            return new double[] { 112, 8 - (Integer.parseInt(cell.substring(7)) - 1) * 8 };
+        if (cell.startsWith("DOZEN_"))
+            return new double[] { 48 + (Integer.parseInt(cell.substring(6)) - 1) * 24, 15 };
+        int i = List.of("LOW", "EVEN", "RED", "BLACK", "ODD", "HIGH").indexOf(cell);
+        return i < 0 ? null : new double[] { 42 + i * 12, 21 };
+    }
+
+    /**
+     * Click sobre la mesa: se mira dónde corta la vista del jugador el paño y se apuesta a
+     * esa casilla (como el anillo: elige la casilla y, con fichas en la mano, apuesta).
+     * Devuelve false si no apuntaba al tablero (entonces hace lo del centro de la mesa).
+     */
+    private boolean tableClick(Player p, Machine m) {
+        var manager = plugin.getWorldRouletteManager();
+        var table = manager == null ? null : manager.getByCenter(m.station.getBlock());
+        if (table == null)
+            return false;
+        Location base = modelLocation(m);
+        Location eye = p.getEyeLocation();
+        org.bukkit.util.Vector dir = eye.getDirection();
+        double planeY = base.getY() + FELT_Y * m.scale / 16.0;
+        if (dir.getY() > -1e-3)
+            return false;
+        double t = (planeY - eye.getY()) / dir.getY();
+        if (t < 0 || t > 8)
+            return false;
+        double dx = eye.getX() + dir.getX() * t - base.getX(), dz = eye.getZ() + dir.getZ() * t - base.getZ();
+        double yaw = Math.toRadians(base.getYaw()), k = 16.0 / m.scale;
+        double lx = (-dx * Math.cos(yaw) - dz * Math.sin(yaw)) * k;
+        double lz = (dx * Math.sin(yaw) - dz * Math.cos(yaw)) * k;
+        String cell = cellAt(lx, lz);
+        if (cell == null)
+            return false;
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allowTable(p, "ruleta", table.getTableKey()))
+            return true;
+        if (cell.startsWith("N")) {
+            table.selectNumber(p, Integer.parseInt(cell.substring(1)));
+        } else {
+            var type = com.gamblingdex.games.rouletteworld.WorldRouletteBetType.valueOf(cell);
+            table.setSelectionType(p, type);
+            p.sendMessage(plugin.color("&eApuesta seleccionada: &f" + type.label()));
+        }
+        org.bukkit.inventory.ItemStack hand = p.getInventory().getItemInMainHand();
+        Integer value = plugin.getTokenManager().getTokenValue(hand);
+        if (value == null) {
+            p.sendMessage(plugin.getMessages().getString("roulette_world.now_bet_with_tokens",
+                    "&7Ahora apuesta con tokens (click derecho al centro o al número)."));
+            return true;
+        }
+        int take = p.isSneaking() ? hand.getAmount() : 1;
+        if (table.placeBet(p, (long) value * take)) {
+            int left = hand.getAmount() - take;
+            if (left <= 0)
+                p.getInventory().setItemInMainHand(null);
+            else
+                hand.setAmount(left);
+        }
+        return true;
+    }
+
+    /** Fichas sobre el paño: un montón en cada casilla con apuestas (más alto cuanto más se apuesta). */
+    private void updateChips() {
+        var manager = plugin.getWorldRouletteManager();
+        if (manager == null)
+            return;
+        for (Machine m : machines.values()) {
+            if (m.kind != Kind.ROULETTE || m.handle == null)
+                continue;
+            var table = manager.getByCenter(m.station.getBlock());
+            Map<String, Long> totals = table == null ? Map.of() : table.betTotalsByCell();
+            for (Iterator<Map.Entry<String, List<UUID>>> it = m.chips.entrySet().iterator(); it.hasNext();) {
+                Map.Entry<String, List<UUID>> e = it.next();
+                Long now = totals.get(e.getKey());
+                if (now == null || !now.equals(m.chipAmounts.get(e.getKey()))) {
+                    removeAll(e.getValue());
+                    it.remove();
+                    m.chipAmounts.remove(e.getKey());
+                }
+            }
+            Location base = modelLocation(m);
+            for (Map.Entry<String, Long> e : totals.entrySet()) {
+                if (m.chips.containsKey(e.getKey()))
+                    continue;
+                double[] c = cellCenter(e.getKey());
+                if (c == null)
+                    continue;
+                m.chips.put(e.getKey(), spawnChips(m, base, c[0], c[1], e.getValue()));
+                m.chipAmounts.put(e.getKey(), e.getValue());
+            }
+        }
+    }
+
+    private List<UUID> spawnChips(Machine m, Location base, double x, double z, long amount) {
+        List<UUID> ids = new ArrayList<>();
+        World w = base.getWorld();
+        if (w == null)
+            return ids;
+        // De la ficha más grande que quepa en la apuesta, y más alto el montón cuanto más vale
+        Material mat = Material.YELLOW_DYE;
+        int best = 0;
+        for (Map.Entry<Material, Integer> d : com.gamblingdex.economy.TokenManager.getDenoms().entrySet())
+            if (d.getValue() <= amount && d.getValue() > best) {
+                best = d.getValue();
+                mat = d.getKey();
+            }
+        int count = (int) Math.max(1, Math.min(5, amount / Math.max(1, best)));
+        org.bukkit.inventory.ItemStack item = plugin.getTokenManager().createToken(mat, 1);
+        float s = (float) (0.42 * m.scale);
+        for (int i = 0; i < count; i++) {
+            Location at = tableToWorld(m, base, x, FELT_Y + 0.1 + i * 1.7, z);
+            at.setYaw(base.getYaw() + i * 23);
+            at.setPitch(0);
+            org.bukkit.entity.ItemDisplay d = w.spawn(at, org.bukkit.entity.ItemDisplay.class);
+            d.setItemStack(item);
+            d.setItemDisplayTransform(org.bukkit.entity.ItemDisplay.ItemDisplayTransform.GROUND);
+            d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(),
+                    new org.joml.AxisAngle4f(), new org.joml.Vector3f(s, s, s), new org.joml.AxisAngle4f()));
+            d.setPersistent(false);
+            d.addScoreboardTag(TAG);
+            ids.add(d.getUniqueId());
+        }
+        return ids;
+    }
+
+    // ------------------------------------------------------------------
+    // Animaciones: ruleta
+    // ------------------------------------------------------------------
+
+    /** Lo que dura la bola en caer en su casilla (la animación ball_N del modelo: 7 s). */
+    public static final long ROULETTE_SPIN_TICKS = 140;
+
+    /**
+     * Lanza la bola de la rueda 3D de esta mesa para que caiga en {@code number}
+     * (0..36; 37 = "00"), con su sonido para todos los que estén cerca. Devuelve false
+     * si la mesa no tiene rueda 3D (entonces la ruleta usa la luz de siempre).
+     */
+    public boolean rouletteSpin(Location center, int number) {
+        Machine m = machine(center, Kind.ROULETTE);
+        if (m == null)
+            return false;
+        if (m.pending != null) {
+            m.pending.cancel();
+            m.pending = null;
+        }
+        for (int n = 0; n <= 37; n++)
+            bridge.stop(m.handle, ballAnim(n));
+        bridge.play(m.handle, ballAnim(number), 0, 0, true);
+
+        Location at = m.station.clone().add(0.5, 1, 0.5);
+        double radius = cfg(Kind.ROULETTE, "sound_radius", 16);
+        if (plugin.getResourcePackManager() != null && plugin.getResourcePackManager().customSounds()) {
+            com.gamblingdex.pack.CasinoPack.soundNear(at, null, "roulette.spin", org.bukkit.Sound.UI_BUTTON_CLICK,
+                    1f, 1f, radius);
+            return true;
+        }
+        // Sin el pack: tic-tic de la bola que va frenando y los golpes al caer
+        m.pending = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int t = 0, next = 0;
+
+            @Override
+            public void run() {
+                if (t >= next && t < 92) {
+                    com.gamblingdex.pack.CasinoPack.soundNear(at, null, "", org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f,
+                            1.9f - t / 120f, radius);
+                    next = t + 2 + t / 12;
+                }
+                if (t == 106 || t == 115 || t == 126)
+                    com.gamblingdex.pack.CasinoPack.soundNear(at, null, "", org.bukkit.Sound.BLOCK_NOTE_BLOCK_HAT,
+                            0.8f, 1.6f, radius);
+                if (++t > 130 && m.pending != null) {
+                    m.pending.cancel();
+                    m.pending = null;
+                }
+            }
+        }, 1L, 1L);
+        return true;
+    }
+
+    private static String ballAnim(int number) {
+        return "ball_" + (number == 37 ? "00" : String.valueOf(number));
+    }
+
+    // ------------------------------------------------------------------
     // Clicks sobre el modelo
     // ------------------------------------------------------------------
+
+    /** Click izquierdo sobre el modelo (a la entidad Interaction le llega como golpe). */
+    @EventHandler(ignoreCancelled = true)
+    public void onHit(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Interaction i) || !i.getScoreboardTags().contains(TAG)
+                || !(event.getDamager() instanceof Player p))
+            return;
+        event.setCancelled(true);
+        for (Machine m : machines.values())
+            if (i.getUniqueId().equals(m.interaction) || m.extraBoxes.contains(i.getUniqueId())) {
+                open(p, m);
+                return;
+            }
+    }
 
     @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEntityEvent event) {
@@ -513,7 +837,7 @@ public class StationModels implements Listener {
             return;
         event.setCancelled(true);
         for (Machine m : machines.values())
-            if (i.getUniqueId().equals(m.interaction)) {
+            if (i.getUniqueId().equals(m.interaction) || m.extraBoxes.contains(i.getUniqueId())) {
                 open(event.getPlayer(), m);
                 return;
             }
@@ -579,6 +903,34 @@ public class StationModels implements Listener {
                     plugin.getSlotsController().open(p, plugin.getStationManager().getTheme(m.station), m.station);
             }
             case EXCHANGE -> plugin.getExchangeMenu().open(p, m.station);
+            case ROULETTE -> {
+                if (!tableClick(p, m))
+                    openRoulette(p, m.station);
+            }
+        }
+    }
+
+    /** Igual que clickear el centro de la mesa: con fichas en la mano apuesta, si no abre el menú. */
+    private void openRoulette(Player p, Location center) {
+        var manager = plugin.getWorldRouletteManager();
+        var table = manager == null ? null : manager.getByCenter(center.getBlock());
+        if (table == null)
+            return;
+        if (plugin.getMaintenance() != null && !plugin.getMaintenance().allowTable(p, "ruleta", table.getTableKey()))
+            return;
+        org.bukkit.inventory.ItemStack hand = p.getInventory().getItemInMainHand();
+        Integer value = plugin.getTokenManager().getTokenValue(hand);
+        if (value == null) {
+            new com.gamblingdex.gui.RouletteBetMenu(plugin).open(p, table);
+            return;
+        }
+        int take = p.isSneaking() ? hand.getAmount() : 1;
+        if (table.placeBet(p, (long) value * take)) {
+            int left = hand.getAmount() - take;
+            if (left <= 0)
+                p.getInventory().setItemInMainHand(null);
+            else
+                hand.setAmount(left);
         }
     }
 

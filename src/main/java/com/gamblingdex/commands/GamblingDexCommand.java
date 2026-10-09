@@ -831,9 +831,10 @@ public class GamblingDexCommand implements CommandExecutor {
                     Block target = player.getTargetBlockExact(6);
                     var sm = GamblingDexPlugin.getInstance().getStationManager();
                     GameItemType rotType = target == null ? null : sm.getStationType(target);
-                    if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE) {
+                    if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE
+                            && rotType != GameItemType.ROULETTE) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots o de cambio a menos de 6 bloques."));
+                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta (a menos de 6 bloques)."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;

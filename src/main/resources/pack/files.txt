@@ -17,6 +17,7 @@ assets/gamblingdex/models/item/chip_yellow.json
 assets/gamblingdex/sounds.json
 assets/gamblingdex/sounds/exchange/buy.ogg
 assets/gamblingdex/sounds/exchange/sell.ogg
+assets/gamblingdex/sounds/roulette/spin.ogg
 assets/gamblingdex/sounds/slots/coin.ogg
 assets/gamblingdex/sounds/slots/jackpot.ogg
 assets/gamblingdex/sounds/slots/lever.ogg
