@@ -1,0 +1,16 @@
+assets/gamblingdex/font/gui.json
+assets/gamblingdex/lang/en_us.json
+assets/gamblingdex/lang/es_ar.json
+assets/gamblingdex/lang/es_es.json
+assets/gamblingdex/lang/es_mx.json
+assets/gamblingdex/sounds.json
+assets/gamblingdex/sounds/slots/coin.ogg
+assets/gamblingdex/sounds/slots/jackpot.ogg
+assets/gamblingdex/sounds/slots/lever.ogg
+assets/gamblingdex/sounds/slots/lose.ogg
+assets/gamblingdex/sounds/slots/reel_stop.ogg
+assets/gamblingdex/sounds/slots/reel_tick.ogg
+assets/gamblingdex/sounds/slots/win.ogg
+assets/gamblingdex/textures/font/slots_gui.png
+pack.mcmeta
+pack.png

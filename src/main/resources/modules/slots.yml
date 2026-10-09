@@ -121,3 +121,17 @@ item:
     - "&7Click derecho para abrir"
     - "&7los &dTragamonedas&7."
     - "&8────────────────────────"
+
+# Máquina en 3D con ModelEngine (opcional). Copia models/slot_machine.bbmodel del repo a
+# plugins/ModelEngine/blueprints/ y usa /meg reload. El modelo aparece encima de cada
+# estación de slots, se puede clickear y anima la palanca y los rodillos (que paran en
+# los símbolos que tocaron). Girarlo: mira la estación y usa /gdx station rotate.
+# Sin ModelEngine no pasa nada: las estaciones se ven como siempre.
+model:
+  enabled: true
+  id: slot_machine            # nombre del modelo en ModelEngine
+  y_offset: 0.75              # altura sobre el bloque de la estación (la mesa de encantamientos mide 0.75)
+  holo_extra_height: 2.1      # cuánto sube el holograma para quedar encima de la máquina
+  hitbox_width: 1.0
+  hitbox_height: 2.0
+  sound_radius: 12            # los que estén cerca oyen la máquina

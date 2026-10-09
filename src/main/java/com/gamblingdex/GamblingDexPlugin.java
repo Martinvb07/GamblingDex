@@ -43,6 +43,8 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     private GameItemManager gameItemManager;
     private SlotsController slotsController;
+    private com.gamblingdex.models.SlotsMachineModels slotsModels;
+    private com.gamblingdex.pack.ResourcePackManager resourcePackManager;
     private SlotsStatsManager slotsStatsManager;
     private RouletteStatsManager rouletteStatsManager;
 
@@ -150,6 +152,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             pokerManager.reload();
         if (moduleManager != null)
             moduleManager.reloadAll();
+        if (slotsModels != null)
+            slotsModels.start();
         if (achievements != null)
             achievements.reload();
         if (schedule != null)
@@ -220,6 +224,8 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         this.gameItemManager = new GameItemManager(this);
         this.slotsController = new SlotsController(this);
+        this.slotsModels = new com.gamblingdex.models.SlotsMachineModels(this);
+        this.resourcePackManager = new com.gamblingdex.pack.ResourcePackManager(this);
         this.slotsStatsManager = new SlotsStatsManager(this);
 
         this.rouletteStatsManager = new RouletteStatsManager(this);
@@ -244,6 +250,7 @@ public class GamblingDexPlugin extends JavaPlugin {
 
         registerCommands();
         registerListeners();
+        slotsModels.start();
         new com.gamblingdex.games.JackpotBell(this).start();
         this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
@@ -330,6 +337,11 @@ public class GamblingDexPlugin extends JavaPlugin {
         } catch (Throwable ignored) {
         }
         try {
+            if (slotsModels != null)
+                slotsModels.shutdown();
+        } catch (Throwable ignored) {
+        }
+        try {
             if (moduleManager != null)
                 moduleManager.disableAll();
         } catch (Throwable ignored) {
@@ -390,6 +402,8 @@ public class GamblingDexPlugin extends JavaPlugin {
         pm.registerEvents(new ExchangeMenuListener(this), this);
         pm.registerEvents(new RouletteBetMenuListener(this), this);
         pm.registerEvents(new SlotsMenuListener(this), this);
+        pm.registerEvents(slotsModels, this);
+        pm.registerEvents(resourcePackManager, this);
         pm.registerEvents(new com.gamblingdex.listeners.PokerListener(this), this);
         pm.registerEvents(new com.gamblingdex.listeners.TokenMenuListener(this, tokenManager), this);
     }
@@ -425,6 +439,16 @@ public class GamblingDexPlugin extends JavaPlugin {
 
     public GameItemManager getGameItemManager() {
         return gameItemManager;
+    }
+
+    /** Máquinas de slots en 3D (ModelEngine, opcional). */
+    public com.gamblingdex.models.SlotsMachineModels getSlotsModels() {
+        return slotsModels;
+    }
+
+    /** Resource pack del casino (fondo de menús y sonidos). */
+    public com.gamblingdex.pack.ResourcePackManager getResourcePackManager() {
+        return resourcePackManager;
     }
 
     public SlotsController getSlotsController() {

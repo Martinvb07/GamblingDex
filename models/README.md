@@ -1,32 +1,62 @@
-# Modelos 3D (ModelEngine)
+# Modelos 3D, menús y sonidos del casino
 
-Modelos `.bbmodel` para usar con **ModelEngine R4**. Se abren y editan en Blockbench.
-
-| Modelo | Animaciones |
-|---|---|
-| `slot_machine.bbmodel` | `idle` (luces, en bucle), `spin` (palanca + 3 rodillos que paran escalonados, 3 s), `win` (luces parpadean y el cartel rebota) |
+Todo es **opcional**: sin ModelEngine ni resource pack las slots funcionan igual que siempre.
 
 ![slot_machine](previews/slot_machine.png)
 
-Los símbolos de los rodillos son los mismos ítems del módulo de slots
-(diamante, esmeralda, lingote de oro, lingote de hierro, amatista y estrella del Nether).
+## Máquina de slots en 3D (ModelEngine R4)
 
-## Instalar en el servidor
+`slot_machine.bbmodel` (se abre y edita en Blockbench):
 
-1. Copia el `.bbmodel` a `plugins/ModelEngine/blueprints/`.
-2. Ejecuta `/meg reload` (genera el resource pack).
-3. Prueba: `/meg summon slot_machine` y `/meg animation ...` o desde el menú de ModelEngine.
+| Animación | Qué hace |
+|---|---|
+| `idle` | Luces titilando (en bucle) |
+| `spin` | Baja la palanca y parpadean las luces |
+| `reelR_K` | Rodillo R (1 = izquierda) gira y se queda con la cara K al frente. El plugin elige K para que paren **en los símbolos que tocaron** |
+| `win` | Luces a tope y el cartel rebota |
 
-El hueso `hitbox` define el hitbox del modelo (1x2 bloques); ModelEngine no lo dibuja.
+Los símbolos son los ítems del módulo de slots (diamante, esmeralda, oro, hierro, amatista
+y estrella del Nether). Si un tema usa otros ítems, la máquina muestra unos equivalentes
+respetando parejas y tríos.
 
-## Regenerar el modelo
+**Instalar**
+1. Instala ModelEngine. Al arrancar, GamblingDex copia el modelo a
+   `plugins/ModelEngine/blueprints/gamblingdex/` (si no estaba).
+2. `/meg reload`. El modelo aparece encima de cada estación de slots (se puede clickear).
+3. `/gdx station rotate` mirando la estación para girarla 90°.
+4. Opciones en `slots.yml → model` (altura, hitbox, radio del sonido, desactivar).
 
-El modelo se construye con un script (`tools/slot_machine.js`) que corre dentro de Blockbench:
+## Menú con fondo propio y sonidos (resource pack)
+
+![menú](previews/slots_gui.png)
+
+*(vista previa: en el juego los ítems se ven con su textura normal de Minecraft)*
+
+Sonidos nuevos: palanca, tic de rodillos, parada de rodillo, premio, jackpot, sin premio y monedas.
+Los que están cerca de la máquina también la oyen.
+
+1. `/gdx pack` → crea `plugins/GamblingDex/GamblingDex-pack.zip` y, si encuentra el pack de
+   ModelEngine, `GamblingDex-merged.zip` (los dos juntos: **sube ese**).
+2. Sube el zip a una web con enlace directo (p. ej. mc-packs.net) y pon la URL y el SHA-1 en
+   `config.yml → resource_pack.send` (o en `server.properties`).
+3. Activa `resource_pack.custom_gui` y `resource_pack.custom_sounds`.
+
+> Quien no tenga el pack no ve el modelo 3D y vería cuadros en el título del menú, por eso
+> conviene `resource_pack.send.required: true`. Con `custom_gui`/`custom_sounds` en `false`
+> todo se ve como siempre.
+
+## Regenerar
 
 ```bash
-# Blockbench web compilado desde su código fuente y servido en :8765
+# Pack (fondo del menú, sonidos .ogg, pack.mcmeta) -> src/main/resources/pack/
+python3 models/tools/build_pack.py        # requiere numpy, Pillow y ffmpeg con libvorbis
+
+# Modelo: corre models/tools/slot_machine.js dentro de Blockbench (compilado desde su código)
 git clone --depth 1 https://github.com/JannisX11/blockbench.git && cd blockbench
 npm install --ignore-scripts && npm run build-web && python3 -m http.server 8765 &
-# Construir + exportar + capturas
 cd models && VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/slot_machine.js slot_machine.bbmodel previews/
+cp slot_machine.bbmodel ../src/main/resources/models/
 ```
+
+Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en
+`SlotsMachineModels.java`.

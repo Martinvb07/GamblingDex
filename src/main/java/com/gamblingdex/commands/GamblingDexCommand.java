@@ -70,6 +70,40 @@ public class GamblingDexCommand implements CommandExecutor {
         return "hace " + s / 86400 + "d";
     }
 
+    /** /gdx pack: genera el resource pack del casino (y lo junta con el de ModelEngine). */
+    private static void handlePack(CommandSender sender) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var rp = plugin.getResourcePackManager();
+        sender.sendMessage(plugin.color("&7Generando el resource pack..."));
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String[] lines;
+            try {
+                var r = rp.build();
+                java.util.List<String> out = new java.util.ArrayList<>();
+                out.add("&aResource pack listo: &fplugins/GamblingDex/" + r.pack().getName());
+                out.add("&7SHA-1: &f" + r.packSha1());
+                if (r.merged() != null) {
+                    out.add("&aCon los modelos de ModelEngine: &fplugins/GamblingDex/" + r.merged().getName());
+                    out.add("&7SHA-1: &f" + r.mergedSha1());
+                    out.add("&7Sube &fGamblingDex-merged.zip&7 (no el de ModelEngine por separado).");
+                } else if (plugin.getServer().getPluginManager().getPlugin("ModelEngine") != null) {
+                    out.add("&eNo encontré el pack de ModelEngine: usa &f/meg reload&e y luego &f/gdx pack&e otra vez.");
+                }
+                out.add("&7Súbelo a una web (p. ej. mc-packs.net) y pon la URL y el SHA-1 en");
+                out.add("&7config.yml → resource_pack.send (o en server.properties).");
+                lines = out.toArray(new String[0]);
+            } catch (Exception e) {
+                plugin.getLogger().warning("[Pack] " + e);
+                lines = new String[] { "&cNo se pudo generar el resource pack: &f" + e.getMessage() };
+            }
+            String[] msg = lines;
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                for (String l : msg)
+                    sender.sendMessage(plugin.color(l));
+            });
+        });
+    }
+
     /** /gdx disable &lt;juego&gt; | /gdx enable &lt;juego&gt; | /gdx maintenance (lista). */
     private static void handleMaintenance(Player player, String sub, String[] args) {
         GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
@@ -144,6 +178,14 @@ public class GamblingDexCommand implements CommandExecutor {
                 if (warnings > 0)
                     sender.sendMessage(plugin.color("&e⚠ Hay &f" + warnings
                             + "&e valor(es) raros en la config. Míralos con &f/gdx config check&e."));
+                return true;
+            }
+            if (sub.equals("pack") || sub.equals("resourcepack")) {
+                if (!sender.hasPermission("gamblingdex.admin")) {
+                    sender.sendMessage(cfg("messages.admin.no_permission", "&cNo tienes permiso para hacer eso."));
+                    return true;
+                }
+                handlePack(sender);
                 return true;
             }
             if (sub.equals("config")) {
@@ -782,6 +824,25 @@ public class GamblingDexCommand implements CommandExecutor {
                         player.sendMessage(cfg("messages.admin.station.remove.not_registered",
                                 "&cEse bloque no está registrado como mesa."));
                     }
+                    return true;
+                }
+
+                if (action.equals("rotate") || action.equals("girar")) {
+                    Block target = player.getTargetBlockExact(6);
+                    var sm = GamblingDexPlugin.getInstance().getStationManager();
+                    if (target == null || sm.getStationType(target) != GameItemType.SLOTS) {
+                        player.sendMessage(GamblingDexPlugin.getInstance()
+                                .color("&cMira una estación de slots a menos de 6 bloques."));
+                        return true;
+                    }
+                    float yaw = sm.getModelYaw(target.getLocation()) + 90f;
+                    sm.setModelYaw(target.getLocation(), yaw);
+                    var models = GamblingDexPlugin.getInstance().getSlotsModels();
+                    if (models != null)
+                        models.respawn(target.getLocation());
+                    player.sendMessage(GamblingDexPlugin.getInstance().color("&aModelo de la máquina girado: &f"
+                            + Math.round(sm.getModelYaw(target.getLocation())) + "°"
+                            + (models == null || !models.active() ? " &7(ModelEngine no está activo)" : "")));
                     return true;
                 }
 

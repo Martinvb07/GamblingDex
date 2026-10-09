@@ -114,7 +114,8 @@
   const symUV = (i) => { const [x, y] = cell(i); return [x, y, x + 16, y + 12]; };
   const RC = [0, 17, -1.5], rr = 3.5, ss = rr * Math.tan(Math.PI / 8);
   const reels = group('reels', RC);
-  [[-5.8, -2.2], [-1.8, 1.8], [2.2, 5.8]].forEach(([x1, x2], ri) => {
+  // +X queda a la izquierda visto de frente: reel_1 es el de la izquierda (para primero, como en el menu)
+  [[2.2, 5.8], [-1.8, 1.8], [-5.8, -2.2]].forEach(([x1, x2], ri) => {
     const reel = group('reel_' + (ri + 1), RC, reels);
     const sh = (ri * 3) % 8, sym8 = (k) => symUV((k + sh) % 8);
     const flip = (k) => ({ uv: sym8(k), rotation: 180 }); // up/south/down quedan al derecho al llegar al frente
@@ -153,14 +154,23 @@
   kf(idle, la, 'scale', [[0, 1, 1, 1], [0.5, 1.3, 1.3, 1.3], [1, 1, 1, 1]], 'catmullrom');
   kf(idle, lb, 'scale', [[0, 1.3, 1.3, 1.3], [0.5, 1, 1, 1], [1, 1.3, 1.3, 1.3]], 'catmullrom');
 
-  const spin = new Blockbench.Animation({ name: 'spin', loop: 'once', length: 3 }).add();
+  // spin: palanca + luces. Los rodillos van aparte (reelR_K) para poder parar en el simbolo que toco.
+  const spin = new Blockbench.Animation({ name: 'spin', loop: 'once', length: 2.4 }).add();
   kf(spin, lever, 'rotation', [[0, 0, 0, 0], [0.25, -55, 0, 0], [0.6, 0, 0, 0]]);
-  const reelGroups = reels.children;
-  reelGroups.forEach((rg, i) => {
-    const stop = 1.6 + i * 0.5, total = -(1080 + i * 360); // negativo: los simbolos bajan, como una maquina real
-    kf(spin, rg, 'rotation', [[0, 0, 0, 0], [0.3, 0, 0, 0], [stop - 0.35, total + 90, 0, 0], [stop - 0.1, total - 6, 0, 0], [stop, total, 0, 0]]);
+  const blink = []; for (let t = 0; t <= 2.4001; t += 0.1) blink.push([+t.toFixed(2), ...(Math.round(t * 10) % 2 ? [1.3, 1.3, 1.3] : [1, 1, 1])]);
+  kf(spin, la, 'scale', blink, 'step');
+  kf(spin, lb, 'scale', blink.map(([t, x]) => [t, ...(x > 1 ? [1, 1, 1] : [1.3, 1.3, 1.3])]), 'step');
+
+  // reelR_K (R=1..3, K=0..7): el rodillo R gira y se queda (hold) con la cara K al frente.
+  // Rotacion -45*K deja la cara K en la linea de pago. Paradas a 1.2/1.7/2.2 s (igual que el menu).
+  reels.children.forEach((rg, i) => {
+    const stop = 1.2 + i * 0.5;
+    for (let k = 0; k < 8; k++) {
+      const an = new Blockbench.Animation({ name: 'reel' + (i + 1) + '_' + k, loop: 'hold', length: stop }).add();
+      const total = -(720 + i * 360) - k * 45; // negativo: los simbolos bajan, como una maquina real
+      kf(an, rg, 'rotation', [[0, 0, 0, 0], [0.1, 0, 0, 0], [stop - 0.3, total + 90, 0, 0], [stop - 0.1, total - 6, 0, 0], [stop, total, 0, 0]]);
+    }
   });
-  kf(spin, la, 'scale', [[0, 1, 1, 1], [0.15, 1.3, 1.3, 1.3], [0.3, 1, 1, 1]], 'step');
 
   const win = new Blockbench.Animation({ name: 'win', loop: 'once', length: 2 }).add();
   const flash = []; for (let t = 0; t <= 2; t += 0.2) flash.push([+t.toFixed(2), ...(Math.round(t * 5) % 2 ? [1.5, 1.5, 1.5] : [1, 1, 1])]);

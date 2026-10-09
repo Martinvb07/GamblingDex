@@ -201,3 +201,22 @@ signs:
     lottery: ["&6&lLOTERÍA", "Bote: &2{pot}", "&8Sorteo en", "{next}"]
     bingo: ["&5&lBINGO", "{next}", "Cartón: &2{price}", "Bote: &2{pot}"]
     exchange: ["&e&lCAMBIO", "1 ficha = &2${price}", "1.000 = &2${price1000}", "&8compra y venta"]
+
+# ======================
+# Resource pack del casino (fondo propio en los menús y sonidos nuevos)
+# ======================
+# 1) /gdx pack  -> crea plugins/GamblingDex/GamblingDex-pack.zip (y GamblingDex-merged.zip
+#    con los modelos 3D de ModelEngine si lo tienes; usa /meg reload antes).
+# 2) Sube el zip a una web (p. ej. mc-packs.net) y pon aquí la URL y el SHA-1 que da /gdx pack.
+# 3) Activa custom_gui / custom_sounds. Quien NO tenga el pack vería cuadros en el título
+#    del menú, por eso conviene send.required: true (o déjalos en false y todo sigue como siempre).
+resource_pack:
+  custom_gui: false        # menú de slots con fondo dibujado (máquina roja y dorada)
+  custom_sounds: false     # sonidos propios de los slots (palanca, rodillos, premio, jackpot)
+  modelengine_pack: ""     # ruta al pack de ModelEngine si no está en plugins/ModelEngine/resource pack
+  send:
+    enabled: false         # mandar el pack a cada jugador al entrar
+    url: ""                # enlace DIRECTO al .zip
+    sha1: ""               # el SHA-1 que muestra /gdx pack (si cambias el zip, cámbialo)
+    required: false        # true = quien lo rechace no puede entrar
+    prompt: "&6GamblingDex &7usa un resource pack para los menús y sonidos del casino."

@@ -1,0 +1,44 @@
+{
+  "slots.lever": {
+    "sounds": [
+      "gamblingdex:slots/lever"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.lever"
+  },
+  "slots.reel_tick": {
+    "sounds": [
+      "gamblingdex:slots/reel_tick"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.reel_tick"
+  },
+  "slots.reel_stop": {
+    "sounds": [
+      "gamblingdex:slots/reel_stop"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.reel_stop"
+  },
+  "slots.win": {
+    "sounds": [
+      "gamblingdex:slots/win"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.win"
+  },
+  "slots.jackpot": {
+    "sounds": [
+      "gamblingdex:slots/jackpot"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.jackpot"
+  },
+  "slots.lose": {
+    "sounds": [
+      "gamblingdex:slots/lose"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.lose"
+  },
+  "slots.coin": {
+    "sounds": [
+      "gamblingdex:slots/coin"
+    ],
+    "subtitle": "subtitles.gamblingdex.slots.coin"
+  }
+}
