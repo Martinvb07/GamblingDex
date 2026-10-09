@@ -40,11 +40,11 @@
   // Pantalla 40x26 en (64,16): moneda -> fichas
   rect(64, 16, 40, 26, '#06301a'); rect(65, 17, 38, 24, '#0a4a28');
   for (let y = 17; y < 41; y += 2) rect(65, y, 38, 1, '#0c5230'); // lineas de la pantalla
-  art(68, 21, [
+  art(72, 21, [
     '..YYYY..', '.YOOOOY.', 'YO.YY.OY', 'YO.Y..OY', 'YO.YY.OY', 'YO..Y.OY', 'YO.YY.OY', '.YOOOOY.', '..YYYY..',
   ], { Y: '#ffd84a', O: '#d9a514' });                     // moneda con $
-  art(79, 24, ['G...', 'GGG.', 'GGGG', 'GGG.', 'G...'], { G: '#5cff7a' }); // flecha
-  art(86, 20, [
+  art(83, 23, ['G...', 'GGG.', 'GGGG', 'GGG.', 'G...'], { G: '#5cff7a' }); // flecha
+  art(90, 21, [
     '..RRRR..', '.RWRRWR.', 'RRRRRRRR', 'RWR..RWR', 'RRR..RRR', 'RWRRRRWR', '.RRWRRR.', '..RRRR..',
   ], { R: '#e02434', W: '#ffffff' });                     // ficha
   art(73, 34, [                                           // "FICHAS"
