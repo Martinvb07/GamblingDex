@@ -73,7 +73,9 @@ item:
 model:
   enabled: true
   id: roulette_table          # nombre del modelo en ModelEngine
-  scale: auto                 # auto = lo más grande que quepa dentro del anillo; o un número (1 = 9.5 bloques de largo)
+  scale: auto                 # auto = tamaño normal (o dentro del anillo si hide_ring: false); o un número (1 = 9.5 bloques de largo)
+  collision: true             # la mesa es sólida (no se puede atravesar)
+  hide_ring: true             # esconder el anillo de bloques y sus números: se apuesta solo en la mesa 3D
   hide_station: auto          # auto | always | never (esconder la piedra imán del centro a quien ve la mesa)
   y_offset_hidden: 0.0
   y_offset: 1.0

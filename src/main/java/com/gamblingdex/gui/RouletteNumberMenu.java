@@ -26,8 +26,8 @@ import java.util.*;
  *
  * <pre>
  *  0 ─ 8   óvalo de afuera (24 números)     10 ─ 16  óvalo de adentro (14)
- *  20 ficha elegida · 22 estado · 24 tus plenos
- *  45 volver · 46..52 fichas · 53 tus fichas
+ *  20 ficha elegida · 22 estado · 24 tus plenos (y tus fichas)
+ *  45 volver · 46..52 fichas · 53 repetir
  * </pre>
  */
 public class RouletteNumberMenu {
@@ -58,8 +58,8 @@ public class RouletteNumberMenu {
         RING = r.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static final int S_CHIP = 20, S_REPEAT = 21, S_STATUS = 22, S_MINE = 24;
-    private static final int S_BACK = 45, S_BALANCE = 53;
+    private static final int S_CHIP = 20, S_STATUS = 22, S_MINE = 24;
+    private static final int S_BACK = 45, S_REPEAT = 53;
     private static final int[] CHIP_SLOTS = { 46, 47, 48, 49, 50, 51, 52 };
 
     private final GamblingDexPlugin plugin;
@@ -102,7 +102,8 @@ public class RouletteNumberMenu {
     }
 
     public void open(Player player, WorldRouletteTable table) {
-        Inventory inv = Bukkit.createInventory(new RouletteNumberMenuHolder(table.getTableKey()), 54, TITLE);
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new RouletteNumberMenuHolder(table.getTableKey()), 54,
+                com.gamblingdex.pack.CasinoPack.ROULETTE_NUM_BG, TITLE);
         render(player, table, inv);
         player.openInventory(inv);
     }
@@ -129,7 +130,8 @@ public class RouletteNumberMenu {
         for (int k = 0; k < RING.length; k++) {
             int slot = RING[k];
             if (k >= order.length) {
-                inv.setItem(slot, pane(Material.YELLOW_STAINED_GLASS_PANE, "§6●"));
+                if (!com.gamblingdex.pack.CasinoPack.customGui()) // con el pack, el fondo pinta una bolita
+                    inv.setItem(slot, pane(Material.YELLOW_STAINED_GLASS_PANE, "§6●"));
                 continue;
             }
             int n = order[k];
@@ -161,6 +163,9 @@ public class RouletteNumberMenu {
             mineLore.add("");
             mineLore.add("§7Total en plenos: §e" + u(totalOnNumbers));
         }
+        mineLore.add("");
+        mineLore.add("§7Tus fichas: §e" + u(TokenWallet.balance(player)));
+        mineLore.add("§7En la mesa esta ronda: §e" + table.totalBet(id));
         inv.setItem(S_MINE, button("noop", Material.WRITABLE_BOOK, "§e§lTus plenos", mineLore));
 
         long last = table.lastBetTotal(id);
@@ -179,7 +184,6 @@ public class RouletteNumberMenu {
         inv.setItem(S_BACK, button("back", Material.ARROW, "§7« Volver", List.of("§7Al menú de apuestas")));
         // Solo las fichas que tiene en el inventario (con cuántas tiene)
         SortedMap<Integer, Integer> have = chipsInInventory(player);
-        long bal = TokenWallet.balance(player);
         List<Map.Entry<Integer, Integer>> owned = new ArrayList<>(have.entrySet());
         if (owned.isEmpty())
             inv.setItem(49, pane(Material.BARRIER, "§cNo tienes fichas en el inventario"));
@@ -200,10 +204,7 @@ public class RouletteNumberMenu {
             }
             inv.setItem(CHIP_SLOTS[k], it);
         }
-        inv.setItem(S_BALANCE, button("noop", Material.SUNFLOWER, "§7Tus fichas: §e" + u(bal),
-                List.of("§7En la mesa esta ronda: §e" + table.totalBet(id))));
-
-        for (int i = 0; i < inv.getSize(); i++)
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++)
             if (inv.getItem(i) == null)
                 inv.setItem(i, pane(i >= 45 ? Material.BLACK_STAINED_GLASS_PANE : Material.GREEN_STAINED_GLASS_PANE, " "));
     }

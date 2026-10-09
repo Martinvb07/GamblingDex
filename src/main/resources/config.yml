@@ -128,6 +128,7 @@ exchange:
     enabled: true
     id: exchange_machine        # nombre del modelo en ModelEngine
     hide_station: auto          # auto | always | never (esconder el telar y el holograma a quien ve el modelo)
+    collision: true             # la máquina es sólida (no se puede atravesar)
     y_offset_hidden: 0.0        # altura de la máquina con el telar escondido (en el suelo)
     y_offset: 1.0               # con hide_station: never, la máquina va encima del telar
     holo_extra_height: 2.1      # con hide_station: never, cuánto sube el holograma
@@ -248,3 +249,4 @@ chairs:
   enabled: true
   scale: 1.0          # tamaño del taburete
   sit_height: 0.45    # altura a la que queda sentado el jugador (súbela o bájala si se ve hundido o flotando)
+  collision: true     # la silla es sólida como un bloque

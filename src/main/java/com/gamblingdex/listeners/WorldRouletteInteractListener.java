@@ -45,6 +45,10 @@ public class WorldRouletteInteractListener implements Listener {
         }
 
         event.setCancelled(true);
+        // Con la mesa 3D el anillo no se ve (es suelo para los jugadores): se apuesta en la mesa
+        if (!table.isCenter(clicked) && plugin.getStationModels() != null
+                && plugin.getStationModels().ringHidden(table.getCenter()))
+            return;
         if (plugin.getMaintenance() != null
                 && !plugin.getMaintenance().allowTable(event.getPlayer(), "ruleta", table.getTableKey()))
             return;

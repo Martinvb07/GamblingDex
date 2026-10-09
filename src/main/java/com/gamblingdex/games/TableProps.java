@@ -32,6 +32,15 @@ public final class TableProps {
     /** custom_model_data de las cartas en el pack: CARD + palo*13 + valor; +52 dorso; +53 botón. */
     public static final int CARD_CMD = 7800, BACK = CARD_CMD + 52, DEALER = CARD_CMD + 53;
     private static final int SLIDE_TICKS = 6, FLIP_TICKS = 5;
+    /**
+     * Con la vista GROUND el modelo queda centrado en la entidad: la carta (y 0..0.3 del
+     * modelo, ground: subir 1, escala 0.5) queda 0.1875 * tamaño por debajo y la ficha
+     * (ground: subir 1, escala 0.45) 0.1625 * tamaño. Se sube eso para que se apoyen en el paño.
+     */
+    private static final float CARD_BOTTOM = 0.1875f, CARD_THICK = 0.3f / 16 * 0.5f;
+    public static final float CHIP_BOTTOM = 0.1625f;
+    /** Grosor de una ficha (aro + marcas: 1.75 del modelo, escala 0.45) por tamaño: así se apilan pegadas. */
+    public static final float CHIP_STEP = 1.75f / 16 * 0.45f;
 
     private final GamblingDexPlugin plugin;
 
@@ -109,8 +118,12 @@ public final class TableProps {
         Quaternionf flipped = new Quaternionf(rest).rotateZ((float) Math.PI);
         Vector3f startMove = mo.slideFrom() == null ? new Vector3f()
                 : new Vector3f((float) mo.slideFrom().getX(), 0.05f, (float) mo.slideFrom().getZ());
-        Vector3f lifted = new Vector3f(0, 0.06f * scale, 0); // boca abajo un poco más alta: no se mete en el paño
-        Vector3f start = new Vector3f(startMove).add(mo.flip() ? lifted : new Vector3f());
+        // Apoyada en el paño: boca arriba se sube lo que la vista GROUND la baja; boca abajo
+        // (girada 180° alrededor de la entidad) queda por encima y se baja.
+        float bottom = chip ? CHIP_BOTTOM : CARD_BOTTOM;
+        Vector3f restLift = new Vector3f(0, bottom * sz, 0);
+        Vector3f lifted = new Vector3f(0, (CARD_THICK - bottom) * sz + 0.004f, 0);
+        Vector3f start = new Vector3f(startMove).add(mo.flip() ? lifted : restLift);
         java.util.function.Consumer<ItemDisplay> setup = e -> {
             e.setItemStack(item);
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
@@ -129,14 +142,14 @@ public final class TableProps {
         // Animación: primero se desliza (si viene de otro lado), después se da vuelta
         int at1 = 2;
         if (mo.slideFrom() != null) {
-            Vector3f mid = mo.flip() ? lifted : new Vector3f();
+            Vector3f mid = mo.flip() ? lifted : restLift;
             Quaternionf rot = mo.flip() ? flipped : rest;
             Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d, mid, rot, size, SLIDE_TICKS), at1);
             at1 += SLIDE_TICKS + 1;
         }
         if (mo.flip())
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                animate(d, new Vector3f(), rest, size, FLIP_TICKS);
+                animate(d, restLift, rest, size, FLIP_TICKS);
                 if (d.isValid())
                     CasinoPack.soundNear(d.getLocation(), null, "poker.flip", Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.7f, 12);
             }, at1);
@@ -164,9 +177,10 @@ public final class TableProps {
         int count = (int) Math.max(1, Math.min(6, amount / Math.max(1, best)));
         ItemStack item = plugin.getTokenManager().createToken(mat, 1);
         Placed all = new Placed();
+        float size = 0.32f * scale;
         for (int i = 0; i < count; i++) {
-            Location l = at.clone().add(0, i * 0.075 * scale, 0);
-            all.ids.addAll(single(l, i * 23f, item, 0.32f * scale, null, true, mo).ids);
+            Location l = at.clone().add(0, i * CHIP_STEP * size, 0);
+            all.ids.addAll(single(l, i * 23f, item, size, null, true, mo).ids);
         }
         return all;
     }
@@ -178,7 +192,8 @@ public final class TableProps {
                 continue;
             Transformation t = d.getTransformation();
             Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d,
-                    new Vector3f((float) move.getX(), 0, (float) move.getZ()), t.getLeftRotation(), t.getScale(), ticks), 2L);
+                    new Vector3f((float) move.getX(), t.getTranslation().y(), (float) move.getZ()),
+                    t.getLeftRotation(), t.getScale(), ticks), 2L);
         }
         Bukkit.getScheduler().runTaskLater(plugin, () -> remove(p), removeAfter);
     }

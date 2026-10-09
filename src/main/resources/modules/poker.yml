@@ -119,6 +119,7 @@ model:
   enabled: true
   id: poker_table             # nombre del modelo en ModelEngine
   scale: auto                 # auto = el borde llega justo delante de los asientos; o un número
+  collision: true             # la mesa es sólida (no se puede atravesar)
   hide_station: auto          # auto | always | never (esconder el bloque del centro a quien ve la mesa)
   y_offset_hidden: 0.0
   y_offset: 1.0

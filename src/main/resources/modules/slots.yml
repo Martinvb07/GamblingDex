@@ -134,6 +134,7 @@ model:
   # (solo en su pantalla; la estación sigue igual). auto = a todos si el pack es obligatorio o no
   # lo manda GamblingDex; si es opcional, solo a quien lo aceptó. always | never
   hide_station: auto
+  collision: true             # la máquina es sólida (no se puede atravesar)
   y_offset_hidden: 0.0        # altura de la máquina cuando la mesa está escondida (en el suelo)
   y_offset: 0.75              # con hide_station: never, la máquina va encima de la mesa (mide 0.75)
   holo_extra_height: 2.1      # con hide_station: never, cuánto sube el holograma

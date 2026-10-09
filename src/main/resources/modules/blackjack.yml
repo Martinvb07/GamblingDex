@@ -174,5 +174,6 @@ model:
   enabled: true
   id: blackjack_table         # nombre del modelo en ModelEngine
   scale: auto                 # auto = el borde llega justo delante de los asientos; o un número
+  collision: true             # la mesa es sólida (no se puede atravesar)
   hide_station: never         # el dealer está parado sobre el bloque del centro
   y_offset: 1.0               # a los pies del dealer

@@ -17,7 +17,7 @@ import java.util.*;
  * resource_pack.custom_cards), con o sin la mesa 3D de ModelEngine:
  * <ul>
  * <li>Las cartas salen del zapato y se deslizan; las de cada jugador quedan en escalera
- * delante de su asiento (las manos divididas una al lado de la otra).</li>
+ * en el borde de la mesa delante de su asiento (las manos divididas una al lado de la otra).</li>
  * <li>La segunda carta del dealer queda boca abajo y se da vuelta cuando le toca.</li>
  * <li>La apuesta en el círculo (y las laterales al lado). Al resolver: si gana, el pago sale
  * de la bandeja del dealer y todo se desliza hacia el jugador; si pierde, el dealer se lleva
@@ -101,8 +101,10 @@ public class BlackjackVisuals {
             return l;
         }
 
-        Location arcCenter() {
-            return at(0, -6, 0);
+        /** Punto del mundo en unidades del modelo: {x, z}. */
+        double[] local(Location l) {
+            Vector d = l.toVector().subtract(base.toVector()).setY(0);
+            return new double[] { d.dot(right) / k, -d.dot(front) / k };
         }
     }
 
@@ -120,7 +122,7 @@ public class BlackjackVisuals {
             yaw = facing(table, st, base);
             // Sin mesa 3D: el paño "virtual" escala con lo lejos que están los asientos
             double avg = avgSeatDistance(st, base);
-            scale = Math.max(0.5, Math.min(1.2, (avg - 0.55) * 16.0 / 56.0));
+            scale = Math.max(0.5, Math.min(1.2, (avg - 0.55) * 16.0 / 60.0));
             y = table.getCenter().getY() + 1
                     + plugin.getConfig().getDouble("blackjack.visuals.table_height", 1.0);
         }
@@ -172,7 +174,7 @@ public class BlackjackVisuals {
         List<Card> dealer = st.dealer();
         int cards = dealer.size();
         for (int i = 0; i < dealer.size(); i++) {
-            Location at = lay.at((i - (dealer.size() - 1) / 2.0) * 7.5, -17, i * 0.004);
+            Location at = lay.at((i - (dealer.size() - 1) / 2.0) * 7.5, -19, i * 0.004);
             boolean back = st.dealerHidden() && i == 1;
             int face = TableProps.cmd(dealer.get(i));
             String key = "dealer:" + i;
@@ -184,18 +186,26 @@ public class BlackjackVisuals {
                     props.single(at, dealerFacing, TableProps.cardItem(shown), s, null, false, mo)));
         }
 
-        // Jugadores
+        // Jugadores: todo va en el borde del paño más cercano a su asiento (mesa rectangular:
+        // paño x -48..48, z -54..-6; la franja de z > -22 es del dealer)
         long betTotal = 0;
-        Location arc = lay.arcCenter();
         for (BlackjackTable.PlayerView pv : st.players()) {
-            if (pv.seat() == null || pv.seat().getWorld() != arc.getWorld())
+            if (pv.seat() == null || pv.seat().getWorld() != lay.base().getWorld())
                 continue;
-            Vector u = new Vector(pv.seat().getX() + 0.5 - arc.getX(), 0, pv.seat().getZ() + 0.5 - arc.getZ());
+            Location seatAt = pv.seat().clone().add(0.5, 0, 0.5);
+            double[] sl = lay.local(seatAt);
+            double qx = Math.max(-44, Math.min(44, sl[0])), qz = Math.max(-50, Math.min(-22, sl[1]));
+            Location edge = lay.at(qx, qz, 0);
+            // u: del asiento hacia la mesa
+            Vector u = edge.toVector().subtract(seatAt.toVector()).setY(0);
+            if (u.lengthSquared() < 1e-4)
+                u = lay.at(0, -30, 0).toVector().subtract(seatAt.toVector()).setY(0);
             if (u.lengthSquared() < 1e-4)
                 continue;
             u.normalize();
+            Vector toPlayer = u.clone().multiply(-1);
             Vector side = new Vector(-u.getZ(), 0, u.getX());
-            float yaw = TableProps.yawFacing(u);
+            float yaw = TableProps.yawFacing(toPlayer);
             List<BlackjackTable.HandView> hands = pv.hands();
             int nh = Math.max(1, hands.size());
             for (int h = 0; h < nh; h++) {
@@ -206,9 +216,9 @@ public class BlackjackVisuals {
                 // Cartas en escalera
                 if (hv != null)
                     for (int k = 0; k < hv.cards().size(); k++) {
-                        Vector off = u.clone().multiply(25 * lay.k() - k * 0.09 * s).add(shift)
+                        Vector off = u.clone().multiply(18 * lay.k() - k * 0.09 * s).add(shift)
                                 .add(side.clone().multiply(k * 0.07 * s));
-                        Location at = point(arc, off, lay.y(), k * 0.004);
+                        Location at = point(edge, off, lay.y(), k * 0.004);
                         int face = TableProps.cmd(hv.cards().get(k));
                         String key = "card:" + handKey + ":" + k;
                         want.put(key, "c" + face);
@@ -223,7 +233,7 @@ public class BlackjackVisuals {
                 if (bet <= 0 || view.settled.contains(handKey))
                     continue;
                 betTotal += bet;
-                Location betAt = point(arc, u.clone().multiply(34 * lay.k()).add(shift), lay.y(), 0);
+                Location betAt = point(edge, u.clone().multiply(4 * lay.k()).add(shift), lay.y(), 0);
                 String key = "bet:" + handKey;
                 String result = hv == null ? null : hv.result();
                 if (result != null && !result.contains("EMPATE")) {
@@ -231,13 +241,13 @@ public class BlackjackVisuals {
                     view.settled.add(handKey);
                     TableProps.Placed chips = view.placed.remove(key);
                     boolean won = result.contains("+");
-                    settle(chips, betAt, tray, bet, u, won, s);
+                    settle(chips, betAt, tray, bet, toPlayer, won, s);
                     if (won)
                         CasinoPack.soundNear(betAt, null, "poker.win", Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.5f, 12);
                     continue;
                 }
                 want.put(key, "b" + bet);
-                TableProps.Motion mo = new TableProps.Motion(u.clone().multiply(0.5 * s), false); // desde el jugador
+                TableProps.Motion mo = new TableProps.Motion(toPlayer.clone().multiply(0.5 * s), false); // desde el jugador
                 spawners.put(key, () -> view.placed.put(key, props.chips(betAt, bet, s, mo)));
             }
 
@@ -247,7 +257,7 @@ public class BlackjackVisuals {
                 if (sideBets[b] <= 0 || (!hands.isEmpty() && st.resultsShown()))
                     continue;
                 long amount = sideBets[b];
-                Location at = point(arc, u.clone().multiply(30 * lay.k()).add(side.clone().multiply((b == 0 ? -0.36 : 0.36) * s)),
+                Location at = point(edge, u.clone().multiply(4 * lay.k()).add(side.clone().multiply((b == 0 ? -0.36 : 0.36) * s)),
                         lay.y(), 0);
                 String key = "side:" + pv.id() + ":" + b;
                 want.put(key, "b" + amount);
@@ -310,8 +320,8 @@ public class BlackjackVisuals {
         }, 20L);
     }
 
-    private static Location point(Location arc, Vector off, double y, double lift) {
-        Location at = arc.clone().add(off);
+    private static Location point(Location from, Vector off, double y, double lift) {
+        Location at = from.clone().add(off);
         at.setY(y + 0.005 + lift);
         return at;
     }
