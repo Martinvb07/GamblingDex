@@ -381,6 +381,13 @@
           "type": "minecraft:model",
           "model": "gamblingdex:item/card/dealer"
         }
+      },
+      {
+        "threshold": 7854,
+        "model": {
+          "type": "minecraft:model",
+          "model": "gamblingdex:item/card/stool"
+        }
       }
     ],
     "fallback": {

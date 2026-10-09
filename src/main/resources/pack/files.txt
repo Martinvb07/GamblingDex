@@ -58,6 +58,7 @@ assets/gamblingdex/models/item/card/spades_a.json
 assets/gamblingdex/models/item/card/spades_j.json
 assets/gamblingdex/models/item/card/spades_k.json
 assets/gamblingdex/models/item/card/spades_q.json
+assets/gamblingdex/models/item/card/stool.json
 assets/gamblingdex/models/item/chip.json
 assets/gamblingdex/models/item/chip_black.json
 assets/gamblingdex/models/item/chip_blue.json
@@ -140,6 +141,7 @@ assets/gamblingdex/textures/item/card/spades_a.png
 assets/gamblingdex/textures/item/card/spades_j.png
 assets/gamblingdex/textures/item/card/spades_k.png
 assets/gamblingdex/textures/item/card/spades_q.png
+assets/gamblingdex/textures/item/card/stool.png
 assets/gamblingdex/textures/item/chip_black.png
 assets/gamblingdex/textures/item/chip_blue.png
 assets/gamblingdex/textures/item/chip_gray.png

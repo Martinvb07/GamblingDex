@@ -230,6 +230,7 @@ resource_pack:
   custom_chips: false      # fichas en 3D (en la mano, el inventario, el suelo y los marcos).
                            # Las que ya tengan los jugadores se actualizan al entrar al server.
   custom_cards: false      # póker: cartas, fichas y botón del dealer en 3D sobre la mesa
+  custom_chairs: false     # taburetes de casino en los asientos de póker y blackjack (click derecho = sentarse)
   modelengine_pack: ""     # ruta al pack de ModelEngine si no está en plugins/ModelEngine/resource pack
   send:
     enabled: false         # mandar el pack a cada jugador al entrar
@@ -237,3 +238,13 @@ resource_pack:
     sha1: ""               # el SHA-1 que muestra /gdx pack (si cambias el zip, cámbialo)
     required: false        # true = quien lo rechace no puede entrar
     prompt: "&6GamblingDex &7usa un resource pack para los menús y sonidos del casino."
+
+# ======================
+# SILLAS (taburetes de casino)
+# ======================
+# Con resource_pack.custom_chairs: true sale un taburete en cada asiento de las mesas de
+# póker y blackjack. Click derecho = sentarse (cuenta como estar en el asiento), shift = pararse.
+chairs:
+  enabled: true
+  scale: 1.0          # tamaño del taburete
+  sit_height: 0.45    # altura a la que queda sentado el jugador (súbela o bájala si se ve hundido o flotando)

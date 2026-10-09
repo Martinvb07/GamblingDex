@@ -327,6 +327,12 @@
         "custom_model_data": 7853
       },
       "model": "gamblingdex:item/card/dealer"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 7854
+      },
+      "model": "gamblingdex:item/card/stool"
     }
   ]
 }

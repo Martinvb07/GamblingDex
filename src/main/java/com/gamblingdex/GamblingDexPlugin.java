@@ -55,6 +55,7 @@ public class GamblingDexPlugin extends JavaPlugin {
     private PokerManager pokerManager;
     private com.gamblingdex.games.poker.PokerVisuals pokerVisuals;
     private com.gamblingdex.games.blackjack.BlackjackVisuals blackjackVisuals;
+    private com.gamblingdex.games.Chairs chairs;
 
     private com.gamblingdex.modules.ModuleManager moduleManager;
 
@@ -156,6 +157,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             pokerVisuals.start();
         if (blackjackVisuals != null)
             blackjackVisuals.start();
+        if (chairs != null)
+            chairs.start();
         if (moduleManager != null)
             moduleManager.reloadAll();
         if (stationModels != null)
@@ -255,6 +258,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         this.pokerManager = new PokerManager(this);
         this.pokerVisuals = new com.gamblingdex.games.poker.PokerVisuals(this);
         this.blackjackVisuals = new com.gamblingdex.games.blackjack.BlackjackVisuals(this);
+        this.chairs = new com.gamblingdex.games.Chairs(this);
 
         this.stationManager = new StationManager(this);
 
@@ -266,6 +270,8 @@ public class GamblingDexPlugin extends JavaPlugin {
         stationModels.start();
         pokerVisuals.start();
         blackjackVisuals.start();
+        getServer().getPluginManager().registerEvents(chairs, this);
+        chairs.start();
         new com.gamblingdex.games.JackpotBell(this).start();
         this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
@@ -361,6 +367,8 @@ public class GamblingDexPlugin extends JavaPlugin {
                 pokerVisuals.stop();
             if (blackjackVisuals != null)
                 blackjackVisuals.stop();
+            if (chairs != null)
+                chairs.stop();
         } catch (Throwable ignored) {
         }
         try {

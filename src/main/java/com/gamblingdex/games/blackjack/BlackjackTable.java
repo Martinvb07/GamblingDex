@@ -1003,6 +1003,11 @@ public class BlackjackTable {
         Block feet = player.getLocation().getBlock();
         Block below = feet.getRelative(BlockFace.DOWN);
 
+        // Sentado en la silla de un asiento de esta mesa
+        String sitting = com.gamblingdex.games.Chairs.sittingKey(player);
+        if (sitting != null && seatKeys.contains(sitting))
+            return true;
+
         if (mode.equals("manual")) {
             if (seatKeys.isEmpty())
                 return false;
@@ -1040,6 +1045,10 @@ public class BlackjackTable {
 
         if (seatKeys.isEmpty())
             return null;
+
+        String sitting = com.gamblingdex.games.Chairs.sittingKey(player);
+        if (sitting != null && seatKeys.contains(sitting))
+            return sitting;
 
         Block feet = player.getLocation().getBlock();
         Block below = feet.getRelative(BlockFace.DOWN);

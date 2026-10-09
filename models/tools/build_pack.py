@@ -678,6 +678,46 @@ def card_model():
     }
 
 
+def stool():
+    """Taburete de casino (silla de las mesas de poker y blackjack): CARD_CMD + 54."""
+    texd = mkdir_p(os.path.join(NS, 'textures', 'item', 'card'))
+    img = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    rng = np.random.default_rng(11)
+    px = img.load()
+    for y in range(16):
+        for x in range(16):
+            px[x, y] = tuple(int(v) for v in rng.choice([(176, 24, 36), (160, 20, 32), (190, 30, 42)])) + (255,)  # cuero rojo
+            px[16 + x, y] = tuple(int(v) for v in rng.choice([(200, 204, 212), (180, 184, 194), (226, 230, 236)])) + (255,)  # cromo
+            px[x, 16 + y] = tuple(int(v) for v in rng.choice([(232, 180, 32), (242, 194, 48), (217, 165, 20)])) + (255,)  # dorado
+            px[16 + x, 16 + y] = tuple(int(v) for v in rng.choice([(30, 30, 36), (24, 24, 30), (36, 36, 42)])) + (255,)  # base
+    for x in range(16):  # botones del cuero
+        for y in range(16):
+            if x % 5 == 2 and y % 5 == 2:
+                px[x, y] = (120, 12, 22, 255)
+    img.save(os.path.join(texd, 'stool.png'))
+    T = lambda u: {'uv': u, 'texture': '#t'}
+    red, chrome, gold, dark = [0, 0, 8, 8], [8, 0, 16, 8], [0, 8, 8, 16], [8, 8, 16, 16]
+    def box(name, f, t, uv, top=None):
+        return {'name': name, 'from': f, 'to': t, 'faces': {k: T(top if (top and k in ('up', 'down')) else uv)
+                                                             for k in ('north', 'south', 'east', 'west', 'up', 'down')}}
+    els = [
+        box('base_a', [3, 0, 5], [13, 0.8, 11], dark), box('base_b', [5, 0, 3], [11, 0.8, 13], dark),
+        box('pole', [7.2, 0.8, 7.2], [8.8, 9.4, 8.8], chrome),
+        box('foot_n', [4.5, 4, 4.2], [11.5, 4.6, 4.8], chrome), box('foot_s', [4.5, 4, 11.2], [11.5, 4.6, 11.8], chrome),
+        box('foot_w', [4.2, 4, 4.5], [4.8, 4.6, 11.5], chrome), box('foot_e', [11.2, 4, 4.5], [11.8, 4.6, 11.5], chrome),
+        box('arm_x', [4.5, 4, 7.6], [11.5, 4.5, 8.4], chrome), box('arm_z', [7.6, 4, 4.5], [8.4, 4.5, 11.5], chrome),
+        box('rim_a', [2, 9.4, 4.5], [14, 10, 11.5], gold), box('rim_b', [4.5, 9.4, 2], [11.5, 10, 14], gold),
+        box('seat_a', [2.3, 10, 4.7], [13.7, 11.6, 11.3], red), box('seat_b', [4.7, 10, 2.3], [11.3, 11.6, 13.7], red),
+        box('seat_c', [3.3, 10, 3.3], [12.7, 11.6, 12.7], red),
+        box('cushion', [4, 11.6, 4], [12, 12.1, 12], red),
+    ]
+    write_json(os.path.join(NS, 'models', 'item', 'card', 'stool.json'), {
+        'credit': 'GamblingDex', 'texture_size': [32, 32],
+        'textures': {'t': 'gamblingdex:item/card/stool', 'particle': 'gamblingdex:item/card/stool'},
+        'elements': els,
+        'display': {'gui': {'rotation': [30, 45, 0], 'scale': [0.7, 0.7, 0.7]}, 'fixed': {}, 'ground': {'scale': [0.5, 0.5, 0.5]}}})
+
+
 def cards():
     texd = mkdir_p(os.path.join(NS, 'textures', 'item', 'card'))
     card_back().save(os.path.join(texd, 'back.png'))
@@ -692,6 +732,8 @@ def cards():
     names.append((CARD_CMD + 52, 'back'))
     for cmd, name in names:
         model = 'gamblingdex:item/card/' + name
+        if name in ('dealer', 'stool'):
+            continue
         write_json(os.path.join(NS, 'models', 'item', 'card', name + '.json'), {
             'parent': 'gamblingdex:item/card',
             'textures': {'front': model, 'back': 'gamblingdex:item/card/back', 'particle': model}})
@@ -713,6 +755,8 @@ def cards():
         'parent': 'gamblingdex:item/chip',
         'textures': {'chip': 'gamblingdex:item/card/dealer', 'particle': 'gamblingdex:item/card/dealer'}})
     names.append((CARD_CMD + 53, 'dealer'))
+    stool()
+    names.append((CARD_CMD + 54, 'stool'))
     for cmd, name in names:
         model = 'gamblingdex:item/card/' + name
         overrides.append({'predicate': {'custom_model_data': cmd}, 'model': model})

@@ -114,6 +114,15 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
     del dealer y **todo se desliza hacia ti**; si pierdes, **el dealer se lleva las fichas**.
   - Sonidos de cartas, volteo, fichas y premio para los que están cerca.
 
+## Sillas (taburetes de casino)
+
+![taburete](previews/stool.png)
+
+Con `resource_pack.custom_chairs: true` sale un taburete (asiento rojo acolchado, borde dorado,
+pata cromada) en cada asiento de las mesas de póker y blackjack, mirando hacia la mesa.
+**Click derecho = sentarse**, shift = pararse. Estar sentado cuenta como estar en ese asiento.
+Opciones en `config.yml → chairs` (`scale`, `sit_height`).
+
 ## Fichas en 3D (resource pack)
 
 ![fichas](previews/chips.png)

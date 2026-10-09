@@ -374,7 +374,8 @@ public class PokerTable {
             if (p.getLocation().distanceSquared(seatCenter) > 4.0)
                 continue;
             Block feet = p.getLocation().getBlock();
-            if (feet.equals(seatBlock) || feet.getRelative(BlockFace.DOWN).equals(seatBlock)) {
+            if (feet.equals(seatBlock) || feet.getRelative(BlockFace.DOWN).equals(seatBlock)
+                    || com.gamblingdex.games.Chairs.isSittingOn(p, seatBlock)) {
                 return p;
             }
         }
