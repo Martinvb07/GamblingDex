@@ -138,11 +138,9 @@ public class TokenManager {
                 }
             }
 
-            if (config.contains("currency.token.custom-model-data")) {
-                int cmd = config.getInt("currency.token.custom-model-data", 0);
-                if (cmd > 0)
-                    meta.setCustomModelData(cmd);
-            }
+            int cmd = chipModelData(config);
+            if (cmd > 0)
+                meta.setCustomModelData(cmd);
 
             boolean glow = config.getBoolean("currency.token.glow", true);
             if (glow) {
@@ -163,6 +161,37 @@ public class TokenManager {
         }
 
         return item;
+    }
+
+    /**
+     * custom_model_data de las fichas: el que ponga el admin (currency.token.custom-model-data)
+     * o, con resource_pack.custom_chips, el de las fichas 3D del pack de GamblingDex.
+     */
+    public static int chipModelData(FileConfiguration config) {
+        int cmd = config.getInt("currency.token.custom-model-data", 0);
+        if (cmd > 0)
+            return cmd;
+        return config.getBoolean("resource_pack.custom_chips", false) ? CHIP_MODEL_DATA : 0;
+    }
+
+    /** Debe coincidir con CHIP_CMD de models/tools/build_pack.py. */
+    public static final int CHIP_MODEL_DATA = 7701;
+
+    /** Pone (o quita) el modelo 3D a las fichas que ya tenía el jugador. Devuelve cuántos stacks cambió. */
+    public int refreshChipModels(org.bukkit.inventory.Inventory inv) {
+        int want = chipModelData(plugin.getConfig()), changed = 0;
+        for (ItemStack it : inv.getContents()) {
+            if (!isToken(it))
+                continue;
+            ItemMeta meta = it.getItemMeta();
+            int have = meta.hasCustomModelData() ? meta.getCustomModelData() : 0;
+            if (have == want || (have != CHIP_MODEL_DATA && have != 0))
+                continue; // ya está bien, o es un modelo propio del admin
+            meta.setCustomModelData(want > 0 ? want : null);
+            it.setItemMeta(meta);
+            changed++;
+        }
+        return changed;
     }
 
     // Convierte un color legacy (&x) a nombre JSON ("red", "gray", etc)

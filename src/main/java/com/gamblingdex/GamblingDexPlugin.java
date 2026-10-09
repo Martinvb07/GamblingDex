@@ -154,6 +154,11 @@ public class GamblingDexPlugin extends JavaPlugin {
             moduleManager.reloadAll();
         if (slotsModels != null)
             slotsModels.start();
+        if (tokenManager != null) // fichas 3D on/off (resource_pack.custom_chips)
+            for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
+                tokenManager.refreshChipModels(p.getInventory());
+                tokenManager.refreshChipModels(p.getEnderChest());
+            }
         if (achievements != null)
             achievements.reload();
         if (schedule != null)

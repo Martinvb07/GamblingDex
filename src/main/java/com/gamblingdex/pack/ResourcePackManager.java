@@ -160,6 +160,12 @@ public class ResourcePackManager implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        // Fichas que ya tenía: con (o sin) el modelo 3D según resource_pack.custom_chips
+        var tm = plugin.getTokenManager();
+        if (tm != null) {
+            tm.refreshChipModels(event.getPlayer().getInventory());
+            tm.refreshChipModels(event.getPlayer().getEnderChest());
+        }
         if (!plugin.getConfig().getBoolean("resource_pack.send.enabled", false))
             return;
         String url = plugin.getConfig().getString("resource_pack.send.url", "");

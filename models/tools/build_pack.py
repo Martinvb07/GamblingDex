@@ -245,6 +245,124 @@ def sounds():
     return s
 
 
+# ----------------------------------------------------------------------------
+# Fichas en 3D: un modelo de item (chip.json) + una textura por valor. Cada tinte
+# de ficha (TokenManager.DENOMS) se cambia por su ficha cuando el item tiene
+# custom_model_data = CHIP_CMD (1.20.4-1.21.3: overrides; 1.21.4+: items/*.json).
+# ----------------------------------------------------------------------------
+CHIP_CMD = 7701
+# tinte, nombre, color base, color de las marcas del canto
+CHIPS = [
+    ('yellow_dye', 'yellow', (236, 196, 36), (255, 255, 255)),
+    ('red_dye', 'red', (196, 28, 40), (255, 255, 255)),
+    ('blue_dye', 'blue', (36, 78, 196), (255, 255, 255)),
+    ('lime_dye', 'green', (52, 168, 60), (255, 255, 255)),
+    ('purple_dye', 'purple', (118, 46, 168), (255, 255, 255)),
+    ('orange_dye', 'orange', (232, 118, 20), (255, 255, 255)),
+    ('pink_dye', 'pink', (226, 104, 164), (255, 255, 255)),
+    ('black_dye', 'black', (34, 34, 40), (240, 196, 48)),
+    ('gray_dye', 'gray', (128, 128, 140), (240, 196, 48)),
+    ('white_dye', 'white', (236, 236, 236), (226, 170, 30)),
+]
+# Silueta redonda (en pixeles 0..16): union de 3 rectangulos [x1, y1, x2, y2]
+CHIP_RECTS = [(2, 5, 14, 11), (3, 3, 13, 13), (5, 2, 11, 14)]
+
+
+def shade(c, f):
+    return tuple(max(0, min(255, int(v * f))) for v in c)
+
+
+def chip_texture(base, mark):
+    img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+    px = img.load()
+    inside = lambda x, y: any(x1 <= x < x2 and y1 <= y < y2 for x1, y1, x2, y2 in CHIP_RECTS)
+    edge = lambda x, y: inside(x, y) and not all(inside(x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+    for y in range(2, 14):
+        for x in range(2, 14):
+            if not inside(x, y):
+                continue
+            px[x, y] = shade(base, 0.72) + (255,) if edge(x, y) else base + (255,)
+    # Marcas del canto (8 alrededor) en el anillo exterior
+    for x, y in [(7, 2), (8, 2), (7, 13), (8, 13), (2, 7), (2, 8), (13, 7), (13, 8),
+                 (4, 3), (3, 4), (11, 3), (12, 4), (3, 11), (4, 12), (12, 11), (11, 12)]:
+        px[x, y] = mark + (255,)
+    # Anillo interior punteado y centro
+    for x, y in [(5, 5), (6, 4), (9, 4), (10, 5), (11, 6), (11, 9), (10, 10), (9, 11), (6, 11), (5, 10), (4, 9), (4, 6)]:
+        px[x, y] = shade(mark, 0.9) + (255,)
+    for y in range(5, 11):
+        for x in range(5, 11):
+            if (x, y) in ((5, 5), (10, 5), (5, 10), (10, 10)):
+                continue
+            px[x, y] = shade(base, 1.12) + (255,)
+    # Rombo central (el "diamante" del casino)
+    for x, y in [(7, 6), (8, 6), (6, 7), (7, 7), (8, 7), (9, 7), (6, 8), (7, 8), (8, 8), (9, 8), (7, 9), (8, 9)]:
+        px[x, y] = mark + (255,)
+    px[7, 7] = (255, 255, 255, 255)
+    # Franja del canto (filas 0-1): color base con marcas cada 3 px
+    for x in range(16):
+        c = mark if x % 4 == 1 else shade(base, 0.85)
+        px[x, 0] = c + (255,)
+        px[x, 1] = shade(c, 0.8) + (255,)
+    return img
+
+
+def chip_model():
+    els = [{
+        'name': 'cara', 'from': [2, 2, 7], 'to': [14, 14, 9],
+        'faces': {'north': {'uv': [2, 2, 14, 14], 'texture': '#chip'},
+                  'south': {'uv': [14, 2, 2, 14], 'texture': '#chip'}}}]
+    for i, (x1, y1, x2, y2) in enumerate(CHIP_RECTS):
+        rim = lambda a, b: {'uv': [a, 0, b, 2], 'texture': '#chip'}
+        els.append({'name': 'canto_%d' % i, 'from': [x1, y1, 7.05], 'to': [x2, y2, 8.95],
+                    'faces': {'up': rim(x1, x2), 'down': rim(x1, x2), 'east': rim(y1, y2), 'west': rim(y1, y2)}})
+    return {
+        'credit': 'GamblingDex',
+        'texture_size': [16, 16],
+        'textures': {'chip': 'gamblingdex:item/chip_red', 'particle': 'gamblingdex:item/chip_red'},
+        'elements': els,
+        'display': {
+            'gui': {'rotation': [18, -22, 0], 'scale': [1.05, 1.05, 1.05]},
+            'ground': {'translation': [0, 2, 0], 'scale': [0.5, 0.5, 0.5]},
+            'fixed': {'rotation': [0, 180, 0]},
+            'head': {'translation': [0, 13, 7], 'scale': [0.8, 0.8, 0.8]},
+            'thirdperson_righthand': {'rotation': [70, 0, 0], 'translation': [0, 1.5, 2], 'scale': [0.5, 0.5, 0.5]},
+            'thirdperson_lefthand': {'rotation': [70, 0, 0], 'translation': [0, 1.5, 2], 'scale': [0.5, 0.5, 0.5]},
+            'firstperson_righthand': {'rotation': [0, -20, 10], 'translation': [1.5, 3.5, 1], 'scale': [0.6, 0.6, 0.6]},
+            'firstperson_lefthand': {'rotation': [0, -20, 10], 'translation': [1.5, 3.5, 1], 'scale': [0.6, 0.6, 0.6]},
+        },
+    }
+
+
+def write_json(path, data):
+    mkdir(os.path.dirname(path))
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+
+
+def chips():
+    write_json(os.path.join(NS, 'models', 'item', 'chip.json'), chip_model())
+    mc = os.path.join(PACK, 'assets', 'minecraft')
+    for dye, name, base, mark in CHIPS:
+        chip_texture(base, mark).save(os.path.join(mkdir_p(os.path.join(NS, 'textures', 'item')), 'chip_%s.png' % name))
+        model = 'gamblingdex:item/chip_' + name
+        write_json(os.path.join(NS, 'models', 'item', 'chip_%s.json' % name),
+                   {'parent': 'gamblingdex:item/chip', 'textures': {'chip': model, 'particle': model}})
+        # 1.20.4 - 1.21.3
+        write_json(os.path.join(mc, 'models', 'item', dye + '.json'), {
+            'parent': 'minecraft:item/generated', 'textures': {'layer0': 'minecraft:item/' + dye},
+            'overrides': [{'predicate': {'custom_model_data': CHIP_CMD}, 'model': model}]})
+        # 1.21.4+
+        write_json(os.path.join(mc, 'items', dye + '.json'), {'model': {
+            'type': 'minecraft:range_dispatch', 'property': 'minecraft:custom_model_data', 'index': 0,
+            'entries': [{'threshold': CHIP_CMD, 'model': {'type': 'minecraft:model', 'model': model}}],
+            'fallback': {'type': 'minecraft:model', 'model': 'minecraft:item/' + dye}}})
+
+
+def mkdir_p(p):
+    mkdir(p)
+    return p
+
+
 SUBTITLES = {
     'lever': 'Palanca de la tragamonedas', 'reel_tick': 'Rodillos girando', 'reel_stop': 'Rodillo se detiene',
     'win': 'Premio en la tragamonedas', 'jackpot': '¡Jackpot!', 'lose': 'Sin premio', 'coin': 'Monedas',
@@ -286,6 +404,8 @@ def main():
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)
+
+    chips()
 
     # Icono del pack: el fondo del menu recortado
     icon = Image.new('RGBA', (64, 64), (26, 10, 16, 255))
