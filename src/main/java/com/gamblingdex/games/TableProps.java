@@ -112,7 +112,8 @@ public final class TableProps {
         Location loc = at.clone();
         loc.setYaw(0);
         loc.setPitch(0);
-        float sz = chip ? scale : 0.62f * scale;
+        // Cartas grandes y legibles aunque la mesa sea chica
+        float sz = chip ? scale : 0.95f * Math.max(scale, 0.85f);
         Vector3f size = new Vector3f(sz, sz, sz);
         Quaternionf rest = new Quaternionf().rotateY((float) -Math.toRadians(yaw));
         Quaternionf flipped = new Quaternionf(rest).rotateZ((float) Math.PI);

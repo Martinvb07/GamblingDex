@@ -2191,9 +2191,24 @@ public class PokerTable {
             return;
 
         double h = plugin.getConfig().getDouble("poker.holo_height", 1.0);
+        var models = plugin.getStationModels();
+        if (models != null && models.pokerSurface(center) != null)
+            h += plugin.getConfig().getDouble("poker.model.holo_extra_height", 1.2); // encima de la mesa 3D, sin tapar el paño
         TextDisplay boardTd = ensureText(boardDisplayId, center.clone().add(0.5, h, 0.5));
         boardDisplayId = boardTd.getUniqueId();
         boardTd.setText(plugin.color(boardText()));
+        // Los que están sentados no lo ven (tapa la mesa; tienen su info en la barra y el menú)
+        boolean hideSeated = plugin.getConfig().getBoolean("poker.hide_board_holo_for_seated", true);
+        Set<UUID> seatedIds = new HashSet<>();
+        for (Seat st : seats)
+            if (st.player != null)
+                seatedIds.add(st.player);
+        for (Player viewer : center.getWorld().getPlayers()) {
+            if (hideSeated && seatedIds.contains(viewer.getUniqueId()))
+                viewer.hideEntity(plugin, boardTd);
+            else if (!viewer.canSee(boardTd))
+                viewer.showEntity(plugin, boardTd);
+        }
 
         for (int i = 0; i < seats.size(); i++) {
             Location sl = BlackjackTables.parseKey(seats.get(i).key);
