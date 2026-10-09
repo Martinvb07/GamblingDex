@@ -29,10 +29,10 @@ public class BlackjackActionMenu {
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(new BlackjackActionMenuHolder(table.getTableKey()), 27,
-                "§6§lBlackjack §8- §aTu turno");
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new BlackjackActionMenuHolder(table.getTableKey()), 27,
+                com.gamblingdex.pack.CasinoPack.BJ_ACTION_BG, "§6§lBlackjack §8- §aTu turno");
 
-        for (int i = 0; i < inv.getSize(); i++) {
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             if (i < 9 || i > 17 || i % 9 == 0 || i % 9 == 8) {
                 inv.setItem(i, MenuUtils.createButton("", Material.WHITE_STAINED_GLASS_PANE));
             } else {

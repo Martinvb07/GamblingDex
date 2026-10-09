@@ -25,6 +25,10 @@ CH_BACK_8 = ''      # -8 px: del inicio del titulo al borde izquierdo del men
 CH_BACK_169 = ''    # -169 px: tras el fondo (176+1) vuelve a x=8 para el texto
 CH_SLOTS_BG = ''    # fondo del menu de slots
 CH_EXCHANGE_BG = '\uE101' # fondo del menu de cambio
+CH_POKER_ACTION_BG = '\uE102'  # menu de acciones del poker
+CH_POKER_BUYIN_BG = '\uE103'   # menu de comprar fichas del poker
+CH_BJ_ACTION_BG = '\uE104'     # menu de acciones del blackjack
+CH_BJ_BET_BG = '\uE105'        # menu de apuestas del blackjack
 
 
 def mkdir(p):
@@ -283,6 +287,149 @@ def exchange_background():
         item_slot(d, 5, c, frame=frame)
     x1, y1, x2, y2 = slot_box(5, 4)
     d.rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), outline=GOLD_L)
+    return img
+
+
+# ----------------------------------------------------------------------------
+# Fondos de los menus de poker y blackjack: pano verde con borde de madera, botones
+# de color segun la accion (mismas casillas que PokerActionMenu, PokerBuyInMenu,
+# BlackjackActionMenu y BlackjackBetMenu).
+# ----------------------------------------------------------------------------
+WOOD, WOOD_D, WOOD_L = (107, 61, 23), (70, 40, 14), (130, 78, 32)
+RED_B, GREEN_B, GOLD_B, BLUE_B, ORANGE_B, GREY_B = (210, 40, 46), (60, 190, 80), (240, 190, 50), (60, 130, 220), (240, 120, 30), (130, 130, 140)
+
+
+def felt_menu(rows):
+    """Base: borde de madera, franja del titulo y pano verde con textura."""
+    w, h = 176, 17 + rows * 18 + 7
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(rows * 7 + 1)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=WOOD_D)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=WOOD)
+    for _ in range(500):
+        x, y = int(rng.integers(1, w - 1)), int(rng.integers(1, h - 1))
+        d.point((x, y), fill=[WOOD_D, WOOD_L][int(rng.integers(0, 2))])
+    d.rectangle((3, 3, w - 4, h - 4), fill=GRN)
+    for _ in range(int(w * h / 3)):
+        x, y = int(rng.integers(3, w - 3)), int(rng.integers(3, h - 3))
+        d.point((x, y), fill=[GRN_D, GRN_L, (13, 74, 44)][int(rng.integers(0, 3))])
+    d.rectangle((3, 3, w - 4, 15), fill=(6, 32, 15))
+    d.line([(3, 16), (w - 4, 16)], fill=GOLD)
+    for x in range(5, w - 4, 4):
+        d.point((x, 4), fill=GOLD_L if (x // 4) % 2 else GOLD_D)
+        d.point((x + 2, 14), fill=GOLD_L if (x // 4) % 2 == 0 else GOLD_D)
+    return img, d
+
+
+def button_slot(d, r, c, color, wide=False):
+    """Casilla de boton con marco del color de la accion (y brillo arriba)."""
+    x1, y1, x2, y2 = slot_box(r, c)
+    pad = 2 if wide else 1
+    d.rounded_rectangle((x1 - pad, y1 - pad, x2 + pad, y2 + pad), radius=3, fill=tuple(int(v * 0.55) for v in color))
+    d.rounded_rectangle((x1 - pad + 1, y1 - pad + 1, x2 + pad - 1, y2 + pad - 1), radius=2, fill=color)
+    bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
+    d.line([(x1, y1 - pad + 1), (x2, y1 - pad + 1)], fill=tuple(min(255, int(v * 1.35)) for v in color))
+
+
+def info_slot(d, r, c, color=GOLD):
+    x1, y1, x2, y2 = slot_box(r, c)
+    d.rectangle((x1, y1, x2, y2), fill=color)
+    bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
+
+
+def chip_deco(d, cx, cy, color, mark=(255, 255, 255)):
+    """Fichita decorativa (8 px) para los huecos libres."""
+    d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=tuple(int(v * 0.7) for v in color))
+    d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=color)
+    for dx, dy in ((0, -3), (0, 3), (-3, 0), (3, 0)):
+        d.point((cx + dx, cy + dy), fill=mark)
+    d.ellipse((cx - 1, cy - 1, cx + 1, cy + 1), fill=mark)
+
+
+def card_deco(d, x, y, red=True):
+    """Cartita decorativa (9 x 12)."""
+    d.rounded_rectangle((x, y, x + 8, y + 11), radius=1, fill=(250, 250, 246), outline=(170, 170, 165))
+    col = (204, 26, 40) if red else (26, 26, 30)
+    d.polygon([(x + 4, y + 3), (x + 6, y + 5), (x + 4, y + 8), (x + 2, y + 5)], fill=col)
+
+
+def vitrine(d, r1, r2, c1, c2):
+    """Vitrina de fichas (fieltro rojo con marco dorado) como en el menu de cambio."""
+    vx1, vy1 = slot_box(r1, c1)[0] - 3, slot_box(r1, c1)[1] - 3
+    vx2, vy2 = slot_box(r2, c2)[2] + 3, slot_box(r2, c2)[3] + 3
+    d.rectangle((vx1 - 1, vy1 - 1, vx2 + 1, vy2 + 1), fill=GOLD_D)
+    d.rectangle((vx1, vy1, vx2, vy2), fill=GOLD)
+    d.rectangle((vx1 + 2, vy1 + 2, vx2 - 2, vy2 - 2), fill=(90, 15, 24))
+    for r in range(r1, r2 + 1):
+        for c in range(c1, c2 + 1):
+            bevel(d, slot_box(r, c), (60, 8, 16), (130, 30, 40))
+
+
+def poker_action_background():
+    img, d = felt_menu(6)
+    # linea dorada ovalada del pano
+    d.rounded_rectangle((12, 22, 163, 122), radius=40, outline=GOLD_D)
+    # fila 1: tus cartas (blanco), mesa (dorado), jugadores (azul)
+    info_slot(d, 1, 2, (240, 240, 232)); info_slot(d, 1, 4, GOLD); info_slot(d, 1, 6, BLUE_B)
+    card_deco(d, 9, 21, True); card_deco(d, 157, 21, False)
+    # fila 3: retirarse, pasar/igualar, subir, all-in
+    button_slot(d, 3, 2, RED_B, True); button_slot(d, 3, 4, GREEN_B, True)
+    button_slot(d, 3, 6, GOLD_B, True); button_slot(d, 3, 8, ORANGE_B, True)
+    # fila 4: ajustar la subida
+    x1 = slot_box(4, 1)[0] - 2; x2 = slot_box(4, 8)[2] + 2; y1 = slot_box(4, 1)[1] - 2; y2 = slot_box(4, 1)[3] + 2
+    d.rectangle((x1, y1, x2, y2), fill=(6, 32, 15))
+    for c, col in ((1, RED_B), (2, RED_B), (3, GOLD_B), (4, GOLD_B), (5, GOLD_B), (6, GOLD_B), (7, GREEN_B), (8, GREEN_B)):
+        info_slot(d, 4, c, tuple(int(v * 0.85) for v in col))
+    # fila 5: cerrar + fichas de adorno
+    button_slot(d, 5, 4, GREY_B)
+    for i, col in enumerate([(196, 28, 40), (36, 78, 196), (52, 168, 60), (34, 34, 40)]):
+        chip_deco(d, 30 + i * 11, 113, col)
+        chip_deco(d, 115 + i * 11, 113, col)
+    return img
+
+
+def poker_buyin_background():
+    img, d = felt_menu(4)
+    vitrine(d, 1, 2, 1, 7)
+    info_slot(d, 2, 4, GOLD)          # 22 = info (en la vitrina)
+    info_slot(d, 2, 6, BLUE_B)        # 24 = consejo
+    button_slot(d, 3, 4, GREY_B)      # 31 = cerrar
+    for i, col in enumerate([(196, 28, 40), (36, 78, 196), (52, 168, 60)]):
+        chip_deco(d, 24 + i * 11, 77, col)
+        chip_deco(d, 130 + i * 11, 77, col)
+    return img
+
+
+def bj_action_background():
+    img, d = felt_menu(3)
+    d.arc((20, -40, 155, 60), 20, 160, fill=GOLD_D)   # arco del seguro
+    info_slot(d, 0, 4, (240, 240, 232))               # 4 = tu mano
+    info_slot(d, 2, 4, (200, 120, 60))                # 22 = dealer
+    button_slot(d, 1, 1, GREEN_B, True)               # 10 pedir
+    button_slot(d, 1, 3, GOLD_B, True)                # 12 doblar
+    button_slot(d, 1, 5, BLUE_B, True)                # 14 dividir
+    button_slot(d, 1, 7, RED_B, True)                 # 16 plantarse
+    card_deco(d, 12, 57, True); card_deco(d, 22, 57, False)
+    card_deco(d, 145, 57, False); card_deco(d, 155, 57, True)
+    return img
+
+
+def bj_bet_background():
+    img, d = felt_menu(4)
+    vitrine(d, 1, 2, 1, 7)
+    info_slot(d, 2, 4, GOLD)           # 22 info
+    info_slot(d, 2, 5, (240, 240, 232))  # 23 tabla de pagos
+    info_slot(d, 2, 6, RED_B)          # 24 retirar
+    info_slot(d, 2, 7, GREEN_B)        # 25 repetir
+    button_slot(d, 2, 8, GREY_B)       # 26 cerrar
+    # fila 3: los 3 circulos de apuesta (principal, parejas, 21+3)
+    for c, col in ((2, GOLD_B), (4, (190, 90, 220)), (6, (60, 200, 210))):
+        x1, y1, x2, y2 = slot_box(3, c)
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        d.ellipse((cx - 11, cy - 11, cx + 11, cy + 11), outline=(242, 242, 234), width=1)
+        d.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill=tuple(int(v * 0.35) for v in col), outline=col)
+        bevel(d, (x1 + 1, y1 + 1, x2 - 1, y2 - 1), DARK, DARK_L, fill=(40, 36, 48))
     return img
 
 
@@ -798,6 +945,14 @@ def main():
         {'type': 'bitmap', 'file': 'gamblingdex:font/exchange_gui.png', 'height': ex_bg.height, 'ascent': 13,
          'chars': [CH_EXCHANGE_BG]},
     ]}
+    for name, fn, ch in (('poker_action_gui', poker_action_background, CH_POKER_ACTION_BG),
+                         ('poker_buyin_gui', poker_buyin_background, CH_POKER_BUYIN_BG),
+                         ('bj_action_gui', bj_action_background, CH_BJ_ACTION_BG),
+                         ('bj_bet_gui', bj_bet_background, CH_BJ_BET_BG)):
+        im = fn()
+        im.save(os.path.join(tex, name + '.png'))
+        font['providers'].append({'type': 'bitmap', 'file': 'gamblingdex:font/' + name + '.png',
+                                  'height': im.height, 'ascent': 13, 'chars': [ch]})
     mkdir(os.path.join(NS, 'font'))
     with open(os.path.join(NS, 'font', 'gui.json'), 'w', encoding='utf-8') as f:
         json.dump(font, f, indent=2)

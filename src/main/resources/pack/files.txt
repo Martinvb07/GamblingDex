@@ -85,7 +85,11 @@ assets/gamblingdex/sounds/slots/lose.ogg
 assets/gamblingdex/sounds/slots/reel_stop.ogg
 assets/gamblingdex/sounds/slots/reel_tick.ogg
 assets/gamblingdex/sounds/slots/win.ogg
+assets/gamblingdex/textures/font/bj_action_gui.png
+assets/gamblingdex/textures/font/bj_bet_gui.png
 assets/gamblingdex/textures/font/exchange_gui.png
+assets/gamblingdex/textures/font/poker_action_gui.png
+assets/gamblingdex/textures/font/poker_buyin_gui.png
 assets/gamblingdex/textures/font/slots_gui.png
 assets/gamblingdex/textures/item/card/back.png
 assets/gamblingdex/textures/item/card/clubs_10.png

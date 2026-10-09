@@ -114,6 +114,15 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
     del dealer y **todo se desliza hacia ti**; si pierdes, **el dealer se lleva las fichas**.
   - Sonidos de cartas, volteo, fichas y premio para los que están cerca.
 
+## Menús de póker y blackjack con fondo propio
+
+![menús de las mesas](previews/table_guis.png)
+
+Con `resource_pack.custom_gui: true`: acciones del póker (retirarse rojo, pasar/igualar verde,
+subir dorado, ALL-IN naranja y la tira para ajustar la subida), comprar fichas del póker,
+acciones del blackjack (pedir, doblar, dividir, plantarse) y apuestas del blackjack (vitrina de
+fichas y los tres círculos: principal, parejas y 21+3).
+
 ## Sillas (taburetes de casino)
 
 ![taburete](previews/stool.png)

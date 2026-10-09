@@ -39,10 +39,12 @@ public class PokerActionMenu {
             return;
         UUID id = player.getUniqueId();
 
-        Inventory inv = Bukkit.createInventory(new PokerActionMenuHolder(table.getTableKey()), 54,
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new PokerActionMenuHolder(table.getTableKey()), 54,
+                com.gamblingdex.pack.CasinoPack.POKER_ACTION_BG,
                 "§6§lPóker §8- §aTu turno §8(§f" + table.getTurnSecondsLeft() + "s§8)");
 
-        for (int i = 0; i < inv.getSize(); i++) {
+        // Con el fondo del pack no hace falta el relleno de cristales
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             boolean border = i < 9 || i >= 45 || i % 9 == 0 || i % 9 == 8;
             inv.setItem(i, MenuUtils.createButton(" ",
                     border ? Material.GREEN_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE));

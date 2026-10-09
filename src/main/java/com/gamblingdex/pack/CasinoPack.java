@@ -18,7 +18,8 @@ public final class CasinoPack {
 
     /** Caracteres de la fuente gamblingdex:gui (models/tools/build_pack.py). */
     public static final String BACK_8 = "", BACK_169 = "";
-    public static final String SLOTS_BG = "", EXCHANGE_BG = "";
+    public static final String SLOTS_BG = "\uE100", EXCHANGE_BG = "\uE101", POKER_ACTION_BG = "\uE102",
+            POKER_BUYIN_BG = "\uE103", BJ_ACTION_BG = "\uE104", BJ_BET_BG = "\uE105";
 
     private CasinoPack() {
     }
@@ -30,6 +31,21 @@ public final class CasinoPack {
                 .color(NamedTextColor.WHITE);
         return Component.text().append(bg)
                 .append(LegacyComponentSerializer.legacySection().deserialize(legacyTitle)).build();
+    }
+
+    /** ¿Los menús usan el fondo del resource pack? (resource_pack.custom_gui) */
+    public static boolean customGui() {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        return plugin != null && plugin.getResourcePackManager() != null
+                && plugin.getResourcePackManager().customGui();
+    }
+
+    /** Crea el menú con el fondo del pack si está activado; si no, con el título de siempre. */
+    public static org.bukkit.inventory.Inventory inventory(org.bukkit.inventory.InventoryHolder holder, int size,
+            String background, String legacyTitle) {
+        return customGui()
+                ? org.bukkit.Bukkit.createInventory(holder, size, titleWithBackground(background, legacyTitle))
+                : org.bukkit.Bukkit.createInventory(holder, size, legacyTitle);
     }
 
     private static boolean customSounds() {

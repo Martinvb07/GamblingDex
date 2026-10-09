@@ -38,11 +38,11 @@ public class PokerBuyInMenu {
             return;
         UUID id = player.getUniqueId();
 
-        Inventory inv = Bukkit.createInventory(new PokerBuyInMenuHolder(table.getTableKey()), 36,
-                "§6§lPóker §8- §eFichas de mesa");
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new PokerBuyInMenuHolder(table.getTableKey()), 36,
+                com.gamblingdex.pack.CasinoPack.POKER_BUYIN_BG, "§6§lPóker §8- §eFichas de mesa");
 
         int lastRowStart = inv.getSize() - 9;
-        for (int i = 0; i < inv.getSize(); i++) {
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             boolean border = i < 9 || i >= lastRowStart || i % 9 == 0 || i % 9 == 8;
             inv.setItem(i, MenuUtils.createButton(" ",
                     border ? Material.GREEN_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE));

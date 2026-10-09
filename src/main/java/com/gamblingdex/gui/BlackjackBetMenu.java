@@ -40,12 +40,12 @@ public class BlackjackBetMenu {
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(new BlackjackBetMenuHolder(table.getTableKey()), 36,
-                "§6§lBlackjack §8- §eApuesta");
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new BlackjackBetMenuHolder(table.getTableKey()), 36,
+                com.gamblingdex.pack.CasinoPack.BJ_BET_BG, "§6§lBlackjack §8- §eApuesta");
 
-        // Border panes
+        // Border panes (con el fondo del pack no hacen falta)
         int lastRowStart = inv.getSize() - 9;
-        for (int i = 0; i < inv.getSize(); i++) {
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++) {
             if (i < 9 || i >= lastRowStart || i % 9 == 0 || i % 9 == 8) {
                 inv.setItem(i, MenuUtils.createButton("", Material.WHITE_STAINED_GLASS_PANE));
             } else {
