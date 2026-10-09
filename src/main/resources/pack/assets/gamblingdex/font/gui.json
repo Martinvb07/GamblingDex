@@ -60,6 +60,24 @@
       "chars": [
         "\ue105"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/roulette_gui.png",
+      "height": 132,
+      "ascent": 13,
+      "chars": [
+        "\ue106"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/roulette_num_gui.png",
+      "height": 132,
+      "ascent": 13,
+      "chars": [
+        "\ue107"
+      ]
     }
   ]
 }

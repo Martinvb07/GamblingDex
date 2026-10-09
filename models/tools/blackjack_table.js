@@ -1,8 +1,9 @@
-// Construye blackjack_table.bbmodel (mesa de blackjack de media luna) con la API de
-// Blockbench (formato Generic / ModelEngine). Se ejecuta dentro de Blockbench (ver render.mjs).
+// Construye blackjack_table.bbmodel (mesa rectangular de blackjack, como la de poker) con la
+// API de Blockbench (formato Generic / ModelEngine). Se ejecuta dentro de Blockbench (ver render.mjs).
 // El dealer esta en el origen y la mesa queda delante de el (hacia -Z, el frente del modelo).
-// Borde recto del lado del dealer en z = -6; arco de radio 44 con centro en (0, -6); el pano
-// esta a 14 de alto. Las cartas y fichas las pone el plugin encima (BlackjackVisuals).
+// Pano de 96 x 48 (x -48..48, z -54..-6) a 14 de alto; borde acolchado hasta x 54 / z -60 y
+// borde de madera del lado del dealer (z -6..-3). Las cartas y fichas las pone el plugin
+// encima (BlackjackVisuals).
 (function () {
   newProject(Formats.free);
   Project.name = 'blackjack_table';
@@ -17,25 +18,17 @@
 
   // ---------- Pano: (0,0)-(512,256) = x -48..48, z -54..-6 (96 x 48), 5.33 px por unidad ----------
   // Arriba de la textura = z -54 (lado de los jugadores); abajo = z -6 (dealer).
-  const P = 512 / 96, CZ = -6, R = 44;
+  const P = 512 / 96, CZ = -6;
   const U = (x) => (x + 48) * P, V = (z) => (z + 54) * P;
   const FELT = ['#0f6a34', '#11713a', '#0d6331', '#127438'];
   for (let y = 0; y < 256; y++) for (let x = 0; x < 512; x++) {
-    const ux = x / P - 48, uz = y / P - 54, r = Math.hypot(ux, uz - CZ);
-    if (r > R || uz > CZ) continue;
+    const ux = x / P - 48, uz = y / P - 54;
     let c = FELT[Math.floor(rnd() * 4)];
-    if (r > R - 1.2) c = '#0a5428';
-    if (r > 20.5 && r < 21.2) c = '#d8b04a';               // arco dorado (zona del seguro)
+    // linea dorada punteada (rectangulo redondeado) como en la mesa de poker
+    const ex = Math.max(Math.abs(ux) - 26, 0), ez = Math.max(Math.abs(uz + 33.5) - 1, 0), dd = Math.hypot(ex, ez);
+    if (dd > 13.4 && dd < 14 && (Math.floor((ux + uz) * 1.2) % 2 === 0)) c = '#d8b04a';
+    if (Math.abs(ux) > 47.2 || uz < -53.2 || uz > -6.8) c = '#0a5428';
     px(x, y, c);
-  }
-  // Circulos de apuesta: 7 a lo largo del arco (radio 34)
-  for (let i = 0; i < 7; i++) {
-    const th = (-66 + i * 22) * Math.PI / 180, bx = 34 * Math.sin(th), bz = CZ - 34 * Math.cos(th);
-    for (let y = 0; y < 256; y++) for (let x = 0; x < 512; x++) {
-      const d = Math.hypot(x / P - 48 - bx, y / P - 54 - bz);
-      if (d > 3.6 && d < 4.3) px(x, y, '#f2f2ea');
-      else if (d > 1.6 && d < 2.0) px(x, y, '#d8b04a');
-    }
   }
   // Textos: se leen desde el lado de los jugadores (girados 180 grados en la textura)
   const FONT = {
@@ -57,9 +50,10 @@
       x0 -= (ws[k] + 1) * sc;
     });
   };
-  text('BLACKJACK PAGA 3 A 2', 0, -15, 2, '#d8b04a');
-  text('EL CRUPIER PIDE CON 16 Y SE PLANTA CON 17', 0, -20, 1, '#e8e8e0');
-  text('GAMBLINGDEX', 0, -32, 2, '#0a5428');
+  text('EL SEGURO PAGA 2 A 1', 0, -26.6, 1, '#e8e8e0');
+  text('BLACKJACK PAGA 3 A 2', 0, -31, 2, '#d8b04a');
+  text('EL CRUPIER PIDE CON 16 Y SE PLANTA CON 17', 0, -35.6, 1, '#e8e8e0');
+  text('GAMBLINGDEX', 0, -42, 2, '#0a5428');
 
   noise(0, 0, 0, 0, ['#000']);
   const M = 0; // materiales en una fila aparte de la textura del pano no caben: van en una segunda textura
@@ -106,34 +100,23 @@
     const c = new Cube(Object.assign({ name, from, to, faces }, extra)); c.addTo(parent).init(); return c;
   }
   function group(name, origin, parent) { const gr = new Group({ name, origin }); gr.addTo(parent || undefined).init(); return gr; }
-  // Medio anillo (lado -Z) de 9 piezas cada 22.5 grados alrededor de (0, cz)
-  function halfRing(name, rIn, rOut, y1, y2, parent, mat, cz, over = {}) {
-    const half = rOut * Math.tan(Math.PI / 16) + 0.05;
-    for (let k = 0; k <= 8; k++) {
-      const ang = 180 + k * 22.5; // de -X a +X pasando por -Z
-      const base = (Math.round(ang / 90) * 90) % 360, rot = ang - Math.round(ang / 90) * 90;
-      let from, to;
-      if (base === 0) { from = [rIn, y1, cz - half]; to = [rOut, y2, cz + half]; }
-      else if (base === 90) { from = [-half, y1, cz - rOut]; to = [half, y2, cz - rIn]; }
-      else if (base === 180) { from = [-rOut, y1, cz - half]; to = [-rIn, y2, cz + half]; }
-      else { from = [-half, y1, cz + rIn]; to = [half, y2, cz + rOut]; }
-      if (base === 270) continue; // ese lado es el del dealer
-      cube(name + '_' + k, from, to, parent, mat, over, rot ? { rotation: [0, rot, 0], origin: [0, 0, cz] } : {});
-    }
-  }
-
   const table = group('table', [0, 0, 0]);
-  // Patas
-  [[-26, -24], [26, -24], [0, -40], [-12, -12], [12, -12]].forEach(([x, z], i) => cube('leg_' + i, [x - 2.5, 0, z - 2.5], [x + 2.5, 11, z + 2.5], table, 'black'));
-  // Cuerpo (madera) bajo el pano, recortado en el lado del dealer
-  halfRing('body', 0, 45, 10, 13.6, table, 'wood', CZ, { up: 'feltd' });
-  cube('body_back', [-45, 10, -9], [45, 13.6, CZ], table, 'wood', { up: 'feltd' });
-  // Pano (transparente fuera de la media luna)
-  cube('felt', [-48, 13.6, -54], [48, 14, CZ], table, 'feltd', { up: { felt: [0, 0, 512, 256] }, down: null, north: null, south: null, east: null, west: null });
-  // Borde acolchado del arco y borde de madera del lado del dealer
-  halfRing('rail', 43.6, 50, 12, 16.2, table, 'pad', CZ);
-  halfRing('rail_gold', 43.4, 44.2, 13.8, 14.6, table, 'gold', CZ);
-  cube('dealer_edge', [-50, 12, CZ], [50, 14.8, CZ + 2], table, 'wood', { up: 'gold' });
+  // Patas y cuerpo
+  [[-40, -14], [40, -14], [-40, -46], [40, -46]].forEach(([x, z], i) => cube('leg_' + i, [x - 2.5, 0, z - 2.5], [x + 2.5, 11, z + 2.5], table, 'black'));
+  cube('apron', [-50, 10, -56], [50, 13.6, -6], table, 'wood', { up: 'feltd' });
+  // Pano (rectangulo entero)
+  cube('felt', [-48, 13.6, -54], [48, 14, CZ], table, 'feltd', { up: { felt: [0, 0, 512, 256] }, down: null });
+  // Borde acolchado en los 3 lados de los jugadores + esquinas achaflanadas + filete dorado
+  cube('rail_n', [-48, 12, -60], [48, 16.2, -54], table, 'pad');
+  cube('rail_w', [-54, 12, -54], [-48, 16.2, CZ], table, 'pad');
+  cube('rail_e', [48, 12, -54], [54, 16.2, CZ], table, 'pad');
+  [[-48, -54], [48, -54]].forEach(([x, z], i) => cube('corner_' + i, [x - 4.2, 12, z - 4.2], [x + 4.2, 16.2, z + 4.2], table, 'pad', {},
+    { rotation: [0, 45, 0], origin: [x, 12, z] }));
+  cube('gold_n', [-48, 13.8, -54.4], [48, 14.6, -53.6], table, 'gold');
+  cube('gold_w', [-48.4, 13.8, -54], [-47.6, 14.6, CZ], table, 'gold');
+  cube('gold_e', [47.6, 13.8, -54], [48.4, 14.6, CZ], table, 'gold');
+  // Lado del dealer: borde de madera con filete dorado
+  cube('dealer_edge', [-54, 12, CZ], [54, 14.8, CZ + 3], table, 'wood', { up: 'gold' });
 
   // Bandeja de fichas del dealer (centro del borde recto) con fichas bonitas
   const deco = group('deco', [0, 14, 0], table);
@@ -160,7 +143,7 @@
   cube('discard_cards', [-31, 16, -14], [-23, 16.8, -10], deco, 'cards');
 
   const hitbox = group('hitbox', [0, 0, 0]);
-  cube('hitbox', [-24, 0, -40], [24, 16, -6], hitbox, 'black');
+  cube('hitbox', [-24, 0, -54], [24, 16, -6], hitbox, 'black');
   new Blockbench.Animation({ name: 'idle', loop: 'loop', length: 1 }).add();
 
   Canvas.updateAll();

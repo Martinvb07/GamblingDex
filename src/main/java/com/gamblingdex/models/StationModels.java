@@ -108,6 +108,10 @@ public class StationModels implements Listener {
         double scale = 1;
         /** Ruleta: más zonas clickeables (la mesa es larga) y las fichas apostadas sobre el paño. */
         final List<UUID> extraBoxes = new ArrayList<>();
+        /** Shulkers invisibles que le dan colisión al modelo (un bloque cada uno). */
+        final List<UUID> colliders = new ArrayList<>();
+        /** Bloques que cubren (si cambian los asientos con los comandos, se vuelven a poner). */
+        String colliderCells = "";
         final Map<String, List<UUID>> chips = new HashMap<>();
         final Map<String, Long> chipAmounts = new HashMap<>();
         /** Ruleta: casillas ganadoras iluminadas sobre el paño. */
@@ -226,8 +230,8 @@ public class StationModels implements Listener {
     }
 
     /**
-     * Copia el .bbmodel de la máquina (va dentro del jar) a plugins/ModelEngine/blueprints
-     * si aún no está, para que el admin solo tenga que hacer /meg reload.
+     * Copia el .bbmodel de la máquina (va dentro del jar) a plugins/ModelEngine/blueprints/gamblingdex
+     * (o lo actualiza si el plugin trae uno nuevo), para que el admin solo tenga que hacer /meg reload.
      */
     private void installBlueprint(Kind k) {
         if (!k.defaultId.equals(modelId(k)))
@@ -236,13 +240,19 @@ public class StationModels implements Listener {
         java.io.File dir = new java.io.File(plugin.getDataFolder().getParentFile(), "ModelEngine/blueprints/gamblingdex");
         java.io.File out = new java.io.File(dir, file);
         java.io.File old = new java.io.File(dir.getParentFile(), file);
-        if (out.exists() || old.exists())
-            return;
+        if (old.exists())
+            return; // el admin lo puso a mano fuera de la carpeta gamblingdex: no se toca
         try (java.io.InputStream in = plugin.getResource("models/" + file)) {
             if (in == null || (!dir.isDirectory() && !dir.mkdirs()))
                 return;
-            java.nio.file.Files.copy(in, out.toPath());
-            plugin.getLogger().info("[Modelos] Se copió " + file + " a plugins/ModelEngine/blueprints/gamblingdex."
+            byte[] bundled = in.readAllBytes();
+            // Los de la carpeta gamblingdex son del plugin: se actualizan si la versión nueva cambió
+            if (out.exists() && java.util.Arrays.equals(bundled, java.nio.file.Files.readAllBytes(out.toPath())))
+                return;
+            boolean update = out.exists();
+            java.nio.file.Files.write(out.toPath(), bundled);
+            plugin.getLogger().info("[Modelos] Se " + (update ? "actualizó " : "copió ") + file
+                    + " en plugins/ModelEngine/blueprints/gamblingdex."
                     + " Usa /meg reload para cargarlo (y /gdx pack para el resource pack).");
         } catch (java.io.IOException e) {
             plugin.getLogger().warning("[Modelos] No se pudo copiar " + file + ": " + e.getMessage());
@@ -295,8 +305,10 @@ public class StationModels implements Listener {
                     continue;
                 }
                 alive.add(key);
-                if (m != null && m.kind == kind && m.handle != null && !bridge.isRemoved(m.handle))
+                if (m != null && m.kind == kind && m.handle != null && !bridge.isRemoved(m.handle)) {
+                    spawnColliders(m, modelLocation(m)); // por si cambiaron los asientos o se perdió alguno
                     continue;
+                }
                 if (m != null && m.kind != kind) { // la estación cambió de tipo
                     despawn(m);
                     m = null;
@@ -341,6 +353,7 @@ public class StationModels implements Listener {
             if (m.scale != 1 && !bridge.setScale(m.handle, m.scale))
                 m.scale = 1;
         }
+        spawnColliders(m, at);
         if (m.kind == Kind.ROULETTE) {
             spawnTableBoxes(m, at, TABLE_X1, TABLE_X2, TABLE_HALF_Z, FELT_Y + 2);
             return;
@@ -351,9 +364,9 @@ public class StationModels implements Listener {
         }
         if (m.kind == Kind.BLACKJACK) {
             // la mesa está delante del dealer: cajas a lo ancho, corridas hacia -Z
-            Location front = tableToWorld(m, at, 0, 0, -28);
+            Location front = tableToWorld(m, at, 0, 0, -32);
             front.setYaw(at.getYaw());
-            spawnTableBoxes(m, front, -48, 48, 24, 16.2);
+            spawnTableBoxes(m, front, -54, 54, 28, 16.2);
             return;
         }
         if (m.interaction == null || Bukkit.getEntity(m.interaction) == null) {
@@ -385,6 +398,7 @@ public class StationModels implements Listener {
             m.interaction = null;
         }
         removeAll(m.extraBoxes);
+        removeAll(m.colliders);
         clearLit(m);
         for (List<UUID> ids : m.chips.values())
             removeAll(ids);
@@ -419,6 +433,9 @@ public class StationModels implements Listener {
             for (org.bukkit.entity.Display d : w.getEntitiesByClass(org.bukkit.entity.Display.class))
                 if (d.getScoreboardTags().contains(TAG))
                     d.remove();
+            for (org.bukkit.entity.Shulker sh : w.getEntitiesByClass(org.bukkit.entity.Shulker.class))
+                if (sh.getScoreboardTags().contains(TAG))
+                    sh.remove();
         }
     }
 
@@ -447,6 +464,16 @@ public class StationModels implements Listener {
                 Entity holo = hologram(m);
                 if (holo != null)
                     p.hideEntity(plugin, holo);
+                var ring = ring(m);
+                if (ring != null) { // ruleta: el anillo de bloques y sus números no se ven, solo la mesa
+                    for (Map.Entry<Location, org.bukkit.block.data.BlockData> b : ring.entrySet())
+                        p.sendBlockChange(b.getKey(), b.getValue());
+                    for (UUID id : rouletteOf(m).getNumberDisplayIds()) {
+                        Entity n = Bukkit.getEntity(id);
+                        if (n != null)
+                            p.hideEntity(plugin, n);
+                    }
+                }
             }
             for (String key : was)
                 if (!now.contains(key) && machines.get(key) != null)
@@ -464,6 +491,58 @@ public class StationModels implements Listener {
         Entity holo = hologram(m);
         if (holo != null)
             p.showEntity(plugin, holo);
+        var ring = ring(m);
+        if (ring != null) {
+            for (Location l : ring.keySet())
+                if (l.getWorld() == p.getWorld())
+                    p.sendBlockChange(l, l.getBlock().getBlockData());
+            for (UUID id : rouletteOf(m).getNumberDisplayIds()) {
+                Entity n = Bukkit.getEntity(id);
+                if (n != null)
+                    p.showEntity(plugin, n);
+            }
+        }
+    }
+
+    /** ¿Se esconde el anillo de bloques de la ruleta? (roulette_world.model.hide_ring) */
+    private boolean hideRing() {
+        return plugin.getConfig().getBoolean(Kind.ROULETTE.path + ".hide_ring", true);
+    }
+
+    /** ¿Esta ruleta tiene la mesa 3D y su anillo de bloques escondido? (entonces no se apuesta en el anillo) */
+    public boolean ringHidden(Location center) {
+        return hideRing() && machine(center, Kind.ROULETTE) != null;
+    }
+
+    private com.gamblingdex.games.rouletteworld.WorldRouletteTable rouletteOf(Machine m) {
+        var manager = plugin.getWorldRouletteManager();
+        return manager == null ? null : manager.getByCenter(m.station.getBlock());
+    }
+
+    /** Bloques del anillo de una ruleta con lo que había antes de construirlo (el suelo). */
+    private Map<Location, org.bukkit.block.data.BlockData> ring(Machine m) {
+        if (m.kind != Kind.ROULETTE || !hideRing())
+            return null;
+        var table = rouletteOf(m);
+        if (table == null)
+            return null;
+        Map<Location, org.bukkit.block.data.BlockData> out = new HashMap<>();
+        for (Map.Entry<String, com.gamblingdex.games.rouletteworld.WorldRouletteTable.OriginalBlock> e : table
+                .getOriginals().entrySet()) {
+            if (e.getKey().equals(table.getTableKey()))
+                continue; // el centro ya se esconde con la estación
+            Location l = com.gamblingdex.games.rouletteworld.WorldRouletteTable.parseKey(e.getKey());
+            if (l == null || table.getNumberForBlock(l.getBlock()) == null)
+                continue;
+            org.bukkit.block.data.BlockData data;
+            try {
+                data = Bukkit.createBlockData(e.getValue().getBlockData());
+            } catch (Exception ex) {
+                data = e.getValue().getType().createBlockData();
+            }
+            out.put(l, data);
+        }
+        return out;
     }
 
     /** Vuelve a mostrar el bloque y el holograma de esta máquina a todos los que no los veían. */
@@ -601,6 +680,8 @@ public class StationModels implements Listener {
                 return Math.max(0.2, Math.min(2.0, Double.parseDouble(cfgScale)));
         } catch (NumberFormatException ignored) {
         }
+        if (hideRing())
+            return 1.0; // sin el anillo de bloques, la mesa va a su tamaño
         var manager = plugin.getWorldRouletteManager();
         var table = manager == null ? null : manager.getByCenter(m.station.getBlock());
         int radius = table == null ? 6 : table.getRadius();
@@ -639,6 +720,117 @@ public class StationModels implements Listener {
             box.addScoreboardTag(TAG);
             m.extraBoxes.add(box.getUniqueId());
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Colisión: shulkers invisibles (cajas de 1 bloque) en la huella del modelo, para que no
+    // se pueda atravesar. Al clickearlos pasa lo mismo que al clickear la máquina.
+    // ------------------------------------------------------------------
+
+    private boolean collision(Kind k) {
+        return plugin.getConfig().getBoolean(k.path + ".collision", true);
+    }
+
+    private void spawnColliders(Machine m, Location at) {
+        World w = at.getWorld();
+        if (w == null || !collision(m.kind) || w.getDifficulty() == org.bukkit.Difficulty.PEACEFUL)
+            return;
+        List<org.bukkit.block.Block> cells = colliderCells(m, at);
+        StringBuilder sig = new StringBuilder();
+        for (org.bukkit.block.Block c : cells)
+            sig.append(c.getX()).append(',').append(c.getY()).append(',').append(c.getZ()).append(';');
+        boolean ok = !m.colliders.isEmpty() && sig.toString().equals(m.colliderCells);
+        for (UUID id : m.colliders)
+            ok &= Bukkit.getEntity(id) != null;
+        if (ok)
+            return;
+        removeAll(m.colliders);
+        m.colliderCells = sig.toString();
+        for (org.bukkit.block.Block cell : cells) {
+            org.bukkit.entity.Shulker sh = spawnCollider(cell.getLocation().add(0.5, 0, 0.5), TAG);
+            if (sh != null)
+                m.colliders.add(sh.getUniqueId());
+        }
+    }
+
+    /** Un shulker invisible, quieto e invulnerable: una caja sólida de 1 bloque. */
+    public static org.bukkit.entity.Shulker spawnCollider(Location at, String tag) {
+        World w = at.getWorld();
+        if (w == null)
+            return null;
+        java.util.function.Consumer<org.bukkit.entity.Shulker> setup = sh -> {
+            sh.setAI(false);
+            sh.setInvulnerable(true);
+            sh.setSilent(true);
+            sh.setGravity(false);
+            sh.setInvisible(true);
+            sh.setCollidable(false); // no empuja a nadie; igual es sólido
+            sh.setPersistent(false);
+            sh.setRemoveWhenFarAway(false);
+            sh.setPeek(0);
+            sh.addScoreboardTag(tag);
+        };
+        try {
+            org.bukkit.entity.Shulker sh = w.spawn(at, org.bukkit.entity.Shulker.class, setup);
+            return sh.isValid() ? sh : null;
+        } catch (Throwable t) {
+            return null; // otro plugin no deja aparecer mobs ahí
+        }
+    }
+
+    /** Bloques que ocupa el modelo (al nivel del suelo de la máquina). */
+    private List<org.bukkit.block.Block> colliderCells(Machine m, Location at) {
+        List<org.bukkit.block.Block> out = new ArrayList<>();
+        org.bukkit.block.Block foot = at.getBlock();
+        if (m.kind == Kind.SLOTS || m.kind == Kind.EXCHANGE) {
+            out.add(foot);
+            out.add(foot.getRelative(org.bukkit.block.BlockFace.UP)); // la máquina mide 2 bloques
+            return out;
+        }
+        // Mesas: el rectángulo del borde (unidades del modelo)
+        double x1, x2, z1, z2;
+        switch (m.kind) {
+            case ROULETTE -> { x1 = TABLE_X1; x2 = TABLE_X2; z1 = -TABLE_HALF_Z; z2 = TABLE_HALF_Z; }
+            case POKER -> { x1 = -54; x2 = 54; z1 = -30; z2 = 30; }
+            default -> { x1 = -54; x2 = 54; z1 = -60; z2 = -3; } // blackjack: delante del dealer
+        }
+        Set<String> skip = new HashSet<>(); // asientos (y el dealer): ahí se para la gente
+        if (m.kind == Kind.POKER) {
+            var poker = plugin.getPokerManager() == null ? null : plugin.getPokerManager().getByBlock(m.station.getBlock());
+            if (poker != null)
+                for (String k : poker.getSeatKeys())
+                    skip.add(column(com.gamblingdex.games.blackjack.BlackjackTables.parseKey(k)));
+        }
+        if (m.kind == Kind.BLACKJACK) {
+            var bj = blackjack(m);
+            if (bj != null)
+                for (String k : bj.getSeatKeys())
+                    skip.add(column(com.gamblingdex.games.blackjack.BlackjackTables.parseKey(k)));
+            skip.add(column(m.station));
+        }
+        double yaw = Math.toRadians(at.getYaw()), k = m.scale / 16.0;
+        double rx = -Math.cos(yaw), rz = -Math.sin(yaw), fx = -Math.sin(yaw), fz = Math.cos(yaw);
+        double reach = Math.max(Math.max(Math.abs(x1), Math.abs(x2)), Math.max(Math.abs(z1), Math.abs(z2))) * k + 1;
+        double margin = 2; // unidades: la caja no sobresale del borde
+        for (int bx = (int) Math.floor(at.getX() - reach); bx <= (int) Math.floor(at.getX() + reach); bx++)
+            for (int bz = (int) Math.floor(at.getZ() - reach); bz <= (int) Math.floor(at.getZ() + reach); bz++) {
+                double dx = bx + 0.5 - at.getX(), dz = bz + 0.5 - at.getZ();
+                double lx = (dx * rx + dz * rz) / k, lz = -(dx * fx + dz * fz) / k; // inverso de tableToWorld
+                if (lx < x1 + margin || lx > x2 - margin || lz < z1 + margin || lz > z2 - margin)
+                    continue;
+                org.bukkit.block.Block b = foot.getWorld().getBlockAt(bx, foot.getY(), bz);
+                if (skip.contains(column(b.getLocation())))
+                    continue;
+                boolean station = b.getX() == m.station.getBlockX() && b.getZ() == m.station.getBlockZ();
+                if (!b.isPassable() && !station)
+                    continue; // ya es sólido
+                out.add(b);
+            }
+        return out;
+    }
+
+    private static String column(Location l) {
+        return l == null ? "" : l.getBlockX() + "," + l.getBlockZ();
     }
 
     /** Casilla del tablero en (x, z) del modelo: "N17", "RED", "DOZEN_1"... o null. */
@@ -779,14 +971,17 @@ public class StationModels implements Listener {
         int count = (int) Math.max(1, Math.min(5, amount / Math.max(1, best)));
         org.bukkit.inventory.ItemStack item = plugin.getTokenManager().createToken(mat, 1);
         float s = (float) (0.42 * m.scale);
+        // Apiladas pegadas sobre el paño (la vista GROUND baja la ficha: se sube con la traslación)
+        double step = com.gamblingdex.games.TableProps.CHIP_STEP * s * 16.0 / m.scale;
         for (int i = 0; i < count; i++) {
-            Location at = tableToWorld(m, base, x, FELT_Y + 0.1 + i * 1.7, z);
+            Location at = tableToWorld(m, base, x, FELT_Y + 0.05 + i * step, z);
             at.setYaw(base.getYaw() + i * 23);
             at.setPitch(0);
             org.bukkit.entity.ItemDisplay d = w.spawn(at, org.bukkit.entity.ItemDisplay.class);
             d.setItemStack(item);
             d.setItemDisplayTransform(org.bukkit.entity.ItemDisplay.ItemDisplayTransform.GROUND);
-            d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(),
+            d.setTransformation(new org.bukkit.util.Transformation(
+                    new org.joml.Vector3f(0, com.gamblingdex.games.TableProps.CHIP_BOTTOM * s, 0),
                     new org.joml.AxisAngle4f(), new org.joml.Vector3f(s, s, s), new org.joml.AxisAngle4f()));
             d.setPersistent(false);
             d.addScoreboardTag(TAG);
@@ -847,7 +1042,11 @@ public class StationModels implements Listener {
                 : com.gamblingdex.games.blackjack.BlackjackVisuals.facing(bj, null, m.station.clone().add(0.5, 1, 0.5));
     }
 
-    /** Medidas del modelo de blackjack: el arco (con el borde) llega a 56 unidades del dealer. */
+    /**
+     * Mesa de blackjack rectangular (models/tools/blackjack_table.js): delante del dealer, con
+     * el borde hasta x ±54 y z -60 (unidades). Crece o se achica para que el borde quede medio
+     * bloque delante del asiento más cercano.
+     */
     private double blackjackScale(Machine m) {
         String cfgScale = plugin.getConfig().getString(Kind.BLACKJACK.path + ".scale", "auto");
         try {
@@ -856,18 +1055,25 @@ public class StationModels implements Listener {
         } catch (NumberFormatException ignored) {
         }
         var bj = blackjack(m);
-        double sum = 0;
-        int n = 0;
+        double yaw = Math.toRadians(blackjackYaw(m));
+        double rx = -Math.cos(yaw), rz = -Math.sin(yaw), fx = -Math.sin(yaw), fz = Math.cos(yaw);
+        double best = 1.6;
+        boolean any = false;
         if (bj != null)
             for (String key : bj.getSeatKeys()) {
                 Location seat = com.gamblingdex.games.blackjack.BlackjackTables.parseKey(key);
                 if (seat == null || seat.getWorld() != m.station.getWorld())
                     continue;
-                sum += Math.hypot(seat.getX() - m.station.getX(), seat.getZ() - m.station.getZ());
-                n++;
+                double dx = seat.getX() - m.station.getX(), dz = seat.getZ() - m.station.getZ();
+                double lx = Math.abs(dx * rx + dz * rz), front = dx * fx + dz * fz; // en bloques
+                if (front < 0.5)
+                    continue; // detrás o al lado del dealer
+                // el asiento queda fuera del rectángulo (x ±54k, hasta 60k delante) con medio bloque libre
+                double k = Math.max((lx - 0.5) / 54.0, (front - 0.5) / 60.0) * 16.0;
+                best = Math.min(best, k);
+                any = true;
             }
-        double d = n == 0 ? 3.5 : sum / n;
-        return Math.max(0.6, Math.min(1.4, (d - 0.55) * 16.0 / 56.0));
+        return any ? Math.max(0.5, best) : 1.0;
     }
 
     public TableSurface blackjackSurface(Location center) {
@@ -1042,30 +1248,38 @@ public class StationModels implements Listener {
     // ------------------------------------------------------------------
 
     /** Click izquierdo sobre el modelo (a la entidad Interaction le llega como golpe). */
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH) // aunque WorldGuard o la protección del spawn lo cancelen
     public void onHit(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof Interaction i) || !i.getScoreboardTags().contains(TAG)
-                || !(event.getDamager() instanceof Player p))
+        Entity i = event.getEntity();
+        if (!(i instanceof Interaction || i instanceof org.bukkit.entity.Shulker) || !i.getScoreboardTags().contains(TAG))
             return;
         event.setCancelled(true);
-        for (Machine m : machines.values())
-            if (i.getUniqueId().equals(m.interaction) || m.extraBoxes.contains(i.getUniqueId())) {
-                open(p, m);
-                return;
-            }
+        if (!(event.getDamager() instanceof Player p))
+            return;
+        Machine m = machineOf(i.getUniqueId());
+        if (m != null)
+            open(p, m);
     }
 
-    @EventHandler(ignoreCancelled = true)
+    /** La máquina a la que pertenece una zona clickeable o un bloque de colisión. */
+    private Machine machineOf(UUID id) {
+        for (Machine m : machines.values())
+            if (id.equals(m.interaction) || m.extraBoxes.contains(id) || m.colliders.contains(id))
+                return m;
+        return null;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH) // aunque WorldGuard o la protección del spawn lo cancelen
     public void onInteract(PlayerInteractEntityEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND || !(event.getRightClicked() instanceof Interaction i)
-                || !i.getScoreboardTags().contains(TAG))
+        Entity i = event.getRightClicked();
+        if (!(i instanceof Interaction || i instanceof org.bukkit.entity.Shulker) || !i.getScoreboardTags().contains(TAG))
             return;
         event.setCancelled(true);
-        for (Machine m : machines.values())
-            if (i.getUniqueId().equals(m.interaction) || m.extraBoxes.contains(i.getUniqueId())) {
-                open(event.getPlayer(), m);
-                return;
-            }
+        if (event.getHand() != EquipmentSlot.HAND)
+            return;
+        Machine m = machineOf(i.getUniqueId());
+        if (m != null)
+            open(event.getPlayer(), m);
     }
 
     /** Clicks en el hitbox propio de ModelEngine (BaseEntityInteractEvent), por reflexión. */
@@ -1100,7 +1314,7 @@ public class StationModels implements Listener {
                                 }
                         } catch (Throwable ignored) {
                         }
-                    }, plugin, true);
+                    }, plugin, false); // también si otro plugin lo canceló
             meListener = true;
         } catch (Throwable t) {
             // Versión de ModelEngine sin ese evento: quedan los clicks de la entidad Interaction.

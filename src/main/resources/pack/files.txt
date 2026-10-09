@@ -90,6 +90,8 @@ assets/gamblingdex/textures/font/bj_bet_gui.png
 assets/gamblingdex/textures/font/exchange_gui.png
 assets/gamblingdex/textures/font/poker_action_gui.png
 assets/gamblingdex/textures/font/poker_buyin_gui.png
+assets/gamblingdex/textures/font/roulette_gui.png
+assets/gamblingdex/textures/font/roulette_num_gui.png
 assets/gamblingdex/textures/font/slots_gui.png
 assets/gamblingdex/textures/item/card/back.png
 assets/gamblingdex/textures/item/card/clubs_10.png

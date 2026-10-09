@@ -65,17 +65,22 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
 | `idle` | El plato gira despacio (en bucle) |
 | `ball_<N>` | La bola corre en contra del plato, frena, rebota y se queda en el número N (0..36 o 00). 7 s |
 
-- La mesa se pone en el centro de cada ruleta y se achica sola para caber **dentro del anillo**,
-  que sigue sirviendo para apostar como siempre.
+- La mesa se pone en el centro de cada ruleta. Quien ve la mesa 3D **no ve el anillo de bloques
+  ni sus números** (se apuesta solo en la mesa; el mundo no se toca, así que con
+  `hide_ring: false` o sin ModelEngine vuelve todo como siempre).
+- La mesa es sólida (shulkers invisibles, `collision: true`).
 - **Click en una casilla del paño** = elegirla (con fichas en la mano, apostar ahí; shift = todo
   el stack). Click en la rueda = lo mismo que el centro (menú de apuestas).
 - **Las fichas apostadas se ven sobre el paño**, un montón por casilla, y se van al terminar la ronda.
-- Al girar, la bola cae en el número que salió y entonces se ilumina en el anillo y se paga.
+- Al girar, la bola cae en el número que salió y entonces se paga.
 - En el paño se iluminan **todas las casillas ganadoras** (número, color, par/impar, 1-18/19-36,
   docena y columna): parpadean unos segundos y quedan encendidas hasta el siguiente giro.
 
   ![casillas ganadoras](previews/roulette_win.png)
-- Opciones en `ruleta.yml → model` (`scale: auto` o un número, `hide_station`...).
+- Opciones en `ruleta.yml → model` (`scale: auto` o un número, `hide_station`, `hide_ring`, `collision`...).
+- Menús de la ruleta con fondo propio (apuestas y la rueda de plenos):
+
+  ![menú de la ruleta](previews/roulette_menu.png)
 
 ## Póker: mesa en 3D, cartas, fichas y botón del dealer
 
@@ -102,15 +107,16 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
 
 ![mesa de blackjack](previews/blackjack_table.png)
 
-- `blackjack_table.bbmodel` (ModelEngine): media luna delante del dealer con "BLACKJACK PAGA
-  3 A 2", las reglas del crupier, círculos de apuesta, bandeja de fichas, zapato de cartas y
-  descartes. Mira hacia donde mira el dealer (`/gdx station rotate` gira a los dos) y se ajusta
+- `blackjack_table.bbmodel` (ModelEngine): mesa rectangular (como la de póker) delante del
+  dealer con "BLACKJACK PAGA 3 A 2", las reglas del crupier, bandeja de fichas, zapato de cartas
+  y descartes. Mira hacia donde mira el dealer (`/gdx station rotate` gira a los dos) y se ajusta
   a los asientos (a tamaño completo, a unos 3-4 bloques del dealer). Opciones en `blackjack.yml → model`.
 - **Cartas y fichas en 3D** (`resource_pack.custom_cards: true`; también sin ModelEngine):
-  - Las cartas salen del zapato y quedan en escalera delante de cada jugador; las manos
+  - Las cartas salen del zapato y quedan en escalera en el borde de la mesa delante de cada
+    jugador; las manos
     divididas, una al lado de la otra.
   - La segunda carta del dealer queda boca abajo y **se da vuelta** cuando le toca jugar.
-  - La apuesta va en el círculo (las laterales al lado). Si ganas, el pago sale de la bandeja
+  - La apuesta va delante de cada jugador (las laterales al lado). Si ganas, el pago sale de la bandeja
     del dealer y **todo se desliza hacia ti**; si pierdes, **el dealer se lleva las fichas**.
   - Sonidos de cartas, volteo, fichas y premio para los que están cerca.
 
@@ -185,3 +191,12 @@ cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_ta
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en
 `StationModels.java`.
+
+## Colisión y clicks
+
+- Las máquinas (2 bloques de alto), las mesas y las sillas son **sólidas**: shulkers invisibles,
+  quietos e invulnerables, uno por bloque (`collision: true` en cada `model` y en `chairs`). No
+  ocupan los asientos ni el sitio del dealer, y si cambias los asientos con los comandos se
+  recolocan solos. En mundos en pacífico no se ponen.
+- Los clicks en los modelos, las mesas y las sillas funcionan aunque WorldGuard o la protección
+  del spawn bloqueen interactuar con entidades (antes solo podían usarlos los admins).

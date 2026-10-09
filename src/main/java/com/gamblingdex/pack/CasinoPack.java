@@ -19,7 +19,8 @@ public final class CasinoPack {
     /** Caracteres de la fuente gamblingdex:gui (models/tools/build_pack.py). */
     public static final String BACK_8 = "", BACK_169 = "";
     public static final String SLOTS_BG = "\uE100", EXCHANGE_BG = "\uE101", POKER_ACTION_BG = "\uE102",
-            POKER_BUYIN_BG = "\uE103", BJ_ACTION_BG = "\uE104", BJ_BET_BG = "\uE105";
+            POKER_BUYIN_BG = "\uE103", BJ_ACTION_BG = "\uE104", BJ_BET_BG = "\uE105",
+            ROULETTE_BG = "\uE106", ROULETTE_NUM_BG = "\uE107";
 
     private CasinoPack() {
     }

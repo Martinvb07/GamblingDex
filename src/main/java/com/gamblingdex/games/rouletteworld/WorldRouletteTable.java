@@ -722,7 +722,8 @@ public class WorldRouletteTable {
                 spinTask.cancel();
             spinTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 spinTask = null;
-                highlightNumber(winningNumber);
+                if (!models.ringHidden(center)) // sin anillo a la vista: se ilumina solo el paño
+                    highlightNumber(winningNumber);
                 models.rouletteResult(center, winningNumber);
                 finishRound(winningNumber);
             }, com.gamblingdex.models.StationModels.ROULETTE_SPIN_TICKS);
@@ -1190,7 +1191,7 @@ public class WorldRouletteTable {
         }
     }
 
-    private static Location parseKey(String key) {
+    public static Location parseKey(String key) {
         try {
             String[] parts = key.split(";");
             if (parts.length != 4)

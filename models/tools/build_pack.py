@@ -29,6 +29,8 @@ CH_POKER_ACTION_BG = '\uE102'  # menu de acciones del poker
 CH_POKER_BUYIN_BG = '\uE103'   # menu de comprar fichas del poker
 CH_BJ_ACTION_BG = '\uE104'     # menu de acciones del blackjack
 CH_BJ_BET_BG = '\uE105'        # menu de apuestas del blackjack
+CH_ROULETTE_BG = '\uE106'      # menu de apuestas de la ruleta
+CH_ROULETTE_NUM_BG = '\uE107'  # menu de plenos de la ruleta (la rueda)
 
 
 def mkdir(p):
@@ -351,6 +353,7 @@ FONT = {
     'Z': ['111', '001', '010', '100', '111'], '-': ['000', '000', '111', '000', '000'],
     '+': ['000', '010', '111', '010', '000'], '1': ['010', '110', '010', '010', '111'],
     '2': ['110', '001', '010', '100', '111'], '3': ['110', '001', '010', '001', '110'],
+    '5': ['111', '100', '110', '001', '110'], '0': ['010', '101', '101', '101', '010'],
     ' ': ['00', '00', '00', '00', '00'],
 }
 
@@ -510,6 +513,80 @@ def bj_bet_background():
     button_slot(d, 4, 1, RED_B)
     button_slot(d, 4, 4, GREY_B)
     button_slot(d, 4, 7, GREEN_B)
+    return img
+
+
+def roulette_background():
+    """RouletteBetMenu: 2 el 0, 4 plenos (rueda), 6 el 00, 11/20 13/22 15/24 simples,
+    29/31/33 docenas, 38/40/42 columnas, abajo 45 estado, 47 tus apuestas, 49 cerrar,
+    51 repetir, 53 tus fichas."""
+    img, d = felt_menu(6)
+    # Plenos arriba: el 0 y el 00 a los lados de la rueda
+    button_slot(d, 0, 2, (40, 170, 70))
+    button_slot(d, 0, 6, (40, 170, 70))
+    button_slot(d, 0, 4, GOLD_B)
+    label(d, 'PLENOS', slot_box(0, 1)[0], slot_center(0, 0)[1])
+    label(d, '35 A 1', slot_box(0, 8)[0], slot_center(0, 0)[1])
+    suit_icon(d, *slot_center(0, 3), 'diamond', (214, 40, 50))
+    suit_icon(d, *slot_center(0, 5), 'club', CREAM)
+    # Simples (1 a 1): en parejas
+    for c, top, bottom in ((2, (210, 40, 46), (40, 40, 46)), (4, GREEN_B, ORANGE_B), (6, (236, 236, 228), GREY_B)):
+        info_slot(d, 1, c, top)
+        info_slot(d, 2, c, bottom)
+    label(d, 'SIMPLES', slot_box(1, 1)[0], slot_box(2, 0)[1])
+    label(d, '1 A 1', slot_box(1, 8)[0], slot_box(2, 0)[1])
+    # Docenas y columnas (2 a 1)
+    for r, txt, col in ((3, 'DOCENAS', GOLD_B), (4, 'COLUMNAS', BLUE_B)):
+        for c in (2, 4, 6):
+            info_slot(d, r, c, col)
+        label(d, txt, slot_box(r, 1)[0], slot_center(r, 0)[1])
+        label(d, '2 A 1', slot_box(r, 8)[0], slot_center(r, 0)[1])
+    # Fila de abajo, separada con un filete dorado
+    ly = slot_box(5, 0)[1] - 1
+    d.line([(8, ly), (167, ly)], fill=GOLD_D)
+    info_slot(d, 5, 0, GREY_B)
+    info_slot(d, 5, 2, (240, 240, 232))
+    button_slot(d, 5, 4, RED_B)
+    button_slot(d, 5, 6, GREEN_B)
+    info_slot(d, 5, 8, GOLD)
+    return img
+
+
+def roulette_numbers_background():
+    """RouletteNumberMenu: los 38 numeros en dos ovalos (filas 0-4) como una rueda, en el
+    centro 20 ficha elegida, 22 estado, 24 tus plenos; abajo 45 volver, 46..52 fichas, 53 repetir."""
+    img, d = felt_menu(6)
+    # Rueda: aro de caoba con filete dorado alrededor de los dos ovalos
+    x1, y1 = slot_box(0, 0)[:2]
+    x2, y2 = slot_box(4, 8)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 1, x2 + 2, y2 + 2), radius=6, fill=GOLD_D)
+    d.rounded_rectangle((x1 - 1, y1, x2 + 1, y2 + 1), radius=5, fill=(74, 30, 14))
+    for r in range(5):
+        for c in range(9):
+            outer = r in (0, 4) or c in (0, 8)
+            if outer or (r in (1, 3) and 1 <= c <= 7) or (r == 2 and c in (1, 7)):
+                bx1, by1, bx2, by2 = slot_box(r, c)
+                # ovalo de afuera con marco dorado; el de adentro, de madera
+                d.rectangle((bx1, by1, bx2, by2), fill=GOLD_D if outer else (120, 62, 24))
+                recess(d, r, c)
+    # Centro: pano con la ficha, el estado y tus plenos
+    cx1, cy1 = slot_box(2, 2)[:2]
+    cx2, cy2 = slot_box(2, 6)[2:]
+    d.rectangle((cx1, cy1, cx2, cy2), fill=GRN)
+    info_slot(d, 2, 2, GOLD)
+    info_slot(d, 2, 4, (240, 240, 232))
+    info_slot(d, 2, 6, BLUE_B)
+    suit_icon(d, *slot_center(2, 3), 'spade', GOLD_L)
+    suit_icon(d, *slot_center(2, 5), 'heart', (214, 40, 50))
+    # Las 2 casillas de la rueda sin numero (19 y 28): bolitas doradas
+    for r, c in ((2, 1), (3, 1)):
+        cx, cy = slot_center(r, c)
+        d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=GOLD, outline=GOLD_D)
+        d.point((cx - 1, cy - 1), fill=GOLD_L)
+    # Abajo: volver, bandeja de fichas, repetir
+    button_slot(d, 5, 0, GREY_B)
+    vitrine(d, 5, 5, 1, 7)
+    button_slot(d, 5, 8, GREEN_B)
     return img
 
 
@@ -693,7 +770,7 @@ def chip_model():
 
 # Como se ve en cada sitio (la ficha esta acostada: cara hacia arriba)
 CHIP_DISPLAY = {
-    'gui': {'rotation': [-55, 0, 0], 'translation': [0, 1, 0], 'scale': [1.15, 1.15, 1.15]},
+    'gui': {'rotation': [-60, 0, 0], 'translation': [0, 4.5, 0], 'scale': [1, 1, 1]},  # centrada y dentro de la casilla
     'ground': {'translation': [0, 1, 0], 'scale': [0.45, 0.45, 0.45]},
     'fixed': {'rotation': [90, 180, 0], 'scale': [0.9, 0.9, 0.9]},
     'head': {'translation': [0, 14.5, 0], 'scale': [0.7, 0.7, 0.7]},
@@ -1028,7 +1105,9 @@ def main():
     for name, fn, ch in (('poker_action_gui', poker_action_background, CH_POKER_ACTION_BG),
                          ('poker_buyin_gui', poker_buyin_background, CH_POKER_BUYIN_BG),
                          ('bj_action_gui', bj_action_background, CH_BJ_ACTION_BG),
-                         ('bj_bet_gui', bj_bet_background, CH_BJ_BET_BG)):
+                         ('bj_bet_gui', bj_bet_background, CH_BJ_BET_BG),
+                         ('roulette_gui', roulette_background, CH_ROULETTE_BG),
+                         ('roulette_num_gui', roulette_numbers_background, CH_ROULETTE_NUM_BG)):
         im = fn()
         im.save(os.path.join(tex, name + '.png'))
         font['providers'].append({'type': 'bitmap', 'file': 'gamblingdex:font/' + name + '.png',

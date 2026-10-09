@@ -13,6 +13,7 @@ import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -166,22 +167,32 @@ public class Chairs implements Listener {
         box.setResponsive(true);
         box.setPersistent(false);
         box.addScoreboardTag(TAG);
-        return new UUID[] { stool.getUniqueId(), box.getUniqueId() };
+        // Colisión: la silla es sólida como un bloque (shulker invisible), salvo con chairs.collision: false
+        org.bukkit.entity.Shulker solid = plugin.getConfig().getBoolean("chairs.collision", true)
+                && w.getDifficulty() != org.bukkit.Difficulty.PEACEFUL
+                        ? com.gamblingdex.models.StationModels.spawnCollider(at.getBlock().getLocation().add(0.5, 0, 0.5), TAG)
+                        : null;
+        return solid == null ? new UUID[] { stool.getUniqueId(), box.getUniqueId() }
+                : new UUID[] { stool.getUniqueId(), box.getUniqueId(), solid.getUniqueId() };
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH) // aunque WorldGuard o la protección del spawn lo cancelen
     public void onClick(PlayerInteractEntityEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND || !(event.getRightClicked() instanceof Interaction box)
-                || !box.getScoreboardTags().contains(TAG))
+        Entity clicked = event.getRightClicked();
+        if (!(clicked instanceof Interaction || clicked instanceof org.bukkit.entity.Shulker)
+                || !clicked.getScoreboardTags().contains(TAG))
             return;
         event.setCancelled(true);
         Player p = event.getPlayer();
-        if (p.isInsideVehicle() || p.isSneaking())
+        if (event.getHand() != EquipmentSlot.HAND || p.isInsideVehicle() || p.isSneaking())
             return;
         for (Map.Entry<String, UUID[]> e : chairs.entrySet()) {
-            if (!box.getUniqueId().equals(e.getValue()[1]))
+            UUID[] ids = e.getValue();
+            if (!Arrays.asList(ids).contains(clicked.getUniqueId()))
                 continue;
-            sit(p, e.getKey(), box.getLocation());
+            Entity box = Bukkit.getEntity(ids[1]);
+            if (box != null)
+                sit(p, e.getKey(), box.getLocation());
             return;
         }
     }

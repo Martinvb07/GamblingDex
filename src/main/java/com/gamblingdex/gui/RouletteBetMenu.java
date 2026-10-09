@@ -36,14 +36,12 @@ public class RouletteBetMenu {
     }
 
     public void open(Player player, WorldRouletteTable table) {
-        Inventory inv = Bukkit.createInventory(new RouletteBetMenuHolder(table.getTableKey()), 54, TITLE);
+        Inventory inv = com.gamblingdex.pack.CasinoPack.inventory(new RouletteBetMenuHolder(table.getTableKey()), 54,
+                com.gamblingdex.pack.CasinoPack.ROULETTE_BG, TITLE);
 
-        for (int i = 0; i < inv.getSize(); i++) {
-            inv.setItem(i, filler(Material.GRAY_STAINED_GLASS_PANE));
-        }
-        for (int i = 45; i < 54; i++) {
-            inv.setItem(i, filler(Material.BLACK_STAINED_GLASS_PANE));
-        }
+        // Con el fondo del pack no hace falta el relleno de cristales
+        for (int i = 0; i < inv.getSize() && !com.gamblingdex.pack.CasinoPack.customGui(); i++)
+            inv.setItem(i, filler(i >= 45 ? Material.BLACK_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE));
 
         // Estado de la ronda
         String status = switch (table.getState()) {
@@ -51,17 +49,17 @@ public class RouletteBetMenu {
             case SPINNING -> "§6Girando...";
             default -> "§cApuestas cerradas §7(espera la próxima ronda)";
         };
-        inv.setItem(4, actionButton("noop", "status", Material.CLOCK, "§6§lRULETA", List.of(
+        inv.setItem(45, actionButton("noop", "status", Material.CLOCK, "§6§lRULETA", List.of(
                 status,
                 "",
                 "§71. Click a la apuesta que quieras",
                 "§72. Elige cuántas fichas",
                 "§7El 0 y el 00 solo pagan si apostaste a ese número.")));
 
-        // Columnas a la izquierda (pagan 2 a 1)
-        inv.setItem(9, typeButton(WorldRouletteBetType.COLUMN_1, Material.CYAN_CONCRETE, "§3", "§71, 4, 7 ... 34"));
-        inv.setItem(18, typeButton(WorldRouletteBetType.COLUMN_2, Material.LIGHT_BLUE_CONCRETE, "§b", "§72, 5, 8 ... 35"));
-        inv.setItem(27, typeButton(WorldRouletteBetType.COLUMN_3, Material.BLUE_CONCRETE, "§9", "§73, 6, 9 ... 36"));
+        // Columnas (pagan 2 a 1), debajo de las docenas
+        inv.setItem(38, typeButton(WorldRouletteBetType.COLUMN_1, Material.CYAN_CONCRETE, "§3", "§71, 4, 7 ... 34"));
+        inv.setItem(40, typeButton(WorldRouletteBetType.COLUMN_2, Material.LIGHT_BLUE_CONCRETE, "§b", "§72, 5, 8 ... 35"));
+        inv.setItem(42, typeButton(WorldRouletteBetType.COLUMN_3, Material.BLUE_CONCRETE, "§9", "§73, 6, 9 ... 36"));
 
         // Simples (pagan 1 a 1), en parejas: rojo/negro, par/impar, 1-18/19-36
         inv.setItem(11, typeButton(WorldRouletteBetType.RED, Material.RED_CONCRETE, "§c", "§7Cualquier número rojo"));
@@ -76,12 +74,12 @@ public class RouletteBetMenu {
         inv.setItem(31, typeButton(WorldRouletteBetType.DOZEN_2, Material.ORANGE_CONCRETE, "§6", "§7Del 13 al 24"));
         inv.setItem(33, typeButton(WorldRouletteBetType.DOZEN_3, Material.RED_TERRACOTTA, "§c", "§7Del 25 al 36"));
 
-        // Pleno (paga 35 a 1): 0, elegir número, 00
-        inv.setItem(38, numberButton(0));
-        inv.setItem(40, actionButton("open", "numbers", Material.COMPASS, "§e§lApostar a números (rueda)",
+        // Pleno (paga 35 a 1): arriba la rueda con todos los números; el 0 y el 00 a los lados
+        inv.setItem(2, numberButton(0));
+        inv.setItem(4, actionButton("open", "numbers", Material.COMPASS, "§e§lApostar a números (rueda)",
                 List.of("§7Los 38 números como en la rueda,", "§7con tus fichas abajo: eliges una", "§7y la echas en los números que quieras.",
                         "", "§7Pleno paga §f35 a 1 §8(36x)", "", "§eClick para abrir la rueda")));
-        inv.setItem(42, numberButton(WorldRouletteTables.DOUBLE_ZERO));
+        inv.setItem(6, numberButton(WorldRouletteTables.DOUBLE_ZERO));
 
         // Abajo: tus apuestas, repetir, cerrar, fichas
         List<String> mine = table.describeBets(player.getUniqueId());
@@ -93,7 +91,7 @@ public class RouletteBetMenu {
             lore.add("");
             lore.add("§7Total: §e" + table.totalBet(player.getUniqueId()));
         }
-        inv.setItem(46, actionButton("noop", "mine", Material.WRITABLE_BOOK, "§e§lTus apuestas", lore));
+        inv.setItem(47, actionButton("noop", "mine", Material.WRITABLE_BOOK, "§e§lTus apuestas", lore));
 
         long last = table.lastBetTotal(player.getUniqueId());
         if (last > 0) {
@@ -101,14 +99,14 @@ public class RouletteBetMenu {
             repeat.add("");
             repeat.add("§7Total: §e" + last);
             repeat.add("§eClick para apostar lo mismo otra vez");
-            inv.setItem(48, actionButton("repeat", "repeat", Material.EMERALD, "§a§lRepetir apuesta", repeat));
+            inv.setItem(51, actionButton("repeat", "repeat", Material.EMERALD, "§a§lRepetir apuesta", repeat));
         } else {
-            inv.setItem(48, actionButton("noop", "repeat", Material.GRAY_DYE, "§7Repetir apuesta",
+            inv.setItem(51, actionButton("noop", "repeat", Material.GRAY_DYE, "§7Repetir apuesta",
                     List.of("§8Disponible después de tu primera ronda")));
         }
 
-        inv.setItem(50, actionButton("close", "close", Material.BARRIER, "§cCerrar", List.of("§7Cerrar menú")));
-        inv.setItem(52, actionButton("noop", "balance", Material.SUNFLOWER,
+        inv.setItem(49, actionButton("close", "close", Material.BARRIER, "§cCerrar", List.of("§7Cerrar menú")));
+        inv.setItem(53, actionButton("noop", "balance", Material.SUNFLOWER,
                 "§7Tus fichas: §e" + TokenWallet.balance(player), List.of(
                         "§8También puedes apostar con fichas en la mano:",
                         "§8click derecho al centro §7(shift = todo el stack)")));
