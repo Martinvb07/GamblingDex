@@ -1014,7 +1014,7 @@ public class StationModels implements Listener {
         var poker = plugin.getPokerManager() == null ? null : plugin.getPokerManager().getByBlock(m.station.getBlock());
         double yaw = Math.toRadians(plugin.getStationManager().getModelYaw(m.station));
         double ax = -Math.cos(yaw), az = -Math.sin(yaw), px = Math.sin(yaw), pz = -Math.cos(yaw); // ejes X y Z del modelo
-        double best = 1.6;
+        double best = 1.0; // más grande sería más alta: no se vería la mesa desde la silla
         boolean any = false;
         if (poker != null)
             for (Location seat : poker.visualState().seatLocations()) {
@@ -1057,7 +1057,7 @@ public class StationModels implements Listener {
         var bj = blackjack(m);
         double yaw = Math.toRadians(blackjackYaw(m));
         double rx = -Math.cos(yaw), rz = -Math.sin(yaw), fx = -Math.sin(yaw), fz = Math.cos(yaw);
-        double best = 1.6;
+        double best = 1.0; // más grande sería más alta: no se vería la mesa desde la silla
         boolean any = false;
         if (bj != null)
             for (String key : bj.getSeatKeys()) {

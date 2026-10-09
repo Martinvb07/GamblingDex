@@ -248,5 +248,5 @@ resource_pack:
 chairs:
   enabled: true
   scale: 1.0          # tamaño del taburete
-  sit_height: 0.45    # altura a la que queda sentado el jugador (súbela o bájala si se ve hundido o flotando)
+  seat_height: 0.8    # altura del asiento (súbela o bájala si el jugador se ve hundido o flotando)
   collision: true     # la silla es sólida como un bloque

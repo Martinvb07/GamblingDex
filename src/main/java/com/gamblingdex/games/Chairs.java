@@ -248,7 +248,9 @@ public class Chairs implements Listener {
         UUID[] ids = chairs.get(key);
         Entity stool = ids == null ? null : Bukkit.getEntity(ids[0]);
         float yaw = stool instanceof ItemDisplay d ? yawOf(d) : p.getLocation().getYaw();
-        double h = plugin.getConfig().getDouble("chairs.sit_height", 0.45) * plugin.getConfig().getDouble("chairs.scale", 1.0);
+        // El jugador queda sentado sobre el cojín (el taburete mide 0.76; el que va montado queda
+        // con la cadera a la altura del asiento)
+        double h = plugin.getConfig().getDouble("chairs.seat_height", 0.8) * plugin.getConfig().getDouble("chairs.scale", 1.0);
         Location at = chairBase.clone().add(0, h, 0);
         at.setYaw(yaw);
         at.setPitch(0);
