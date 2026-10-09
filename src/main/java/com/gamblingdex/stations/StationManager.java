@@ -181,7 +181,7 @@ public class StationManager {
             td.setDefaultBackground(false);
             td.setShadowed(true);
 
-            Location newLoc = stationLoc.clone().add(0.5, height, 0.5);
+            Location newLoc = stationLoc.clone().add(0.5, height + extraHoloHeight(type), 0.5);
             td.teleport(newLoc);
         }
 
@@ -422,6 +422,25 @@ public class StationManager {
         setStation(location, GameItemType.SLOTS, true);
     }
 
+    /** Hacia dónde mira el modelo 3D de una estación de slots (grados, 0 = sur). */
+    public float getModelYaw(Location location) {
+        if (location == null)
+            return 0f;
+        return (float) stations.getDouble("stations." + key(location) + ".model_yaw", 0.0);
+    }
+
+    public void setModelYaw(Location location, float yaw) {
+        stations.set("stations." + key(location) + ".model_yaw", (double) (((yaw % 360) + 360) % 360));
+        save();
+    }
+
+    /** Con el modelo 3D de slots encima de la estación, el holograma va más alto. */
+    private double extraHoloHeight(GameItemType type) {
+        if (type != GameItemType.SLOTS || plugin.getSlotsModels() == null)
+            return 0;
+        return plugin.getSlotsModels().holoExtraHeight();
+    }
+
     /** Texto del holograma: el del tema (slots.yml → themes.&lt;tema&gt;.holo) o el de siempre. */
     private String holoTitle(Location location, GameItemType type) {
         String theme = type == GameItemType.SLOTS ? getTheme(location) : null;
@@ -438,7 +457,8 @@ public class StationManager {
 
         String title = holoTitle(location, type);
 
-        Location holoLoc = location.clone().add(0.5, plugin.getConfig().getDouble("stations.holo_height", 1.2), 0.5);
+        Location holoLoc = location.clone().add(0.5,
+                plugin.getConfig().getDouble("stations.holo_height", 1.2) + extraHoloHeight(type), 0.5);
         TextDisplay td = w.spawn(holoLoc, TextDisplay.class);
         td.addScoreboardTag(TAG);
         td.setBillboard(Display.Billboard.CENTER);

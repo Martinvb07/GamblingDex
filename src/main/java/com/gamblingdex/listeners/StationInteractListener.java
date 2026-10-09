@@ -55,7 +55,7 @@ public class StationInteractListener implements Listener {
             case SLOTS -> {
                 if (plugin.getMaintenance() == null || plugin.getMaintenance().allow(player, "slots"))
                     plugin.getSlotsController().open(player,
-                            plugin.getStationManager().getTheme(clicked.getLocation()));
+                            plugin.getStationManager().getTheme(clicked.getLocation()), clicked.getLocation());
             }
             case EXCHANGE -> plugin.getExchangeMenu().open(player);
             default -> {

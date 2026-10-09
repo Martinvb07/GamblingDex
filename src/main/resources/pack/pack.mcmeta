@@ -1,0 +1,12 @@
+{
+  "pack": {
+    "pack_format": 22,
+    "supported_formats": {
+      "min_inclusive": 22,
+      "max_inclusive": 999
+    },
+    "min_format": 22,
+    "max_format": 999,
+    "description": "§6GamblingDex §7- menús y sonidos del casino"
+  }
+}

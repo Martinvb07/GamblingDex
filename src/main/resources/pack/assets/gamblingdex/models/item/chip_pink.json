@@ -1,0 +1,7 @@
+{
+  "parent": "gamblingdex:item/chip",
+  "textures": {
+    "chip": "gamblingdex:item/chip_pink",
+    "particle": "gamblingdex:item/chip_pink"
+  }
+}

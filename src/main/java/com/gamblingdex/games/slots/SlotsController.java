@@ -5,6 +5,7 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.gui.Icons;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
@@ -100,6 +101,7 @@ public class SlotsController {
         long lastPay = -1;
         BukkitTask task;
         int frame;
+        Location station; // estación desde la que se abrió (para animar su modelo 3D)
     }
 
     // ------------------------------------------------------------------
@@ -161,9 +163,16 @@ public class SlotsController {
 
     /** Abre las slots con el tema de la estación (null = clásico). */
     public void open(Player player, String theme) {
+        open(player, theme, null);
+    }
+
+    /** Abre las slots desde una estación (su modelo 3D se anima al girar). */
+    public void open(Player player, String theme, Location station) {
         SlotsState s = states.computeIfAbsent(player.getUniqueId(), k -> new SlotsState());
         if (s.spinning)
             theme = s.theme; // no cambiar de máquina a mitad de un giro
+        else
+            s.station = station == null ? null : station.clone();
         String t = themeExists(theme) ? theme : null;
         if (!Objects.equals(t, s.theme)) {
             s.theme = t;
@@ -182,11 +191,13 @@ public class SlotsController {
         if (raw == null || raw.equals("&dTragamonedas")) // título de la versión anterior
             raw = "&8&l✦ &d&lTRAGAMONEDAS &8&l✦";
         String title = plugin.color(raw);
-        Inventory inv = Bukkit.createInventory(holder, 54, title);
+        Inventory inv = customGui()
+                ? Bukkit.createInventory(holder, 54, customTitle(title))
+                : Bukkit.createInventory(holder, 54, title);
         holder.setInventory(inv);
         render(player, inv, s);
         player.openInventory(inv);
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.2f);
+        sfx(player, "coin", Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.2f);
     }
 
     public boolean isSlotsInventory(Inventory inv, Player player) {
@@ -196,9 +207,10 @@ public class SlotsController {
     private void render(Player p, Inventory inv, SlotsState s) {
         inv.clear();
         boolean flash = s.spinning && s.frame % 2 == 0;
+        boolean custom = customGui(); // el fondo del resource pack ya dibuja luces, marcos y flechas
 
         // Luces de arriba y abajo de los rodillos
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 9 && !custom; i++) {
             boolean a = (i + s.frame) % 2 == 0;
             Material light = s.spinning ? (a ? Material.YELLOW_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE)
                     : s.lastPay > 0 ? Material.LIME_STAINED_GLASS_PANE : Material.MAGENTA_STAINED_GLASS_PANE;
@@ -215,7 +227,7 @@ public class SlotsController {
                     List.of("&7Tres iguales en la línea: &ax" + tripleMult(s), "&7Dos iguales: &ax" + doubleMult(s)), true));
 
         // Marco de los rodillos
-        for (int row = 1; row <= 3; row++)
+        for (int row = 1; row <= 3 && !custom; row++)
             for (int col : new int[] { 1, 3, 5, 7 })
                 inv.setItem(row * 9 + col, Icons.of(Material.BLACK_STAINED_GLASS_PANE, " ", null));
 
@@ -230,9 +242,11 @@ public class SlotsController {
             }
         }
         // Flechas de la línea de pago
-        Material arrow = flash ? Material.YELLOW_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
-        inv.setItem(19, Icons.of(arrow, "&a&l▶ Línea de pago", null));
-        inv.setItem(25, Icons.of(arrow, "&a&l◀ Línea de pago", null));
+        if (!custom) {
+            Material arrow = flash ? Material.YELLOW_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
+            inv.setItem(19, Icons.of(arrow, "&a&l▶ Línea de pago", null));
+            inv.setItem(25, Icons.of(arrow, "&a&l◀ Línea de pago", null));
+        }
 
         // Lado izquierdo / derecho
         List<String> pay = new ArrayList<>();
@@ -264,7 +278,7 @@ public class SlotsController {
         // Controles
         String u = fmt(s.bet);
         if (s.spinning) {
-            for (int i = 45; i <= 52; i++)
+            for (int i = 45; i <= 52 && !custom; i++)
                 inv.setItem(i, Icons.of(Material.GRAY_STAINED_GLASS_PANE, "&8Girando...", null));
             inv.setItem(S_SPIN, Icons.of(Material.MAGMA_CREAM, 1, "&e&lGIRANDO...", null, false));
         } else {
@@ -277,7 +291,8 @@ public class SlotsController {
                     "&7Tres iguales: &a" + fmt(s.bet * tripleMult(s)),
                     "&7Dos iguales: &a" + fmt(s.bet * doubleMult(s))), true));
         }
-        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        if (!custom)
+            Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
 
     /** ¿El rodillo r forma parte de la combinación ganadora? */
@@ -322,7 +337,7 @@ public class SlotsController {
         long hi = max() > 0 ? max() : Long.MAX_VALUE;
         s.bet = Math.max(min(), Math.min(hi, v));
         render(p, inv, s);
-        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+        sfx(p, "coin", Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
     private void spin(Player p, Inventory inv, SlotsState s) {
@@ -355,7 +370,10 @@ public class SlotsController {
             plugin.getSlotsStatsManager().recordSpin(p.getUniqueId(), s.spinBet);
         } catch (Throwable ignored) {
         }
-        p.playSound(p.getLocation(), Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
+        sfx(p, "lever", Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
+        machineSound(s, p, "lever", Sound.BLOCK_LEVER_CLICK, 0.8f, 1.0f);
+        if (plugin.getSlotsModels() != null)
+            plugin.getSlotsModels().spin(s.station, s.result);
         s.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> frame(p, inv, s), 2L, 2L);
     }
 
@@ -372,11 +390,12 @@ public class SlotsController {
                 s.reels[r][1] = s.result[r];
                 s.reels[r][2] = randomSymbolWeighted(s);
                 if (p.isOnline())
-                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 0.8f, 1.0f + r * 0.2f);
+                    sfx(p, "reel_stop", Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 0.8f, 1.0f + r * 0.2f);
+                machineSound(s, p, "reel_stop", Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 0.6f, 1.0f + r * 0.2f);
             }
         }
         if (s.frame < STOP_FRAME[2] && p.isOnline())
-            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.3f, 1.8f);
+            sfx(p, "reel_tick", Sound.UI_BUTTON_CLICK, 0.3f, 1.8f);
         if (s.frame >= STOP_FRAME[2])
             finish(p, s);
         if (p.isOnline() && p.getOpenInventory().getTopInventory() == inv)
@@ -424,9 +443,12 @@ public class SlotsController {
             }
             if (p.isOnline()) {
                 p.sendTitle(plugin.color("&6&l★ JACKPOT ★"), plugin.color("&e+" + fmt(pot)), 10, 80, 20);
-                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+                sfx(p, "jackpot", Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             }
+            machineSound(s, p, "jackpot", Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
         }
+        if (plugin.getSlotsModels() != null)
+            plugin.getSlotsModels().result(s.station, payout > 0);
         try {
             plugin.getSlotsStatsManager().recordPayout(p.getUniqueId(), payout);
         } catch (Throwable ignored) {
@@ -441,11 +463,12 @@ public class SlotsController {
         if (payout > 0) {
             p.sendMessage(colorCfg("messages.slots.win", "&a¡Premio! &7Ganaste fichas equivalentes a &e{amount} &7{currency}")
                     .replace("{amount}", fmt(payout)).replace("{currency}", currencyName));
-            p.playSound(p.getLocation(), triple ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
+            if (!jackpotWin)
+                sfx(p, "win", triple ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
             if (triple && !jackpotWin)
                 p.sendTitle(plugin.color("&d&l¡TRIPLE!"), plugin.color("&e+" + fmt(payout)), 5, 40, 10);
         } else {
-            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
+            sfx(p, "lose", Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
         }
     }
 
@@ -463,6 +486,56 @@ public class SlotsController {
                 finish(p, e.getValue());
         }
         saveJackpot();
+    }
+
+    // ------------------------------------------------------------------
+    // Resource pack: fondo del menú y sonidos propios (config.yml → resource_pack)
+    // ------------------------------------------------------------------
+
+    /** Caracteres de la fuente gamblingdex:gui (models/tools/build_pack.py). */
+    private static final String GUI_BACK_8 = "\uE001", GUI_BACK_169 = "\uE002", GUI_SLOTS_BG = "\uE100";
+
+    private boolean customGui() {
+        return plugin.getResourcePackManager() != null && plugin.getResourcePackManager().customGui();
+    }
+
+    private boolean customSounds() {
+        return plugin.getResourcePackManager() != null && plugin.getResourcePackManager().customSounds();
+    }
+
+    /** Título con el fondo dibujado: se vuelve al borde, se pinta la imagen y el texto sigue en su sitio. */
+    private static net.kyori.adventure.text.Component customTitle(String legacyTitle) {
+        var bg = net.kyori.adventure.text.Component.text(GUI_BACK_8 + GUI_SLOTS_BG + GUI_BACK_169)
+                .font(net.kyori.adventure.key.Key.key("gamblingdex", "gui"))
+                .color(net.kyori.adventure.text.format.NamedTextColor.WHITE);
+        var text = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                .deserialize(legacyTitle);
+        return net.kyori.adventure.text.Component.text().append(bg).append(text).build();
+    }
+
+    /** Sonido para el jugador: el del resource pack (gamblingdex:slots.&lt;key&gt;) o el de Minecraft. */
+    private void sfx(Player p, String key, Sound vanilla, float volume, float pitch) {
+        if (customSounds())
+            p.playSound(p.getLocation(), "gamblingdex:slots." + key, volume, pitch);
+        else
+            p.playSound(p.getLocation(), vanilla, volume, pitch);
+    }
+
+    /** El mismo sonido saliendo de la máquina, para los que miran (el que juega ya lo oye en el menú). */
+    private void machineSound(SlotsState s, Player spinner, String key, Sound vanilla, float volume, float pitch) {
+        if (s.station == null || s.station.getWorld() == null || plugin.getSlotsModels() == null
+                || !plugin.getSlotsModels().active())
+            return;
+        Location at = s.station.clone().add(0.5, 1.5, 0.5);
+        double r = plugin.getConfig().getDouble("games.slots.model.sound_radius", 12);
+        for (Player o : at.getWorld().getPlayers()) {
+            if (o.equals(spinner) || o.getLocation().distanceSquared(at) > r * r)
+                continue;
+            if (customSounds())
+                o.playSound(at, "gamblingdex:slots." + key, volume, pitch);
+            else
+                o.playSound(at, vanilla, volume, pitch);
+        }
     }
 
     // ------------------------------------------------------------------

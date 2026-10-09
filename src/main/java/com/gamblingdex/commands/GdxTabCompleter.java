@@ -30,7 +30,7 @@ public class GdxTabCompleter implements TabCompleter {
             List<String> out = new ArrayList<>(List.of("help", "balance", "profile", "stats", "top", "history", "achievements"));
             if (admin)
                 out.addAll(List.of("reload", "station", "blackjack", "poker", "roulette", "item", "token",
-                        "disable", "enable", "maintenance", "schedule", "inspect", "config", "sign"));
+                        "disable", "enable", "maintenance", "schedule", "inspect", "config", "sign", "pack"));
             if (mm != null)
                 for (GameModule m : mm.getModules()) {
                     if (mm.byCommand(m.id()) == null)
@@ -173,7 +173,7 @@ public class GdxTabCompleter implements TabCompleter {
 
     private List<String> station(Player p, String[] args, String cur, int n, com.gamblingdex.modules.ModuleManager mm) {
         if (n == 2)
-            return filter(List.of("set", "remove", "list", "debug", "cleanholo"), cur);
+            return filter(List.of("set", "remove", "list", "debug", "cleanholo", "rotate"), cur);
         String action = args[1].toLowerCase(Locale.ROOT);
         if (!action.equals("set") && !action.equals("add"))
             return List.of();

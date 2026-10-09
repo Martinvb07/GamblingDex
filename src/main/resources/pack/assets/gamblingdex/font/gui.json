@@ -1,0 +1,20 @@
+{
+  "providers": [
+    {
+      "type": "space",
+      "advances": {
+        "\ue001": -8,
+        "\ue002": -169
+      }
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/slots_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue100"
+      ]
+    }
+  ]
+}

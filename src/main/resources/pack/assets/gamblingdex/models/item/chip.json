@@ -1,0 +1,312 @@
+{
+  "credit": "GamblingDex",
+  "texture_size": [
+    16,
+    16
+  ],
+  "textures": {
+    "chip": "gamblingdex:item/chip_red",
+    "particle": "gamblingdex:item/chip_red"
+  },
+  "elements": [
+    {
+      "name": "cara",
+      "from": [
+        2,
+        2,
+        7
+      ],
+      "to": [
+        14,
+        14,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#chip"
+        },
+        "south": {
+          "uv": [
+            14,
+            2,
+            2,
+            14
+          ],
+          "texture": "#chip"
+        }
+      }
+    },
+    {
+      "name": "canto_0",
+      "from": [
+        2,
+        5,
+        7.05
+      ],
+      "to": [
+        14,
+        11,
+        8.95
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            2,
+            0,
+            14,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "down": {
+          "uv": [
+            2,
+            0,
+            14,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "east": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "west": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#chip"
+        }
+      }
+    },
+    {
+      "name": "canto_1",
+      "from": [
+        3,
+        3,
+        7.05
+      ],
+      "to": [
+        13,
+        13,
+        8.95
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            3,
+            0,
+            13,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "down": {
+          "uv": [
+            3,
+            0,
+            13,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "east": {
+          "uv": [
+            3,
+            0,
+            13,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "west": {
+          "uv": [
+            3,
+            0,
+            13,
+            2
+          ],
+          "texture": "#chip"
+        }
+      }
+    },
+    {
+      "name": "canto_2",
+      "from": [
+        5,
+        2,
+        7.05
+      ],
+      "to": [
+        11,
+        14,
+        8.95
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "down": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "east": {
+          "uv": [
+            2,
+            0,
+            14,
+            2
+          ],
+          "texture": "#chip"
+        },
+        "west": {
+          "uv": [
+            2,
+            0,
+            14,
+            2
+          ],
+          "texture": "#chip"
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        18,
+        -22,
+        0
+      ],
+      "scale": [
+        1.05,
+        1.05,
+        1.05
+      ]
+    },
+    "ground": {
+      "translation": [
+        0,
+        2,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        180,
+        0
+      ]
+    },
+    "head": {
+      "translation": [
+        0,
+        13,
+        7
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        70,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        1.5,
+        2
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        70,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        1.5,
+        2
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -20,
+        10
+      ],
+      "translation": [
+        1.5,
+        3.5,
+        1
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        -20,
+        10
+      ],
+      "translation": [
+        1.5,
+        3.5,
+        1
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    }
+  }
+}

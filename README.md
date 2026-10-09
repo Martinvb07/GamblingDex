@@ -47,7 +47,7 @@ Mesas físicas en el mundo, juegos por menú, fichas con Vault y estadísticas, 
 | 🎡 **Rueda de la Fortuna** | Se construye sola alrededor de un faro: pared de lámparas de redstone que se encienden en cadena y una fila de concreto que se desplaza al girar. Gana el color que queda encima del faro (x1, x2, x5, x10, x20 o x40). |
 | 🐎 **Carrera de caballos** | La pista se construye sola (vallas, puertas de salida y meta) con un comando. Caballos reales y apuestas mutuas tipo hipódromo: el pozo se reparte entre quienes acertaron. |
 | 📈 **Crash** | Cada mesa tiene su propia ronda, con el multiplicador en vivo encima: sube hasta que explota. Click derecho para apostar, **shift + click derecho** para retirarte. Tu apuesta y lo que cobras salen sobre la barra de experiencia. |
-| 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables y **jackpot progresivo**: cada tirada aporta un % al pozo y tres estrellas del Nether se lo llevan todo (con anuncio a todo el servidor). |
+| 🎰 **Tragamonedas** | Estaciones de slots con probabilidades por símbolo configurables y **jackpot progresivo**: cada tirada aporta un % al pozo y tres estrellas del Nether se lo llevan todo (con anuncio a todo el servidor). Opcional: **máquina en 3D animada con ModelEngine**, menú con fondo propio y sonidos nuevos ([models/](models/README.md)). |
 | 💣 **Mines** | **Estación con menú**: tablero de 5×5 en un cofre, eliges apuesta y minas, cada casilla segura sube el multiplicador y te retiras cuando quieras (juegan varios a la vez). También se puede construir como **pared física** de 5×5. |
 | 🗼 **Tower** | **Estación con menú**: sube una torre eligiendo puertas en cada piso; detrás de alguna hay una trampa. Cuatro dificultades, el premio crece con cada piso y te retiras cuando quieras. |
 | 🎯 **Plinko** | **Estación con menú**: la bola baja animada entre los clavos y cae en una casilla con multiplicador (shift = 5 bolas). También como **pared física** con clavos; las orillas pagan hasta x10. |
@@ -303,6 +303,10 @@ Mira el bloque y usa `/gdx station set slots` o `/gdx station set exchange`.
 </details>
 
 ---
+
+## 🎨 Modelos 3D, menús y sonidos (opcional)
+
+Máquina de slots en 3D con ModelEngine (palanca y rodillos que paran en el resultado real), fichas de casino en 3D, menú con fondo dibujado y sonidos propios con un resource pack. Comandos: `/gdx pack` (genera el pack y lo junta con el de ModelEngine) y `/gdx station rotate`. Guía completa en [models/README.md](models/README.md).
 
 ## ⚙️ Configuración
 
