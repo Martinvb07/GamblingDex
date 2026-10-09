@@ -48,7 +48,9 @@ public class StationModels implements Listener {
         EXCHANGE(GameItemType.EXCHANGE, "exchange.model", "exchange_machine", 1.0, 1.0, 2.0),
         ROULETTE(GameItemType.ROULETTE, "roulette_world.model", "roulette_table", 1.0, 3.75, 0.95),
         /** Las mesas de póker no son estaciones: sus centros salen de PokerManager. */
-        POKER(null, "poker.model", "poker_table", 1.0, 3.75, 1.0);
+        POKER(null, "poker.model", "poker_table", 1.0, 3.75, 1.0),
+        /** La mesa de blackjack va delante del dealer (sus centros salen de BlackjackManager). */
+        BLACKJACK(null, "blackjack.model", "blackjack_table", 1.0, 3.5, 1.0);
 
         final GameItemType type;
         final String path, defaultId;
@@ -148,6 +150,10 @@ public class StationModels implements Listener {
             for (var t : plugin.getPokerManager().getTables())
                 if (t.getCenter() != null)
                     out.add(t.getCenter());
+        if (kind == Kind.BLACKJACK && plugin.getBlackjackManager() != null)
+            for (var t : plugin.getBlackjackManager().getTables())
+                if (t.getCenter() != null)
+                    out.add(t.getCenter());
         return out;
     }
 
@@ -167,7 +173,8 @@ public class StationModels implements Listener {
 
     /** auto | always | never (model.hide_station). */
     private String hideMode(Kind k) {
-        String m = plugin.getConfig().getString(k.path + ".hide_station", "auto");
+        // En el blackjack el dealer está parado sobre el bloque del centro: no se esconde
+        String m = plugin.getConfig().getString(k.path + ".hide_station", k == Kind.BLACKJACK ? "never" : "auto");
         m = m == null ? "auto" : m.toLowerCase(Locale.ROOT);
         return m.equals("always") || m.equals("never") ? m : "auto";
     }
@@ -329,6 +336,8 @@ public class StationModels implements Listener {
                 m.scale = rouletteScale(m);
             else if (m.kind == Kind.POKER)
                 m.scale = pokerScale(m);
+            else if (m.kind == Kind.BLACKJACK)
+                m.scale = blackjackScale(m);
             if (m.scale != 1 && !bridge.setScale(m.handle, m.scale))
                 m.scale = 1;
         }
@@ -338,6 +347,13 @@ public class StationModels implements Listener {
         }
         if (m.kind == Kind.POKER) {
             spawnTableBoxes(m, at, -54, 54, 30, 16.2);
+            return;
+        }
+        if (m.kind == Kind.BLACKJACK) {
+            // la mesa está delante del dealer: cajas a lo ancho, corridas hacia -Z
+            Location front = tableToWorld(m, at, 0, 0, -28);
+            front.setYaw(at.getYaw());
+            spawnTableBoxes(m, front, -48, 48, 24, 16.2);
             return;
         }
         if (m.interaction == null || Bukkit.getEntity(m.interaction) == null) {
@@ -390,7 +406,7 @@ public class StationModels implements Listener {
         double y = hideMode(m.kind).equals("never") ? cfg(m.kind, "y_offset", m.kind.blockHeight)
                 : cfg(m.kind, "y_offset_hidden", 0.0);
         Location at = m.station.clone().add(0.5, y, 0.5);
-        at.setYaw(plugin.getStationManager().getModelYaw(m.station));
+        at.setYaw(m.kind == Kind.BLACKJACK ? blackjackYaw(m) : plugin.getStationManager().getModelYaw(m.station));
         at.setPitch(0);
         return at;
     }
@@ -820,6 +836,49 @@ public class StationModels implements Listener {
         return any ? Math.max(0.4, best) : 1.0;
     }
 
+    private com.gamblingdex.games.blackjack.BlackjackTable blackjack(Machine m) {
+        return plugin.getBlackjackManager() == null ? null : plugin.getBlackjackManager().getByBlock(m.station.getBlock());
+    }
+
+    /** La mesa de blackjack mira hacia donde mira el dealer (o hacia los asientos). */
+    private float blackjackYaw(Machine m) {
+        var bj = blackjack(m);
+        return bj == null ? 0f
+                : com.gamblingdex.games.blackjack.BlackjackVisuals.facing(bj, null, m.station.clone().add(0.5, 1, 0.5));
+    }
+
+    /** Medidas del modelo de blackjack: el arco (con el borde) llega a 56 unidades del dealer. */
+    private double blackjackScale(Machine m) {
+        String cfgScale = plugin.getConfig().getString(Kind.BLACKJACK.path + ".scale", "auto");
+        try {
+            if (cfgScale != null && !cfgScale.equalsIgnoreCase("auto"))
+                return Math.max(0.3, Math.min(2.0, Double.parseDouble(cfgScale)));
+        } catch (NumberFormatException ignored) {
+        }
+        var bj = blackjack(m);
+        double sum = 0;
+        int n = 0;
+        if (bj != null)
+            for (String key : bj.getSeatKeys()) {
+                Location seat = com.gamblingdex.games.blackjack.BlackjackTables.parseKey(key);
+                if (seat == null || seat.getWorld() != m.station.getWorld())
+                    continue;
+                sum += Math.hypot(seat.getX() - m.station.getX(), seat.getZ() - m.station.getZ());
+                n++;
+            }
+        double d = n == 0 ? 3.5 : sum / n;
+        return Math.max(0.6, Math.min(1.4, (d - 0.55) * 16.0 / 56.0));
+    }
+
+    public TableSurface blackjackSurface(Location center) {
+        Machine m = machine(center, Kind.BLACKJACK);
+        if (m == null)
+            return null;
+        Location base = modelLocation(m);
+        return new TableSurface(base, base.getY() + 14.05 * m.scale / 16.0, m.scale, 48 * m.scale / 16.0,
+                24 * m.scale / 16.0);
+    }
+
     public TableSurface pokerSurface(Location center) {
         Machine m = machine(center, Kind.POKER);
         if (m == null)
@@ -1072,6 +1131,11 @@ public class StationModels implements Listener {
             case ROULETTE -> {
                 if (!tableClick(p, m))
                     openRoulette(p, m.station);
+            }
+            case BLACKJACK -> {
+                var bj = blackjack(m);
+                if (bj != null && !bj.reopenMenu(p))
+                    p.sendMessage(plugin.color("&7Párate en un asiento de la mesa para jugar."));
             }
             case POKER -> {
                 var poker = plugin.getPokerManager() == null ? null

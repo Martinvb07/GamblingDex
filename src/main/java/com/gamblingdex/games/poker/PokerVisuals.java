@@ -1,7 +1,7 @@
 package com.gamblingdex.games.poker;
 
 import com.gamblingdex.GamblingDexPlugin;
-import com.gamblingdex.economy.TokenManager;
+import com.gamblingdex.games.TableProps;
 import com.gamblingdex.games.blackjack.Card;
 import com.gamblingdex.models.StationModels;
 import com.gamblingdex.pack.CasinoPack;
@@ -39,10 +39,6 @@ import java.util.*;
  */
 public class PokerVisuals {
 
-    private static final String TAG = "gdx_poker_visual";
-    /** custom_model_data de las cartas en el pack: CARD + palo*13 + valor; +52 dorso; +53 botón. */
-    public static final int CARD_CMD = 7800, BACK = CARD_CMD + 52, DEALER = CARD_CMD + 53;
-    private static final int SLIDE_TICKS = 6, FLIP_TICKS = 5;
 
     private final GamblingDexPlugin plugin;
     private final Map<String, TableView> views = new HashMap<>();
@@ -50,26 +46,18 @@ public class PokerVisuals {
 
     /** Lo que está puesto en una mesa: cada cosa con su clave ("board:0", "hole:3:1", "bet:2"...). */
     private static final class TableView {
-        final Map<String, Placed> placed = new HashMap<>();
+        final Map<String, TableProps.Placed> placed = new HashMap<>();
         int boardCount, holeCount;
         long betTotal;
         /** Ya se mandó el bote al ganador en esta mano. */
         boolean potSent;
     }
 
-    /** Displays de una cosa puesta y lo que muestran (para no rehacerlos si no cambió). */
-    private static final class Placed {
-        final List<UUID> ids = new ArrayList<>();
-        String signature;
-    }
-
-    /** Cómo aparece algo: desde dónde se desliza (offset en el mundo) y si llega boca abajo y se da vuelta. */
-    private record Motion(Vector slideFrom, boolean flip) {
-        static final Motion NONE = new Motion(null, false);
-    }
+    private final TableProps props;
 
     public PokerVisuals(GamblingDexPlugin plugin) {
         this.plugin = plugin;
+        this.props = new TableProps(plugin);
     }
 
     private boolean enabled() {
@@ -79,7 +67,7 @@ public class PokerVisuals {
 
     public void start() {
         stop();
-        removeOrphans();
+        TableProps.removeOrphans();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 4L);
     }
 
@@ -89,16 +77,9 @@ public class PokerVisuals {
             task = null;
         }
         for (TableView v : views.values())
-            for (Placed p : v.placed.values())
-                remove(p);
+            for (TableProps.Placed p : v.placed.values())
+                TableProps.remove(p);
         views.clear();
-    }
-
-    private void removeOrphans() {
-        for (World w : Bukkit.getWorlds())
-            for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class))
-                if (d.getScoreboardTags().contains(TAG))
-                    d.remove();
     }
 
     // ------------------------------------------------------------------
@@ -120,8 +101,8 @@ public class PokerVisuals {
         for (Iterator<Map.Entry<String, TableView>> it = views.entrySet().iterator(); it.hasNext();) {
             Map.Entry<String, TableView> e = it.next();
             if (!alive.contains(e.getKey())) {
-                for (Placed p : e.getValue().placed.values())
-                    remove(p);
+                for (TableProps.Placed p : e.getValue().placed.values())
+                    TableProps.remove(p);
                 it.remove();
             }
         }
@@ -181,15 +162,15 @@ public class PokerVisuals {
 
         // Cartas de la mesa: salen del dealer boca abajo y se dan vuelta en su hueco
         List<Card> board = st.board();
-        float boardYaw = yawFacing(lay.across()) + 180;
+        float boardYaw = TableProps.yawFacing(lay.across()) + 180;
         for (int i = 0; i < board.size(); i++) {
             Vector off = lay.along().clone().multiply((i - 2) * 0.525 * s);
             Location at = point(lay, off, 0);
-            int face = cmd(board.get(i));
+            int face = TableProps.cmd(board.get(i));
             String key = "board:" + i;
             want.put(key, "c" + face);
-            Motion mo = new Motion(lay.dealer().subtract(off), true);
-            spawners.put(key, () -> view.placed.put(key, single(at, boardYaw, cardItem(face), s, null, false, mo)));
+            TableProps.Motion mo = new TableProps.Motion(lay.dealer().subtract(off), true);
+            spawners.put(key, () -> view.placed.put(key, props.single(at, boardYaw, TableProps.cardItem(face), s, null, false, mo)));
         }
 
         // Cartas de cada asiento, apuestas y botón
@@ -204,7 +185,7 @@ public class PokerVisuals {
                 continue;
             toSeat.normalize();
             Vector side = new Vector(-toSeat.getZ(), 0, toSeat.getX());
-            float yaw = yawFacing(toSeat);
+            float yaw = TableProps.yawFacing(toSeat);
             double edge = lay.edge(toSeat);
             UUID owner = st.owners().get(seat);
 
@@ -217,12 +198,12 @@ public class PokerVisuals {
                     Vector off = toSeat.clone().multiply(edge * 0.72).add(side.clone().multiply((k == 0 ? -0.17 : 0.17) * s));
                     Location at = point(lay, off, k * 0.01);
                     String key = "hole:" + seat + ":" + k;
-                    int face = cmd(hole.get(k));
+                    int face = TableProps.cmd(hole.get(k));
                     want.put(key, (shown ? "up" : "own" + owner) + face);
                     // Repartida: se desliza desde el dealer. Mostrada en el showdown: se da vuelta ahí.
-                    Motion mo = shown && view.placed.containsKey(key) ? new Motion(null, true)
-                            : new Motion(lay.dealer().subtract(off), false);
-                    spawners.put(key, () -> view.placed.put(key, holeCard(at, cardYaw, face, shown, owner, s, mo)));
+                    TableProps.Motion mo = shown && view.placed.containsKey(key) ? new TableProps.Motion(null, true)
+                            : new TableProps.Motion(lay.dealer().subtract(off), false);
+                    spawners.put(key, () -> view.placed.put(key, props.privateCard(at, cardYaw, face, shown, owner, s, mo)));
                 }
             }
 
@@ -233,8 +214,8 @@ public class PokerVisuals {
                 Location at = point(lay, off, 0);
                 String key = "bet:" + seat;
                 want.put(key, "b" + bet);
-                Motion mo = new Motion(toSeat.clone().multiply(edge * 0.4), false); // desde el jugador
-                spawners.put(key, () -> view.placed.put(key, chips(at, bet, s, mo)));
+                TableProps.Motion mo = new TableProps.Motion(toSeat.clone().multiply(edge * 0.4), false); // desde el jugador
+                spawners.put(key, () -> view.placed.put(key, props.chips(at, bet, s, mo)));
             }
 
             if (seat == st.button()) {
@@ -242,7 +223,7 @@ public class PokerVisuals {
                 Location at = point(lay, off, 0);
                 want.put("button", "s" + seat);
                 spawners.put("button", () -> view.placed.put("button",
-                        single(at, yaw, cardItem(DEALER), 0.42f * s, null, true, Motion.NONE)));
+                        props.single(at, yaw, TableProps.cardItem(TableProps.DEALER), 0.42f * s, null, true, TableProps.Motion.NONE)));
             }
         }
 
@@ -251,7 +232,7 @@ public class PokerVisuals {
             view.potSent = false;
         else if (!view.potSent) {
             view.potSent = true;
-            Placed pot = view.placed.remove("pot");
+            TableProps.Placed pot = view.placed.remove("pot");
             if (pot != null)
                 sendPotToWinners(pot, lay, st);
             CasinoPack.soundNear(lay.center().clone().add(0, 1, 0), null, "poker.win", Sound.ENTITY_PLAYER_LEVELUP,
@@ -262,25 +243,25 @@ public class PokerVisuals {
         if (st.pot() > 0 && !view.potSent) {
             Location at = point(lay, lay.across().clone().multiply(-0.55 * s), 0);
             want.put("pot", "p" + st.pot());
-            spawners.put("pot", () -> view.placed.put("pot", chips(at, st.pot(), s, Motion.NONE)));
+            spawners.put("pot", () -> view.placed.put("pot", props.chips(at, st.pot(), s, TableProps.Motion.NONE)));
         }
 
         // Quitar lo que ya no está o cambió, poner lo nuevo
-        for (Iterator<Map.Entry<String, Placed>> it = view.placed.entrySet().iterator(); it.hasNext();) {
-            Map.Entry<String, Placed> e = it.next();
+        for (Iterator<Map.Entry<String, TableProps.Placed>> it = view.placed.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<String, TableProps.Placed> e = it.next();
             if (!Objects.equals(want.get(e.getKey()), e.getValue().signature)) {
                 // Las propias que se muestran en el showdown: el spawner ve que ya estaba (para darla vuelta)
                 if (want.containsKey(e.getKey()) && e.getKey().startsWith("hole:"))
                     spawners.put(e.getKey(), showdownFlip(spawners.get(e.getKey()), e.getValue()));
                 else
-                    remove(e.getValue());
+                    TableProps.remove(e.getValue());
                 it.remove();
             }
         }
         for (Map.Entry<String, String> e : want.entrySet())
             if (!view.placed.containsKey(e.getKey())) {
                 spawners.get(e.getKey()).run();
-                Placed p = view.placed.get(e.getKey());
+                TableProps.Placed p = view.placed.get(e.getKey());
                 if (p != null)
                     p.signature = e.getValue();
             }
@@ -297,7 +278,7 @@ public class PokerVisuals {
     }
 
     /** Desliza cada ficha del bote hacia un ganador (si son varios, se reparten) y luego las quita. */
-    private void sendPotToWinners(Placed pot, Layout lay, PokerTable.VisualState st) {
+    private void sendPotToWinners(TableProps.Placed pot, Layout lay, PokerTable.VisualState st) {
         List<Vector> targets = new ArrayList<>();
         for (int seat : st.winners().keySet()) {
             Location sl = seat < st.seatLocations().size() ? st.seatLocations().get(seat) : null;
@@ -316,17 +297,17 @@ public class PokerVisuals {
                 continue;
             Vector move = targets.get(i++ % targets.size()).clone().subtract(potPos);
             Transformation t = d.getTransformation();
-            Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d,
+            Bukkit.getScheduler().runTaskLater(plugin, () -> TableProps.animate(d,
                     new Vector3f((float) move.getX(), 0, (float) move.getZ()), t.getLeftRotation(), t.getScale(), 12), 2L);
         }
-        Bukkit.getScheduler().runTaskLater(plugin, () -> remove(pot), 40L);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> TableProps.remove(pot), 40L);
     }
 
     /** Showdown: se quita la carta de antes justo cuando aparece la nueva (que se da vuelta). */
-    private static Runnable showdownFlip(Runnable spawn, Placed old) {
+    private static Runnable showdownFlip(Runnable spawn, TableProps.Placed old) {
         return () -> {
             spawn.run();
-            remove(old);
+            TableProps.remove(old);
         };
     }
 
@@ -336,126 +317,5 @@ public class PokerVisuals {
         Location at = lay.center().clone().add(offset);
         at.setY(lay.y() + 0.005 + lift);
         return at;
-    }
-
-    /** Yaw de Minecraft que mira en esa dirección. */
-    private static float yawFacing(Vector dir) {
-        return (float) Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ()));
-    }
-
-    private static int cmd(Card c) {
-        return CARD_CMD + c.suit().ordinal() * 13 + c.rank().ordinal();
-    }
-
-    private static ItemStack cardItem(int cmd) {
-        ItemStack it = new ItemStack(Material.PAPER);
-        ItemMeta meta = it.getItemMeta();
-        meta.setCustomModelData(cmd);
-        it.setItemMeta(meta);
-        return it;
-    }
-
-    /** Carta propia: boca arriba solo para el dueño (o para todos en el showdown), dorso para el resto. */
-    private Placed holeCard(Location at, float yaw, int face, boolean shown, UUID owner, float scale, Motion mo) {
-        if (shown || owner == null)
-            return single(at, yaw, cardItem(face), scale, null, false, mo);
-        Placed back = single(at, yaw, cardItem(BACK), scale, null, false, mo);
-        Player o = Bukkit.getPlayer(owner);
-        if (o != null)
-            for (UUID id : back.ids)
-                if (Bukkit.getEntity(id) instanceof Entity e)
-                    o.hideEntity(plugin, e);
-        back.ids.addAll(single(at, yaw, cardItem(face), scale, owner, false, mo).ids);
-        return back;
-    }
-
-    /**
-     * Un ItemDisplay acostado sobre la mesa. onlyFor != null: solo lo ve ese jugador.
-     * El giro va en la transformación (no en el yaw de la entidad) para que el
-     * deslizamiento sea en coordenadas del mundo.
-     */
-    private Placed single(Location at, float yaw, ItemStack item, float scale, UUID onlyFor, boolean chip, Motion mo) {
-        Placed p = new Placed();
-        World w = at.getWorld();
-        if (w == null)
-            return p;
-        Location loc = at.clone();
-        loc.setYaw(0);
-        loc.setPitch(0);
-        float sz = chip ? scale : 0.62f * scale;
-        Vector3f size = new Vector3f(sz, sz, sz);
-        Quaternionf rest = new Quaternionf().rotateY((float) -Math.toRadians(yaw));
-        Quaternionf flipped = new Quaternionf(rest).rotateZ((float) Math.PI);
-        Vector3f startMove = mo.slideFrom() == null ? new Vector3f()
-                : new Vector3f((float) mo.slideFrom().getX(), 0.05f, (float) mo.slideFrom().getZ());
-        Vector3f lifted = new Vector3f(0, 0.06f * scale, 0); // boca abajo un poco más alta: no se mete en el paño
-        Vector3f start = new Vector3f(startMove).add(mo.flip() ? lifted : new Vector3f());
-        java.util.function.Consumer<ItemDisplay> setup = e -> {
-            e.setItemStack(item);
-            e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
-            e.setTransformation(new Transformation(start, mo.flip() ? flipped : rest, size, new Quaternionf()));
-            e.setPersistent(false);
-            e.addScoreboardTag(TAG);
-            if (onlyFor != null)
-                e.setVisibleByDefault(false); // antes de aparecer: nadie más la ve ni un instante
-        };
-        ItemDisplay d = w.spawn(loc, ItemDisplay.class, setup);
-        if (onlyFor != null) {
-            Player o = Bukkit.getPlayer(onlyFor);
-            if (o != null)
-                o.showEntity(plugin, d);
-        }
-        // Animación: primero se desliza (si viene de otro lado), después se da vuelta
-        int at1 = 2;
-        if (mo.slideFrom() != null) {
-            Vector3f mid = mo.flip() ? lifted : new Vector3f();
-            Quaternionf rot = mo.flip() ? flipped : rest;
-            Bukkit.getScheduler().runTaskLater(plugin, () -> animate(d, mid, rot, size, SLIDE_TICKS), at1);
-            at1 += SLIDE_TICKS + 1;
-        }
-        if (mo.flip())
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                animate(d, new Vector3f(), rest, size, FLIP_TICKS);
-                if (d.isValid())
-                    CasinoPack.soundNear(d.getLocation(), null, "poker.flip", Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.7f, 12);
-            }, at1);
-        p.ids.add(d.getUniqueId());
-        return p;
-    }
-
-    private static void animate(ItemDisplay d, Vector3f move, Quaternionf rot, Vector3f size, int ticks) {
-        if (!d.isValid())
-            return;
-        d.setInterpolationDelay(0);
-        d.setInterpolationDuration(ticks);
-        d.setTransformation(new Transformation(move, rot, size, new Quaternionf()));
-    }
-
-    /** Montón de fichas: de la ficha más grande que quepa, más alto cuanto más vale (hasta 6). */
-    private Placed chips(Location at, long amount, float scale, Motion mo) {
-        Material mat = Material.YELLOW_DYE;
-        int best = 0;
-        for (Map.Entry<Material, Integer> d : TokenManager.getDenoms().entrySet())
-            if (d.getValue() <= amount && d.getValue() > best) {
-                best = d.getValue();
-                mat = d.getKey();
-            }
-        int count = (int) Math.max(1, Math.min(6, amount / Math.max(1, best)));
-        ItemStack item = plugin.getTokenManager().createToken(mat, 1);
-        Placed all = new Placed();
-        for (int i = 0; i < count; i++) {
-            Location l = at.clone().add(0, i * 0.075 * scale, 0);
-            all.ids.addAll(single(l, i * 23f, item, 0.32f * scale, null, true, mo).ids);
-        }
-        return all;
-    }
-
-    private static void remove(Placed p) {
-        for (UUID id : p.ids) {
-            Entity e = Bukkit.getEntity(id);
-            if (e != null)
-                e.remove();
-        }
-        p.ids.clear();
     }
 }

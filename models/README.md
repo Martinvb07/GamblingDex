@@ -98,6 +98,22 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
   - Sonidos para los que están cerca: carta repartida, carta que se da vuelta, fichas y bote
     al ganador.
 
+## Blackjack: mesa en 3D, cartas y fichas
+
+![mesa de blackjack](previews/blackjack_table.png)
+
+- `blackjack_table.bbmodel` (ModelEngine): media luna delante del dealer con "BLACKJACK PAGA
+  3 A 2", las reglas del crupier, círculos de apuesta, bandeja de fichas, zapato de cartas y
+  descartes. Mira hacia donde mira el dealer (`/gdx station rotate` gira a los dos) y se ajusta
+  a los asientos (a tamaño completo, a unos 3-4 bloques del dealer). Opciones en `blackjack.yml → model`.
+- **Cartas y fichas en 3D** (`resource_pack.custom_cards: true`; también sin ModelEngine):
+  - Las cartas salen del zapato y quedan en escalera delante de cada jugador; las manos
+    divididas, una al lado de la otra.
+  - La segunda carta del dealer queda boca abajo y **se da vuelta** cuando le toca jugar.
+  - La apuesta va en el círculo (las laterales al lado). Si ganas, el pago sale de la bandeja
+    del dealer y **todo se desliza hacia ti**; si pierdes, **el dealer se lleva las fichas**.
+  - Sonidos de cartas, volteo, fichas y premio para los que están cerca.
+
 ## Fichas en 3D (resource pack)
 
 ![fichas](previews/chips.png)
@@ -145,7 +161,8 @@ cd models && VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/slot_m
 VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/exchange_machine.js exchange_machine.bbmodel previews/
 VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_table.js roulette_table.bbmodel previews/
 VIEWS='[["angle",[0,60,110],[0,8,0]]]' node tools/render.mjs tools/poker_table.js poker_table.bbmodel previews/
-cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel ../src/main/resources/models/
+VIEWS='[["players",[0,55,-95],[0,8,-24]]]' node tools/render.mjs tools/blackjack_table.js blackjack_table.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en
