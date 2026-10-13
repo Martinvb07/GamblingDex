@@ -861,10 +861,14 @@ public class GamblingDexCommand implements CommandExecutor {
                                 + Math.round((now + 90f) % 360f) + "°"));
                         return true;
                     }
+                    var modules = GamblingDexPlugin.getInstance().getModuleManager();
+                    if (target != null && rotType == null && !pokerCenter && modules != null
+                            && modules.rotateStation(player, target))
+                        return true; // estación de un módulo (p. ej. Mines)
                     if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE
                             && rotType != GameItemType.ROULETTE && !pokerCenter) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
+                                .color("&cMira una estación de slots, de cambio, de Mines o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;
@@ -1351,8 +1355,18 @@ public class GamblingDexCommand implements CommandExecutor {
                                 "&cNo se pudo construir la ruleta aquí."));
                         return true;
                     }
+                    // La mesa 3D mira hacia quien la construye (girarla: /gdx station rotate)
+                    var rsm = GamblingDexPlugin.getInstance().getStationManager();
+                    float ryaw = Math.round((player.getLocation().getYaw() + 180f) / 90f) * 90f;
+                    rsm.setModelYaw(target.getLocation(), ryaw);
+                    var rModels = GamblingDexPlugin.getInstance().getStationModels();
+                    if (rModels != null)
+                        rModels.respawn(target.getLocation());
                     player.sendMessage(cfg("messages.admin.roulette.build.success",
                             "&aRuleta construida. &7Click izquierdo al centro: cambia apuesta."));
+                    if (rModels != null && rModels.active(GameItemType.ROULETTE))
+                        player.sendMessage(GamblingDexPlugin.getInstance().color(
+                                "&7La mesa mira hacia ti. Para girarla: mira el centro y usa &f/gdx station rotate&7."));
                     player.sendMessage(cfg("messages.admin.roulette.build.how_to_1",
                             "&7Click derecho con tokens: apuesta. Click a números para elegir."));
                     return true;

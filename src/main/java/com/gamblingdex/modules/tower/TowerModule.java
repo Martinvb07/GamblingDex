@@ -2,6 +2,7 @@ package com.gamblingdex.modules.tower;
 
 import com.gamblingdex.modules.GameModule;
 import com.gamblingdex.modules.SimpleStations;
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -23,7 +24,7 @@ import java.util.*;
  * Multiplicador tras k pisos = (1 - edge) x (puertas / (puertas - trampas))^k
  * → devolución esperada (1 - edge) sin importar cuándo te retires.
  */
-public class TowerModule extends GameModule {
+public class TowerModule extends GameModule implements com.gamblingdex.modules.ModelStations {
 
     /** Dificultad: puertas por piso y cuántas tienen trampa. */
     record Difficulty(String id, String name, int doors, int traps) {
@@ -71,8 +72,10 @@ public class TowerModule extends GameModule {
         List<String> l = new ArrayList<>();
         l.add("&6&lTower");
         l.add("&8• &fClick derecho&7 a la estación: elige puertas y sube pisos; retírate cuando quieras");
-        if (admin)
+        if (admin) {
             l.add("&8• &e/gdx station set tower &7- Crear estación (mirando un bloque)");
+            l.add("&8• &e/gdx station rotate &7- Girar la máquina 3D de una estación");
+        }
         l.add("");
         return l;
     }
@@ -96,7 +99,8 @@ public class TowerModule extends GameModule {
 
     @Override
     public void createStation(Player player, Block target, String[] args) {
-        if (!stations.add(target)) {
+        // La máquina 3D (si hay ModelEngine) mira hacia quien puso la estación
+        if (!stations.add(target, player.getLocation().getYaw() + 180f)) {
             player.sendMessage(msg("exists", "&cEse bloque ya es una estación de Tower."));
             return;
         }
@@ -114,6 +118,41 @@ public class TowerModule extends GameModule {
     @Override
     public List<String> stationListLines() {
         return List.of("&8- &6Tower&7: &f" + stations.size());
+    }
+
+    @Override
+    public boolean rotateStation(Player player, Block target) {
+        if (!stations.rotate(target))
+            return false;
+        var models = plugin.getStationModels();
+        if (models != null)
+            models.respawn(target.getLocation());
+        player.sendMessage(color("&aMáquina de Tower girada: &f" + Math.round(stations.yaw(target.getLocation())) + "°"
+                + (models == null || !models.towerActive() ? " &7(ModelEngine no está activo)" : "")));
+        return true;
+    }
+
+    // Máquina 3D de las estaciones (StationModels, Kind.TOWER)
+
+    @Override
+    public List<Location> modelStationLocations() {
+        return stations == null ? List.of() : stations.locations();
+    }
+
+    @Override
+    public UUID modelStationHologram(Location station) {
+        return stations == null ? null : stations.hologramId(station);
+    }
+
+    @Override
+    public float modelStationYaw(Location station) {
+        return stations == null ? 0f : stations.yaw(station);
+    }
+
+    @Override
+    public void openFromModel(Player p, Location station) {
+        if (menu != null && stations.contains(station.getBlock()) && isOpenFor(p))
+            menu.open(p, station);
     }
 
     // ------------------------------------------------------------------
@@ -164,7 +203,7 @@ public class TowerModule extends GameModule {
                 return;
             e.setCancelled(true);
             if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.RIGHT_CLICK_BLOCK && isOpenFor(e.getPlayer()))
-                menu.open(e.getPlayer());
+                menu.open(e.getPlayer(), e.getClickedBlock().getLocation());
         }
 
         @EventHandler

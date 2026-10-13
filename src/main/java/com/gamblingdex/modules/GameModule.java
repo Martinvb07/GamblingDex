@@ -90,6 +90,11 @@ public abstract class GameModule {
         return false;
     }
 
+    /** /gdx station rotate mirando una estación del módulo: true si la giró. */
+    public boolean rotateStation(Player player, Block target) {
+        return false;
+    }
+
     /**
      * Autocompletar de /gdx &lt;juego&gt; ... ({@code args} sin el nombre del juego; el último
      * es lo que se está escribiendo). Puede devolver pistas como "&lt;name&gt;".

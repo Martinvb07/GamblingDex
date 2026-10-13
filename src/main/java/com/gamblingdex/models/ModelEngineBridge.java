@@ -90,13 +90,18 @@ public final class ModelEngineBridge {
 
     /** Reproduce una animación (force = reiniciarla aunque ya esté sonando). */
     public void play(Handle h, String anim, double lerpIn, double lerpOut, boolean force) {
+        play(h, anim, lerpIn, lerpOut, 1.0, force);
+    }
+
+    /** Igual, a otra velocidad (1 = la del modelo). */
+    public void play(Handle h, String anim, double lerpIn, double lerpOut, double speed, boolean force) {
         if (h == null)
             return;
         try {
             Object handler = call(h.active, "getAnimationHandler");
             if (force)
                 tryCall(handler, "forceStopAnimation", anim);
-            call(handler, "playAnimation", anim, lerpIn, lerpOut, 1.0, force);
+            call(handler, "playAnimation", anim, lerpIn, lerpOut, speed, force);
         } catch (Throwable t) {
             warnOnce("No se pudo reproducir la animación '" + anim + "': " + root(t));
         }

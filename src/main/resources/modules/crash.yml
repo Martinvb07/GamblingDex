@@ -3,8 +3,9 @@
 # ======================
 # Admin: /gdx station set crash      -> crear una mesa (mirando cualquier bloque)
 #        /gdx station remove         -> quitarla (mirando el bloque)
-# Jugadores: click derecho a la mesa          -> poner la apuesta
-#            shift + click derecho a la mesa  -> retirarse (cobrar)
+# Jugadores: click derecho a la mesa          -> menú de Crash (historial, el cohete en vivo, apuesta,
+#                                                retiro automático y botón APOSTAR / RETIRAR)
+#            shift + click derecho a la mesa  -> retirarse al instante (cobrar)
 #            Sobre la barra de experiencia ves tu apuesta, el multiplicador y lo que cobras.
 #
 # Un multiplicador sube desde x1.00 hasta que "explota". Si retiras antes,
@@ -24,6 +25,23 @@ growth_per_second: 0.07   # qué tan rápido sube (0.07 = x2 a los ~10s)
 broadcast_win_min: 10000  # anunciar premios desde este monto (0 = nunca)
 show_bar_to_everyone: false  # la barra de arriba solo la ven los que apostaron (true = todos)
 station_holo_height: 1.2  # altura del holograma sobre la mesa
+
+# Máquina de Crash en 3D con ModelEngine (opcional) sobre cada mesa: cabina con cartel "CRASH",
+# marcador digital que muestra el multiplicador en vivo (x1.85, x12.40, x123.4) y el gráfico por el
+# que sube el cohete (a la velocidad de growth_per_second). Al explotar el cohete revienta, la máquina
+# tiembla y el marcador se pone rojo; cuando alguien retira caen monedas. La ven todos los de cerca.
+# Se copia sola a plugins/ModelEngine/blueprints/gamblingdex: /meg reload y /gdx pack.
+# Mira hacia quien puso la mesa; girarla: /gdx station rotate.
+model:
+  enabled: true
+  id: crash_machine           # nombre del modelo en ModelEngine
+  hide_station: auto          # auto | always | never (esconder el bloque y el holograma a quien ve el modelo)
+  collision: true             # la máquina es sólida (no se puede atravesar)
+  y_offset_hidden: 0.0        # altura de la máquina con el bloque escondido (en el suelo)
+  y_offset: 1.0               # con hide_station: never, la máquina va encima del bloque
+  hitbox_width: 1.0
+  hitbox_height: 2.0
+  sound_radius: 16            # los que estén cerca oyen la mesa (despegue, cuenta atrás, explosión, retiros)
 
 messages:
   joined: "&aApostaste &e{amount}&a en Crash.{auto}"

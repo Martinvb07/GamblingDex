@@ -41,6 +41,25 @@ difficulties:
 station_holo: "&b&lTOWER\n&7Click para jugar"
 station_holo_height: 1.2
 
+# Máquina de Tower en 3D con ModelEngine (opcional) sobre cada estación: torre de castillo
+# con almenas, bandera y cartel "TOWER"; en la pantalla 8 pisos y la ficha del jugador que sube
+# por el riel. Repite la partida del último que empezó ahí: cada piso superado se abre en verde
+# y la ficha salta; en una trampa el piso se pone rojo, la ficha se cae y la torre tiembla; al
+# cobrar caen monedas y en la cima sale una estrella. La ven y la oyen todos los de cerca.
+# Se copia sola a plugins/ModelEngine/blueprints/gamblingdex: /meg reload y /gdx pack.
+# Mira hacia quien puso la estación; girarla: /gdx station rotate.
+model:
+  enabled: true
+  id: tower_machine           # nombre del modelo en ModelEngine
+  hide_station: auto          # auto | always | never (esconder el bloque y el holograma a quien ve el modelo)
+  collision: true             # la máquina es sólida (no se puede atravesar)
+  y_offset_hidden: 0.0        # altura de la máquina con el bloque escondido (en el suelo)
+  y_offset: 1.0               # con hide_station: never, la máquina va encima del bloque
+  hitbox_width: 1.0
+  hitbox_height: 2.2
+  sound_radius: 12            # los que estén cerca oyen la máquina
+  reset_seconds: 6            # tras la partida, cuánto se queda la torre a la vista antes de reiniciarse
+
 messages:
   use_station: "&7Tower se juega en las estaciones: &fclick derecho&7 para abrir la torre."
   lost: "&c&l¡TRAMPA! &7en el piso &f{floor}&7. Perdiste &e{amount}&7."

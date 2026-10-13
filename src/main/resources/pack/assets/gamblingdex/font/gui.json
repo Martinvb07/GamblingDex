@@ -78,6 +78,42 @@
       "chars": [
         "\ue107"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/mines_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue108"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/plinko_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue109"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/tower_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue10a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "gamblingdex:font/crash_gui.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue10b"
+      ]
     }
   ]
 }

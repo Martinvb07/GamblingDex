@@ -5,6 +5,7 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
+import com.gamblingdex.pack.CasinoPack;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -47,7 +48,7 @@ import java.util.*;
  * Multiplicador tras k casillas seguras con m minas (25 casillas):
  * (1 - edge) * prod_{i<k} (25 - i) / (25 - m - i)  → devolución esperada (1 - edge).
  */
-public class MinesModule extends GameModule {
+public class MinesModule extends GameModule implements com.gamblingdex.modules.ModelStations {
 
     private static final SecureRandom RNG = new SecureRandom();
     private static final int SIZE = 5;
@@ -170,6 +171,7 @@ public class MinesModule extends GameModule {
         if (admin) {
             l.add("&8• &e/gdx station set mines &7- Estación con menú (mirando un bloque)");
             l.add("&8• &e/gdx station set mines wall &7- Construir la pared 5x5 en el mundo");
+            l.add("&8• &e/gdx station rotate &7- Girar la máquina 3D de una estación con menú");
         }
         l.add("");
         return l;
@@ -233,7 +235,8 @@ public class MinesModule extends GameModule {
     @Override
     public void createStation(Player p, Block target, String[] args) {
         if (args.length == 0 || !(args[0].equalsIgnoreCase("wall") || args[0].equalsIgnoreCase("pared"))) {
-            if (byBlock(target) != null || !menuStations.add(target)) {
+            // La máquina 3D (si hay ModelEngine) mira hacia quien puso la estación
+            if (byBlock(target) != null || !menuStations.add(target, p.getLocation().getYaw() + 180f)) {
                 p.sendMessage(msg("exists", "&cAhí ya hay una estación de Mines."));
                 return;
             }
@@ -284,6 +287,43 @@ public class MinesModule extends GameModule {
         updateHolo(b);
         p.sendMessage(msg("station_created",
                 "&aTablero de Mines construido. &7Los jugadores empiezan con click derecho a la mesa."));
+    }
+
+    @Override
+    public boolean rotateStation(Player player, Block target) {
+        if (!menuStations.rotate(target))
+            return false;
+        var models = plugin.getStationModels();
+        if (models != null)
+            models.respawn(target.getLocation());
+        player.sendMessage(color("&aMáquina de Mines girada: &f" + Math.round(menuStations.yaw(target.getLocation())) + "°"
+                + (models == null || !models.minesActive() ? " &7(ModelEngine no está activo)" : "")));
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // Máquina 3D de las estaciones con menú (StationModels, Kind.MINES)
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<Location> modelStationLocations() {
+        return menuStations == null ? List.of() : menuStations.locations();
+    }
+
+    @Override
+    public UUID modelStationHologram(Location station) {
+        return menuStations == null ? null : menuStations.hologramId(station);
+    }
+
+    @Override
+    public float modelStationYaw(Location station) {
+        return menuStations == null ? 0f : menuStations.yaw(station);
+    }
+
+    @Override
+    public void openFromModel(Player p, Location station) {
+        if (menu != null && menuStations.contains(station.getBlock()) && isOpenFor(p))
+            menu.open(p, station);
     }
 
     private Material material(String path, Material def) {
@@ -438,7 +478,7 @@ public class MinesModule extends GameModule {
         resetTiles(b);
         p.sendMessage(msg("started", "&aEmpezaste con &e{amount}&a y &f{mines}&a minas. &7Click derecho a una casilla para abrirla.",
                 "amount", units(amount), "mines", String.valueOf(mines)));
-        p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
+        CasinoPack.sound(p, "mines.start", Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
         updateHolo(b);
         actionBar(b);
     }
@@ -456,14 +496,14 @@ public class MinesModule extends GameModule {
                 Particle boom = particle("EXPLOSION", "EXPLOSION_LARGE");
                 if (boom != null)
                     w.spawnParticle(boom, l.clone().add(0.5, 0.5, 0.5), 1);
-                w.playSound(l, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.0f);
+                CasinoPack.soundNear(l, null, "mines.bomb", Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.0f, 24);
             }
             lose(b);
             return;
         }
         l.getBlock().setType(material("safe_material", Material.EMERALD_BLOCK), false);
         b.safeOpened++;
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, 0.8f + b.safeOpened * 0.05f);
+        CasinoPack.sound(p, "mines.gem", Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, Math.min(2f, 0.8f + b.safeOpened * 0.05f));
         if (b.safeOpened >= TILES - b.mines) {
             GamblingDexPlugin.achievement(b.player, "mines_clear");
             cashOut(b, false); // abrió todas las seguras
@@ -499,7 +539,7 @@ public class MinesModule extends GameModule {
                 p.sendMessage(msg("cashed_out", "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}",
                         "mult", fmt(multiplier(b.mines, b.safeOpened)), "amount", units(pay)));
                 p.sendTitle(color("&a&lx" + fmt(multiplier(b.mines, b.safeOpened))), color("&e+" + units(pay)), 2, 40, 10);
-                p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
+                CasinoPack.sound(p, "mines.cashout", Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
             }
         }
         finish(b);
@@ -655,7 +695,7 @@ public class MinesModule extends GameModule {
                 e.setCancelled(true);
                 if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.RIGHT_CLICK_BLOCK
                         && isOpenFor(e.getPlayer()))
-                    menu.open(e.getPlayer());
+                    menu.open(e.getPlayer(), blk.getLocation());
                 return;
             }
             Board b = byBlock(blk);

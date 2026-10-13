@@ -26,6 +26,8 @@ public final class SimpleStations {
     private final Supplier<String> holoText;
     private final Map<String, Location> stations = new LinkedHashMap<>();
     private final Map<String, UUID> holos = new HashMap<>();
+    /** Hacia dónde mira el modelo 3D de cada estación (grados, como el yaw de una entidad). */
+    private final Map<String, Float> yaws = new HashMap<>();
 
     public SimpleStations(GameModule module, Supplier<String> holoText) {
         this.module = module;
@@ -38,16 +40,31 @@ public final class SimpleStations {
 
     public void load() {
         stations.clear();
-        for (String k : YamlConfiguration.loadConfiguration(file()).getStringList("stations")) {
+        yaws.clear();
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(file());
+        for (String k : y.getStringList("stations")) {
             Location l = BlackjackTables.parseKey(k);
             if (l != null)
                 stations.put(k, l);
+        }
+        for (String s : y.getStringList("yaw")) { // "clave|grados" (la clave puede llevar puntos)
+            int bar = s.lastIndexOf('|');
+            try {
+                if (bar > 0)
+                    yaws.put(s.substring(0, bar), Float.parseFloat(s.substring(bar + 1)));
+            } catch (NumberFormatException ignored) {
+            }
         }
     }
 
     private void save() {
         YamlConfiguration y = new YamlConfiguration();
         y.set("stations", new ArrayList<>(stations.keySet()));
+        List<String> yawList = new ArrayList<>();
+        for (Map.Entry<String, Float> e : yaws.entrySet())
+            if (stations.containsKey(e.getKey()))
+                yawList.add(e.getKey() + "|" + Math.round(e.getValue()));
+        y.set("yaw", yawList);
         try {
             y.save(file());
         } catch (IOException e) {
@@ -61,10 +78,16 @@ public final class SimpleStations {
 
     /** false si ya era una estación. */
     public boolean add(Block b) {
+        return add(b, 0f);
+    }
+
+    /** Con el modelo 3D mirando hacia {@code yaw} (p. ej. hacia quien la puso). */
+    public boolean add(Block b, float yaw) {
         String k = BlackjackTables.key(b.getLocation());
         if (stations.containsKey(k))
             return false;
         stations.put(k, b.getLocation());
+        yaws.put(k, normalize(yaw));
         save();
         refresh(k);
         return true;
@@ -74,6 +97,7 @@ public final class SimpleStations {
         String k = BlackjackTables.key(b.getLocation());
         if (stations.remove(k) == null)
             return false;
+        yaws.remove(k);
         removeHolo(k);
         save();
         return true;
@@ -81,6 +105,37 @@ public final class SimpleStations {
 
     public int size() {
         return stations.size();
+    }
+
+    public List<Location> locations() {
+        List<Location> out = new ArrayList<>();
+        for (Location l : stations.values())
+            out.add(l.clone());
+        return out;
+    }
+
+    /** Holograma de la estación (o null si no está puesto ahora). */
+    public UUID hologramId(Location l) {
+        return l == null ? null : holos.get(BlackjackTables.key(l));
+    }
+
+    public float yaw(Location l) {
+        return l == null ? 0f : yaws.getOrDefault(BlackjackTables.key(l), 0f);
+    }
+
+    /** Gira 90° el modelo de la estación. false si el bloque no es una estación. */
+    public boolean rotate(Block b) {
+        String k = BlackjackTables.key(b.getLocation());
+        if (!stations.containsKey(k))
+            return false;
+        yaws.put(k, normalize(yaws.getOrDefault(k, 0f) + 90f));
+        save();
+        return true;
+    }
+
+    private static float normalize(float yaw) {
+        float y = Math.round(yaw / 90f) * 90f;
+        return ((y % 360) + 360) % 360;
     }
 
     /** Crea o actualiza los hologramas (llamar cada cierto tiempo: se pierden al descargar el chunk). */

@@ -5,7 +5,9 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.gui.Icons;
 import com.gamblingdex.modules.GameModule;
+import com.gamblingdex.pack.CasinoPack;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -24,7 +26,9 @@ import java.util.*;
 /**
  * Mines en un menú (estación de un bloque): tablero de 5x5 en el centro, datos a
  * la izquierda, botón de jugar/retirar a la derecha y abajo la apuesta y las minas.
- * Varios jugadores pueden jugar a la vez, cada uno en su menú.
+ * Varios jugadores pueden jugar a la vez, cada uno en su menú. Con el resource pack el
+ * menú tiene fondo propio y sonidos propios (mines.*), y si la estación tiene la máquina
+ * 3D su pantalla repite la partida del último que empezó ahí (la ven todos los de cerca).
  *
  * <pre>
  *  0 info   | 2..6  casillas | 8  fichas
@@ -49,6 +53,7 @@ final class MinesMenu implements Listener {
     static final class Session implements InventoryHolder {
         final UUID player;
         Inventory inv;
+        Location station; // estación desde la que se abrió (para la máquina 3D)
         long bet;
         int mines;
         boolean playing;
@@ -98,7 +103,7 @@ final class MinesMenu implements Listener {
 
     // ------------------------------------------------------------------
 
-    void open(Player p) {
+    void open(Player p, Location station) {
         Session old = sessions.get(p.getUniqueId());
         if (old != null && old.playing) {
             p.openInventory(old.inv);
@@ -106,11 +111,30 @@ final class MinesMenu implements Listener {
         }
         long[] l = last.getOrDefault(p.getUniqueId(), new long[] { min(), 3 });
         Session s = new Session(p.getUniqueId(), Math.max(min(), l[0]), (int) l[1]);
-        s.inv = Bukkit.createInventory(s, 54, m.color("&8&l✦ &c&lMINES &8&l✦"));
+        s.station = station != null ? station.clone() : old != null ? old.station : null;
+        s.inv = CasinoPack.customGui()
+                ? Bukkit.createInventory(s, 54, CasinoPack.titleWithBackground(CasinoPack.MINES_BG, m.color("&c&lMINES")))
+                : Bukkit.createInventory(s, 54, m.color("&8&l✦ &c&lMINES &8&l✦"));
         sessions.put(p.getUniqueId(), s);
         render(p, s);
         p.openInventory(s.inv);
-        p.playSound(p.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+        CasinoPack.sound(p, "slots.coin", Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+    }
+
+    private static com.gamblingdex.models.StationModels models(Session s) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var models = plugin == null ? null : plugin.getStationModels();
+        return s.station == null || models == null || !models.minesActive() ? null : models;
+    }
+
+    /** Sonido para el jugador y, si la estación tiene la máquina 3D, para los que están cerca. */
+    private void sound(Player p, Session s, String key, Sound vanilla, float volume, float pitch) {
+        if (p != null)
+            CasinoPack.sound(p, "mines." + key, vanilla, volume, pitch);
+        var models = models(s);
+        if (models != null)
+            CasinoPack.soundNear(s.station.clone().add(0.5, 1.2, 0.5), p, "mines." + key, vanilla, volume * 0.8f, pitch,
+                    models.minesSoundRadius());
     }
 
     private void render(Player p, Session s) {
@@ -173,9 +197,10 @@ final class MinesMenu implements Listener {
         }
         inv.setItem(S_CLOSE, Icons.of(Material.BARRIER, s.playing ? "&cCerrar &7(cobra lo que llevas)" : "&cCerrar", null));
 
-        // Fila inferior
+        // Fila inferior (con el fondo del pack, en partida queda vacía: se ven los paneles)
+        boolean custom = CasinoPack.customGui();
         if (s.playing) {
-            for (int i = 45; i <= 53; i++)
+            for (int i = 45; i <= 53 && !custom; i++)
                 inv.setItem(i, Icons.of(Material.GRAY_STAINED_GLASS_PANE, "&8Partida en curso", null));
         } else {
             inv.setItem(S_MIN, Icons.of(Material.IRON_NUGGET, "&fMínimo", List.of("&7Apuesta " + GameModule.units(min()))));
@@ -187,7 +212,8 @@ final class MinesMenu implements Listener {
             inv.setItem(S_MINES_INFO, Icons.of(Material.TNT, Math.max(1, s.mines), "&cMinas: &f" + s.mines, null, false));
             inv.setItem(S_MORE, Icons.of(Material.LIME_DYE, "&a+1 mina", List.of("&7Shift: +5")));
         }
-        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        if (!custom)
+            Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
 
     private long payout(Session s) {
@@ -201,7 +227,7 @@ final class MinesMenu implements Listener {
         s.bet = Math.max(min(), Math.min(hi, v));
         remember(s);
         render(p, s);
-        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+        CasinoPack.sound(p, "slots.coin", Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
     private void remember(Session s) {
@@ -230,7 +256,10 @@ final class MinesMenu implements Listener {
         Collections.shuffle(idx, RNG);
         for (int i = 0; i < s.mines; i++)
             s.mine[idx.get(i)] = true;
-        p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
+        sound(p, s, "start", Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
+        var models = models(s);
+        if (models != null)
+            models.minesStart(s.station, s.player);
         render(p, s);
     }
 
@@ -243,13 +272,21 @@ final class MinesMenu implements Listener {
             s.over = true;
             s.lost = true;
             GamblingDexPlugin.recordStats(s.player, "mines", s.bet, 0L);
-            p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.2f);
+            sound(p, s, "bomb", Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.2f);
+            var models = models(s);
+            if (models != null) {
+                models.minesReveal(s.station, s.player, t, true);
+                models.minesEnd(s.station, s.player, s.mine, s.open, false);
+            }
             p.sendMessage(m.msg("lost", "&c&l¡BOOM! &7Era una mina. Perdiste &e{amount}&7.", "amount", GameModule.units(s.bet)));
             render(p, s);
             return;
         }
         s.safe++;
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, 0.8f + s.safe * 0.05f);
+        sound(p, s, "gem", Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, Math.min(2f, 0.8f + s.safe * 0.05f));
+        var models = models(s);
+        if (models != null)
+            models.minesReveal(s.station, s.player, t, false);
         if (s.safe >= TILES - s.mines) {
             GamblingDexPlugin.achievement(s.player, "mines_clear");
             cashOut(p, s);
@@ -266,12 +303,15 @@ final class MinesMenu implements Listener {
         s.over = true;
         s.lastPay = pay;
         TokenWallet.give(s.player, pay);
+        var models = models(s);
+        if (models != null)
+            models.minesEnd(s.station, s.player, s.mine, s.open, s.safe > 0);
         if (s.safe > 0) {
             GamblingDexPlugin.recordStats(s.player, "mines", s.bet, pay);
+            sound(p, s, "cashout", Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
             if (p != null) {
                 p.sendMessage(m.msg("cashed_out", "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}",
                         "mult", MinesModule.fmt(m.multiplier(s.mines, s.safe)), "amount", GameModule.units(pay)));
-                p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
             }
         } else if (p != null) {
             p.sendMessage(m.msg("refunded", "&7No abriste ninguna casilla: se te devolvieron &e{amount}&7.",
@@ -328,12 +368,13 @@ final class MinesMenu implements Listener {
                     case S_MAX -> setBet(p, s, Math.max(min(), TokenWallet.balance(p)));
                     case S_CUSTOM -> {
                         long mines = s.mines;
+                        Location station = s.station;
                         p.closeInventory();
                         AmountPickerMenu.open(p, "&c&lMines &8- &eTu apuesta", min(), max(), s.bet,
                                 List.of("&7Minas: &f" + mines), amount -> {
                                     last.put(p.getUniqueId(), new long[] { amount, mines });
-                                    open(p);
-                                }, () -> open(p));
+                                    open(p, station);
+                                }, () -> open(p, station));
                     }
                     case S_LESS, S_MORE -> {
                         int d = (slot == S_LESS ? -1 : 1) * (shift ? 5 : 1);

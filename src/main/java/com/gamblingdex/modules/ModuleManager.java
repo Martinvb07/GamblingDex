@@ -227,6 +227,27 @@ public class ModuleManager {
         return false;
     }
 
+    /** /gdx station rotate: true si algún módulo giró una estación en ese bloque. */
+    public boolean rotateStation(Player player, Block target) {
+        for (GameModule m : modules.values()) {
+            if (!enabled.contains(m.id()))
+                continue;
+            try {
+                if (m.rotateStation(player, target))
+                    return true;
+            } catch (Throwable t) {
+                plugin.getLogger().warning("[" + m.id() + "] Error girando estación: " + t);
+            }
+        }
+        return false;
+    }
+
+    /** El módulo con ese id si está activo, o null. */
+    public GameModule active(String id) {
+        GameModule m = id == null ? null : modules.get(id.toLowerCase(Locale.ROOT));
+        return m != null && enabled.contains(m.id()) ? m : null;
+    }
+
     public List<String> stationListLines() {
         List<String> out = new ArrayList<>();
         for (GameModule m : modules.values()) {

@@ -28,6 +28,24 @@ ball_item: SLIME_BALL       # ítem que se ve como bola
 station_holo: "&6&lPLINKO\n&7Click para jugar"
 station_holo_height: 1.2
 
+# Máquina de Plinko en 3D con ModelEngine (opcional) sobre cada estación con menú:
+# cabina morada y naranja con cartel "PLINKO", tablero de 8 filas de clavos y 9 casillas.
+# Cada bola que se suelta en el menú cae también en la pantalla por el MISMO camino y en la
+# misma casilla (que se ilumina); con premio grande la pantalla destella. Caen hasta 3 a la vez.
+# La ven y la oyen todos los que estén cerca. Se copia sola a plugins/ModelEngine/blueprints/gamblingdex:
+# /meg reload y /gdx pack. Mira hacia quien puso la estación; girarla: /gdx station rotate.
+# (Los colores de las casillas del modelo son los de los multiplicadores de "8" por defecto.)
+model:
+  enabled: true
+  id: plinko_machine          # nombre del modelo en ModelEngine
+  hide_station: auto          # auto | always | never (esconder el bloque y el holograma a quien ve el modelo)
+  collision: true             # la máquina es sólida (no se puede atravesar)
+  y_offset_hidden: 0.0        # altura de la máquina con el bloque escondido (en el suelo)
+  y_offset: 1.0               # con hide_station: never, la máquina va encima del bloque
+  hitbox_width: 1.0
+  hitbox_height: 2.0
+  sound_radius: 12            # los que estén cerca oyen la máquina
+
 # Multiplicador de cada casilla, de izquierda a derecha (filas + 1 valores)
 multipliers:
   "6": [5, 1.5, 0.8, 0.5, 0.8, 1.5, 5]
