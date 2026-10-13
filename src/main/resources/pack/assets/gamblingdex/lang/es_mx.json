@@ -12,5 +12,9 @@
   "subtitles.gamblingdex.poker.card": "Carta repartida",
   "subtitles.gamblingdex.poker.chips": "Fichas",
   "subtitles.gamblingdex.poker.flip": "Carta dada vuelta",
-  "subtitles.gamblingdex.poker.win": "Bote al ganador"
+  "subtitles.gamblingdex.poker.win": "Bote al ganador",
+  "subtitles.gamblingdex.mines.start": "Tablero de Mines barajado",
+  "subtitles.gamblingdex.mines.gem": "Casilla segura",
+  "subtitles.gamblingdex.mines.bomb": "¡Mina!",
+  "subtitles.gamblingdex.mines.cashout": "Premio de Mines"
 }

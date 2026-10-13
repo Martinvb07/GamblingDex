@@ -82,5 +82,29 @@
       "gamblingdex:exchange/sell"
     ],
     "subtitle": "subtitles.gamblingdex.exchange.sell"
+  },
+  "mines.start": {
+    "sounds": [
+      "gamblingdex:mines/start"
+    ],
+    "subtitle": "subtitles.gamblingdex.mines.start"
+  },
+  "mines.gem": {
+    "sounds": [
+      "gamblingdex:mines/gem"
+    ],
+    "subtitle": "subtitles.gamblingdex.mines.gem"
+  },
+  "mines.bomb": {
+    "sounds": [
+      "gamblingdex:mines/bomb"
+    ],
+    "subtitle": "subtitles.gamblingdex.mines.bomb"
+  },
+  "mines.cashout": {
+    "sounds": [
+      "gamblingdex:mines/cashout"
+    ],
+    "subtitle": "subtitles.gamblingdex.mines.cashout"
   }
 }

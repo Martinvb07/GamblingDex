@@ -52,6 +52,33 @@ comprar y una caja registradora al vender.
 > todos los que estén cerca (no solo el que juega). Para añadir una máquina nueva basta con
 > sumarla a `StationModels.Kind`.
 
+## Máquina de Mines en 3D (ModelEngine R4)
+
+![máquina de Mines](previews/mines_machine.png)
+
+`mines_machine.bbmodel`: cabina negra y roja con cartel "MINES", bombillos, la diana de la
+estación en los costados, el tablero 5x5 en la pantalla, pupitre con botones y bandeja de monedas.
+Va en cada estación con menú de Mines (`/gdx station set mines`), mirando hacia quien la puso.
+
+| Animación | Qué hace |
+|---|---|
+| `idle` | Bombillos titilando (en bucle) |
+| `start` | Se tapan todas las casillas y pasa una ola por el tablero |
+| `tile_N_gem` / `tile_N_bomb` | La casilla N (fila×5 + columna, como en el menú) se da vuelta: gema o bomba. Se queda así |
+| `boom` | La máquina tiembla y la pantalla destella en rojo |
+| `cashout` | Caen monedas a la bandeja y la pantalla destella en verde |
+
+- La pantalla **repite la partida** del último que empezó en esa máquina (la ven todos los que
+  estén cerca): cada casilla que abre se da vuelta; al tocar una mina tiembla y después aparecen
+  las demás minas una tras otra; al cobrar caen monedas. A los pocos segundos se vuelve a tapar.
+- Click en la máquina = abrir el menú. Se gira con `/gdx station rotate`.
+- Opciones en `modules/mines.yml → model` (`hide_station`, `collision`, `sound_radius`, `reset_seconds`...).
+- Con el pack, el menú tiene fondo propio (pantalla azul noche con el tablero, datos a la izquierda,
+  JUGAR/RETIRARSE a la derecha, apuesta y minas abajo) y sonidos propios: barajar el tablero,
+  casilla segura (más aguda cuantas más abres), explosión y monedas al cobrar.
+
+  ![menú de Mines](previews/mines_gui.png)
+
 ## Mesa de ruleta en 3D (ModelEngine R4)
 
 ![ruleta](previews/roulette_table.png)
@@ -186,7 +213,8 @@ VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/exchange_machine.js
 VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_table.js roulette_table.bbmodel previews/
 VIEWS='[["angle",[0,60,110],[0,8,0]]]' node tools/render.mjs tools/poker_table.js poker_table.bbmodel previews/
 VIEWS='[["players",[0,55,-95],[0,8,-24]]]' node tools/render.mjs tools/blackjack_table.js blackjack_table.bbmodel previews/
-cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel ../src/main/resources/models/
+VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/mines_machine.js mines_machine.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel mines_machine.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en

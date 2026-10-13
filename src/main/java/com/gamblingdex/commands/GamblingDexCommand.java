@@ -861,10 +861,14 @@ public class GamblingDexCommand implements CommandExecutor {
                                 + Math.round((now + 90f) % 360f) + "°"));
                         return true;
                     }
+                    var modules = GamblingDexPlugin.getInstance().getModuleManager();
+                    if (target != null && rotType == null && !pokerCenter && modules != null
+                            && modules.rotateStation(player, target))
+                        return true; // estación de un módulo (p. ej. Mines)
                     if (rotType != GameItemType.SLOTS && rotType != GameItemType.EXCHANGE
                             && rotType != GameItemType.ROULETTE && !pokerCenter) {
                         player.sendMessage(GamblingDexPlugin.getInstance()
-                                .color("&cMira una estación de slots, de cambio o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
+                                .color("&cMira una estación de slots, de cambio, de Mines o el centro de una ruleta o mesa de póker (a menos de 6 bloques)."));
                         return true;
                     }
                     float yaw = sm.getModelYaw(target.getLocation()) + 90f;

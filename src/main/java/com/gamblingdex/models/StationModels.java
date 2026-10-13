@@ -27,8 +27,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Máquinas en 3D con ModelEngine sobre las estaciones: la tragamonedas
- * (models/slot_machine.bbmodel), el cajero de cambio (models/exchange_machine.bbmodel)
- * y la rueda de la ruleta (models/roulette_wheel.bbmodel).
+ * (models/slot_machine.bbmodel), el cajero de cambio (models/exchange_machine.bbmodel),
+ * las mesas (ruleta, póker, blackjack) y la máquina de Mines (models/mines_machine.bbmodel).
  * Para cada estación pone el modelo, recibe los clicks, esconde el bloque y el
  * holograma a quien ve el modelo y lo anima cuando alguien juega desde ahí.
  * Las animaciones van en el modelo compartido: las ven todos los que estén cerca.
@@ -50,7 +50,9 @@ public class StationModels implements Listener {
         /** Las mesas de póker no son estaciones: sus centros salen de PokerManager. */
         POKER(null, "poker.model", "poker_table", 1.0, 3.75, 1.0),
         /** La mesa de blackjack va delante del dealer (sus centros salen de BlackjackManager). */
-        BLACKJACK(null, "blackjack.model", "blackjack_table", 1.0, 3.5, 1.0);
+        BLACKJACK(null, "blackjack.model", "blackjack_table", 1.0, 3.5, 1.0),
+        /** Estaciones con menú del módulo de Mines (su config va en modules/mines.yml → model). */
+        MINES(null, "mines.model", "mines_machine", 1.0, 1.0, 2.0);
 
         final GameItemType type;
         final String path, defaultId;
@@ -117,6 +119,8 @@ public class StationModels implements Listener {
         /** Ruleta: casillas ganadoras iluminadas sobre el paño. */
         final List<UUID> lit = new ArrayList<>();
         BukkitTask litTask;
+        /** Mines: el jugador cuya partida muestra la pantalla (el último que empezó aquí). */
+        UUID minesOwner;
 
         Machine(Location station, Kind kind) {
             this.station = station;
@@ -133,16 +137,42 @@ public class StationModels implements Listener {
     // Config (slots.yml → model / config.yml → exchange.model)
     // ------------------------------------------------------------------
 
+    private static final org.bukkit.configuration.ConfigurationSection NO_CONFIG = new org.bukkit.configuration.MemoryConfiguration();
+
+    /** Sección "model" de la máquina: en config.yml, o en modules/mines.yml para Mines. */
+    private org.bukkit.configuration.ConfigurationSection conf(Kind k) {
+        org.bukkit.configuration.ConfigurationSection s;
+        if (k == Kind.MINES) {
+            var mm = plugin.getModuleManager();
+            var mod = mm == null ? null : mm.find("mines");
+            s = mod == null ? null : mod.config().getConfigurationSection("model");
+        } else {
+            s = plugin.getConfig().getConfigurationSection(k.path);
+        }
+        return s == null ? NO_CONFIG : s;
+    }
+
     private boolean configEnabled(Kind k) {
-        return plugin.getConfig().getBoolean(k.path + ".enabled", true);
+        if (k == Kind.MINES && plugin.getModuleManager() != null) { // al arrancar aún no hay módulos
+            var mod = plugin.getModuleManager().find("mines");
+            if (mod == null || !mod.isEnabledInConfig())
+                return false;
+        }
+        return conf(k).getBoolean("enabled", true);
     }
 
     private String modelId(Kind k) {
-        return plugin.getConfig().getString(k.path + ".id", k.defaultId);
+        return conf(k).getString("id", k.defaultId);
     }
 
     private double cfg(Kind k, String key, double def) {
-        return plugin.getConfig().getDouble(k.path + "." + key, def);
+        return conf(k).getDouble(key, def);
+    }
+
+    /** El módulo de Mines si está activo (sus estaciones con menú llevan la máquina 3D). */
+    private com.gamblingdex.modules.mines.MinesModule mines() {
+        var mm = plugin.getModuleManager();
+        return mm != null && mm.active("mines") instanceof com.gamblingdex.modules.mines.MinesModule m ? m : null;
     }
 
     /** Centros de las estaciones de este tipo. */
@@ -158,6 +188,8 @@ public class StationModels implements Listener {
             for (var t : plugin.getBlackjackManager().getTables())
                 if (t.getCenter() != null)
                     out.add(t.getCenter());
+        if (kind == Kind.MINES && mines() != null)
+            out.addAll(mines().menuStationLocations());
         return out;
     }
 
@@ -178,7 +210,7 @@ public class StationModels implements Listener {
     /** auto | always | never (model.hide_station). */
     private String hideMode(Kind k) {
         // En el blackjack el dealer está parado sobre el bloque del centro: no se esconde
-        String m = plugin.getConfig().getString(k.path + ".hide_station", k == Kind.BLACKJACK ? "never" : "auto");
+        String m = conf(k).getString("hide_station", k == Kind.BLACKJACK ? "never" : "auto");
         m = m == null ? "auto" : m.toLowerCase(Locale.ROOT);
         return m.equals("always") || m.equals("never") ? m : "auto";
     }
@@ -421,7 +453,9 @@ public class StationModels implements Listener {
         double y = hideMode(m.kind).equals("never") ? cfg(m.kind, "y_offset", m.kind.blockHeight)
                 : cfg(m.kind, "y_offset_hidden", 0.0);
         Location at = m.station.clone().add(0.5, y, 0.5);
-        at.setYaw(m.kind == Kind.BLACKJACK ? blackjackYaw(m) : plugin.getStationManager().getModelYaw(m.station));
+        at.setYaw(m.kind == Kind.BLACKJACK ? blackjackYaw(m)
+                : m.kind == Kind.MINES ? (mines() == null ? 0f : mines().menuStationYaw(m.station))
+                : plugin.getStationManager().getModelYaw(m.station));
         at.setPitch(0);
         return at;
     }
@@ -557,7 +591,8 @@ public class StationModels implements Listener {
     }
 
     private Entity hologram(Machine m) {
-        UUID id = plugin.getStationManager().getHologramId(m.station);
+        UUID id = m.kind != Kind.MINES ? plugin.getStationManager().getHologramId(m.station)
+                : mines() == null ? null : mines().menuStationHologram(m.station);
         return id == null ? null : Bukkit.getEntity(id);
     }
 
@@ -666,6 +701,103 @@ public class StationModels implements Listener {
     }
 
     // ------------------------------------------------------------------
+    // Animaciones: Mines (models/tools/mines_machine.js). La pantalla muestra la partida
+    // del último que empezó en esa máquina: cada casilla abierta se da vuelta (gema o
+    // bomba) y se queda así hasta la siguiente partida.
+    // ------------------------------------------------------------------
+
+    private static final int MINES_TILES = 25;
+
+    /** ¿Las estaciones de Mines tienen la máquina 3D? */
+    public boolean minesActive() {
+        return configEnabled(Kind.MINES) && bridge.present();
+    }
+
+    public double minesSoundRadius() {
+        return cfg(Kind.MINES, "sound_radius", 12);
+    }
+
+    private Machine minesOf(Location station, UUID player) {
+        Machine m = machine(station, Kind.MINES);
+        return m == null || player == null || !player.equals(m.minesOwner) ? null : m;
+    }
+
+    private void minesCover(Machine m) {
+        for (int t = 0; t < MINES_TILES; t++) {
+            bridge.stop(m.handle, "tile_" + t + "_gem");
+            bridge.stop(m.handle, "tile_" + t + "_bomb");
+        }
+    }
+
+    /** Empieza una partida: se tapan todas las casillas y pasa una ola por el tablero. */
+    public void minesStart(Location station, UUID player) {
+        Machine m = machine(station, Kind.MINES);
+        if (m == null)
+            return;
+        if (m.pending != null) {
+            m.pending.cancel();
+            m.pending = null;
+        }
+        m.minesOwner = player;
+        minesCover(m);
+        bridge.stop(m.handle, "cashout");
+        bridge.stop(m.handle, "boom");
+        bridge.play(m.handle, "start", 0, 0.1, true);
+    }
+
+    /** Se abrió la casilla {@code tile} (fila*5 + columna): gema, o bomba y la máquina tiembla. */
+    public void minesReveal(Location station, UUID player, int tile, boolean mine) {
+        Machine m = minesOf(station, player);
+        if (m == null || tile < 0 || tile >= MINES_TILES)
+            return;
+        bridge.play(m.handle, "tile_" + tile + (mine ? "_bomb" : "_gem"), 0, 0, true);
+        if (mine)
+            bridge.play(m.handle, "boom", 0, 0.1, true);
+    }
+
+    /**
+     * Terminó la partida: si cobró, caen monedas a la bandeja; las minas que no se abrieron
+     * aparecen una tras otra y al rato el tablero se vuelve a tapar.
+     */
+    public void minesEnd(Location station, UUID player, boolean[] mine, boolean[] open, boolean cashed) {
+        Machine m = minesOf(station, player);
+        if (m == null || mine == null || open == null)
+            return;
+        if (m.pending != null) {
+            m.pending.cancel();
+            m.pending = null;
+        }
+        if (cashed)
+            bridge.play(m.handle, "cashout", 0, 0.1, true);
+        List<Integer> hidden = new ArrayList<>();
+        for (int t = 0; t < Math.min(MINES_TILES, Math.min(mine.length, open.length)); t++)
+            if (mine[t] && !open[t])
+                hidden.add(t);
+        long resetAt = 12 + hidden.size() * 3L + 20L * Math.max(1, Math.round(cfg(Kind.MINES, "reset_seconds", 6)));
+        m.pending = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int t = 0;
+
+            @Override
+            public void run() {
+                t++;
+                int i = (t - 12) / 3;
+                if (t >= 12 && (t - 12) % 3 == 0 && i < hidden.size() && m.handle != null)
+                    bridge.play(m.handle, "tile_" + hidden.get(i) + "_bomb", 0, 0, true);
+                if (t >= resetAt) {
+                    if (m.handle != null) {
+                        minesCover(m);
+                        bridge.play(m.handle, "start", 0, 0.1, true);
+                    }
+                    m.minesOwner = null;
+                    if (m.pending != null)
+                        m.pending.cancel();
+                    m.pending = null;
+                }
+            }
+        }, 1L, 1L);
+    }
+
+    // ------------------------------------------------------------------
     // Mesa de ruleta: tamaño, zonas clickeables, casillas del tablero y fichas
     // Medidas del modelo (models/tools/roulette_table.js), en unidades (16 = 1 bloque):
     // la rueda en el origen y la mesa hacia +X de -30 a 122, Z de -30 a 30, paño a 12.4.
@@ -729,7 +861,7 @@ public class StationModels implements Listener {
     // ------------------------------------------------------------------
 
     private boolean collision(Kind k) {
-        return plugin.getConfig().getBoolean(k.path + ".collision", true);
+        return conf(k).getBoolean("collision", true);
     }
 
     private void spawnColliders(Machine m, Location at) {
@@ -783,7 +915,7 @@ public class StationModels implements Listener {
     private List<org.bukkit.block.Block> colliderCells(Machine m, Location at) {
         List<org.bukkit.block.Block> out = new ArrayList<>();
         org.bukkit.block.Block foot = at.getBlock();
-        if (m.kind == Kind.SLOTS || m.kind == Kind.EXCHANGE) {
+        if (m.kind == Kind.SLOTS || m.kind == Kind.EXCHANGE || m.kind == Kind.MINES) {
             out.add(foot);
             out.add(foot.getRelative(org.bukkit.block.BlockFace.UP)); // la máquina mide 2 bloques
             return out;
@@ -1357,6 +1489,10 @@ public class StationModels implements Listener {
                         : plugin.getPokerManager().getByBlock(m.station.getBlock());
                 if (poker != null)
                     poker.openMenu(p);
+            }
+            case MINES -> {
+                if (mines() != null)
+                    mines().openFromModel(p, m.station);
             }
         }
     }

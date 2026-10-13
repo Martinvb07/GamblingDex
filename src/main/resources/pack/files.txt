@@ -73,6 +73,10 @@ assets/gamblingdex/models/item/chip_yellow.json
 assets/gamblingdex/sounds.json
 assets/gamblingdex/sounds/exchange/buy.ogg
 assets/gamblingdex/sounds/exchange/sell.ogg
+assets/gamblingdex/sounds/mines/bomb.ogg
+assets/gamblingdex/sounds/mines/cashout.ogg
+assets/gamblingdex/sounds/mines/gem.ogg
+assets/gamblingdex/sounds/mines/start.ogg
 assets/gamblingdex/sounds/poker/card.ogg
 assets/gamblingdex/sounds/poker/chips.ogg
 assets/gamblingdex/sounds/poker/flip.ogg
@@ -88,6 +92,7 @@ assets/gamblingdex/sounds/slots/win.ogg
 assets/gamblingdex/textures/font/bj_action_gui.png
 assets/gamblingdex/textures/font/bj_bet_gui.png
 assets/gamblingdex/textures/font/exchange_gui.png
+assets/gamblingdex/textures/font/mines_gui.png
 assets/gamblingdex/textures/font/poker_action_gui.png
 assets/gamblingdex/textures/font/poker_buyin_gui.png
 assets/gamblingdex/textures/font/roulette_gui.png

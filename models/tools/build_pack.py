@@ -31,6 +31,7 @@ CH_BJ_ACTION_BG = '\uE104'     # menu de acciones del blackjack
 CH_BJ_BET_BG = '\uE105'        # menu de apuestas del blackjack
 CH_ROULETTE_BG = '\uE106'      # menu de apuestas de la ruleta
 CH_ROULETTE_NUM_BG = '\uE107'  # menu de plenos de la ruleta (la rueda)
+CH_MINES_BG = '\uE108'         # menu de Mines
 
 
 def mkdir(p):
@@ -633,6 +634,123 @@ def exchange_sounds():
 
 
 # ----------------------------------------------------------------------------
+# Mines (MinesMenu): negro y rojo como la maquina 3D. Tablero 5x5 (filas 0-4,
+# columnas 2-6) en una pantalla azul noche; columna 0 = datos (info, apuesta,
+# minas, multiplicador, siguiente), 8 = fichas / JUGAR-RETIRARSE / cerrar;
+# fila 5: apuesta (45..49) y minas (51..53).
+# ----------------------------------------------------------------------------
+NIGHT, NIGHT_D, NIGHT_L = (13, 22, 38), (8, 14, 26), (24, 38, 62)
+BLK, BLK_D, BLK_L = (30, 30, 40), (20, 20, 28), (40, 40, 52)
+MINE_RED = (220, 36, 44)
+
+
+def bulb(d, cx, cy, on):
+    d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=RED_D)
+    d.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=(255, 96, 80) if on else (120, 30, 30))
+    if on:
+        d.point((cx - 1, cy - 1), fill=(255, 220, 210))
+
+
+def mini_bomb(d, cx, cy):
+    d.ellipse((cx - 4, cy - 3, cx + 3, cy + 4), fill=(8, 8, 12))
+    d.ellipse((cx - 3, cy - 2, cx + 2, cy + 3), fill=(36, 36, 46))
+    d.point((cx - 2, cy - 1), fill=(150, 150, 170))
+    d.line([(cx + 1, cy - 3), (cx + 2, cy - 5)], fill=(176, 128, 64))
+    d.point((cx + 3, cy - 6), fill=(255, 224, 64))
+    d.point((cx + 3, cy - 5), fill=(255, 128, 32))
+
+
+def mini_gem(d, cx, cy):
+    d.polygon([(cx - 4, cy - 1), (cx - 2, cy - 4), (cx + 2, cy - 4), (cx + 4, cy - 1), (cx, cy + 4)], fill=(11, 107, 42))
+    d.polygon([(cx - 3, cy - 1), (cx - 1, cy - 3), (cx + 1, cy - 3), (cx + 3, cy - 1), (cx, cy + 3)], fill=(47, 209, 106))
+    d.point((cx - 1, cy - 2), fill=(216, 255, 232))
+
+
+def mines_background():
+    w, h = 176, 130
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(31)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=RED_D)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=(196, 28, 40))
+    d.rectangle((3, 3, w - 4, h - 4), fill=BLK)
+    for _ in range(900):
+        x, y = rng.integers(3, w - 3), rng.integers(3, h - 3)
+        d.point((int(x), int(y)), fill=[BLK_D, BLK_L, (26, 26, 34)][rng.integers(0, 3)])
+    # Franja del titulo con bombillos rojos
+    d.rectangle((3, 3, w - 4, 15), fill=(10, 10, 16))
+    d.line([(3, 16), (w - 4, 16)], fill=(196, 28, 40))
+    for x in range(5, w - 4, 4):
+        d.point((x, 4), fill=(255, 90, 74) if (x // 4) % 2 else (110, 30, 30))
+        d.point((x + 2, 14), fill=(255, 90, 74) if (x // 4) % 2 == 0 else (110, 30, 30))
+    # Columna 0: datos
+    for r, col in ((0, MINE_RED), (1, GOLD), (2, MINE_RED), (3, (60, 200, 90)), (4, (80, 150, 230))):
+        info_slot(d, r, 0, col)
+    # Columnas 1 y 7: bombillos (se alternan)
+    for r in range(5):
+        for c in (1, 7):
+            bulb(d, *slot_center(r, c), (r + c) % 2 == 0)
+    # Tablero: pantalla azul noche con marco rojo y dorado
+    x1, y1 = slot_box(0, 2)[:2]
+    x2, y2 = slot_box(4, 6)[2:]
+    d.rounded_rectangle((x1 - 4, y1 - 2, x2 + 4, y2 + 2), radius=3, fill=(196, 28, 40), outline=RED_D)
+    d.rectangle((x1 - 2, y1 - 1, x2 + 2, y2 + 1), fill=GOLD_D)
+    d.rectangle((x1 - 1, y1, x2 + 1, y2), fill=NIGHT)
+    for r in range(5):
+        for c in range(2, 7):
+            bx1, by1, bx2, by2 = slot_box(r, c)
+            bevel(d, (bx1, by1, bx2, by2), NIGHT_D, NIGHT_L, fill=(18, 30, 50))
+            bevel(d, (bx1 + 1, by1 + 1, bx2 - 1, by2 - 1), (10, 16, 28), (40, 56, 84))
+    # Columna 8: fichas, JUGAR / RETIRARSE (grande) y cerrar
+    info_slot(d, 0, 8, GOLD)
+    x1, y1, x2, y2 = slot_box(2, 8)
+    d.rounded_rectangle((x1 - 3, y1 - 3, x2 + 2, y2 + 3), radius=3, fill=(30, 140, 54), outline=(10, 60, 22))
+    d.rectangle((x1 - 1, y1 - 1, x2, y2 + 1), outline=(140, 255, 160))
+    button_slot(d, 2, 8, GREEN_B)
+    button_slot(d, 4, 8, RED_B)
+    mini_gem(d, *slot_center(1, 8))
+    mini_bomb(d, *slot_center(3, 8))
+    # Fila 5: apuesta (45..49) en panel dorado y minas (51..53) en panel rojo
+    x1, y1 = slot_box(5, 0)[:2]
+    x2, y2 = slot_box(5, 4)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=GOLD_D, outline=(110, 76, 6))
+    for c, col in ((0, (200, 200, 196)), (1, RED_B), (2, GOLD_L), (3, GREEN_B), (4, GOLD)):
+        info_slot(d, 5, c, col)
+    x1, y1 = slot_box(5, 6)[:2]
+    x2, y2 = slot_box(5, 8)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=RED_D, outline=(60, 6, 12))
+    for c, col in ((6, RED_B), (7, MINE_RED), (8, GREEN_B)):
+        info_slot(d, 5, c, col)
+    mini_bomb(d, *slot_center(5, 5))
+    return img
+
+
+def mines_sounds():
+    s = {}
+    # Empezar: las casillas se barajan (clics rapidos que suben) + campanita
+    rng = np.random.default_rng(61)
+    clicks = [(i * 0.035, mix(0.04, (0, noise(0.02, 0.004, 0.6, 0.4, 70 + i)),
+                              (0, tone(900 + i * 70, 0.03, 'square', r=0.008, vol=0.3)))) for i in range(12)]
+    s['start'] = mix(0.8, *clicks, (0.45, tone(1318.5, 0.35, 'bell', r=0.12, vol=0.4)))
+    # Casilla segura: brillo cristalino (dos campanas en quinta)
+    s['gem'] = mix(0.6, (0, tone(1568.0, 0.5, 'bell', r=0.16, vol=0.55)), (0.03, tone(2349.3, 0.45, 'bell', r=0.14, vol=0.35)),
+                   (0, noise(0.02, 0.004, 0.2, seed=62)))
+    # Mina: explosion (golpe grave + ruido filtrado largo + escombros)
+    debris = [(0.15 + float(rng.uniform(0, 0.5)), noise(0.03, 0.01, 0.25, 0.3, 80 + i)) for i in range(10)]
+    s['bomb'] = mix(1.6, (0, tone(55, 0.6, r=0.25, vol=1.0)), (0, tone(38, 0.9, r=0.4, vol=0.8)),
+                    (0, noise(1.2, 0.35, 1.0, 0.06, 63)), (0, noise(0.08, 0.03, 0.9, 0.5, 64)), *debris)
+    # Cobrar: monedas tintineando + arpegio que sube
+    coins = [(0.02 + i * 0.06 + float(rng.uniform(0, 0.02)), tone(float(rng.uniform(2300, 3300)), 0.25, 'bell', r=0.06, vol=0.35))
+             for i in range(8)]
+    s['cashout'] = mix(1.3, *coins, *[(0.15 + i * 0.08, tone(f, 0.45, 'square', r=0.15, vol=0.25))
+                                      for i, f in enumerate([E5, G5, C6, E6])], (0.5, tone(G6, 0.7, 'bell', r=0.3, vol=0.45)))
+    return s
+
+
+MINES_SUBTITLES = {'start': 'Tablero de Mines barajado', 'gem': 'Casilla segura', 'bomb': '¡Mina!', 'cashout': 'Premio de Mines'}
+
+
+# ----------------------------------------------------------------------------
 # Fichas en 3D: un modelo de item (chip.json) + una textura por valor. Cada tinte
 # de ficha (TokenManager.DENOMS) se cambia por su ficha cuando el item tiene
 # custom_model_data = CHIP_CMD (1.20.4-1.21.3: overrides; 1.21.4+: items/*.json).
@@ -1107,7 +1225,8 @@ def main():
                          ('bj_action_gui', bj_action_background, CH_BJ_ACTION_BG),
                          ('bj_bet_gui', bj_bet_background, CH_BJ_BET_BG),
                          ('roulette_gui', roulette_background, CH_ROULETTE_BG),
-                         ('roulette_num_gui', roulette_numbers_background, CH_ROULETTE_NUM_BG)):
+                         ('roulette_num_gui', roulette_numbers_background, CH_ROULETTE_NUM_BG),
+                         ('mines_gui', mines_background, CH_MINES_BG)):
         im = fn()
         im.save(os.path.join(tex, name + '.png'))
         font['providers'].append({'type': 'bitmap', 'file': 'gamblingdex:font/' + name + '.png',
@@ -1132,6 +1251,9 @@ def main():
         write_ogg(os.path.join(NS, 'sounds', 'exchange', name + '.ogg'), sig)
         sj['exchange.' + name] = {'sounds': ['gamblingdex:exchange/' + name],
                                   'subtitle': 'subtitles.gamblingdex.exchange.' + name}
+    for name, sig in mines_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'mines', name + '.ogg'), sig)
+        sj['mines.' + name] = {'sounds': ['gamblingdex:mines/' + name], 'subtitle': 'subtitles.gamblingdex.mines.' + name}
     with open(os.path.join(NS, 'sounds.json'), 'w', encoding='utf-8') as f:
         json.dump(sj, f, indent=2)
     mkdir(os.path.join(NS, 'lang'))
@@ -1139,6 +1261,7 @@ def main():
     lang.update({'subtitles.gamblingdex.exchange.' + k: v for k, v in EXCHANGE_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.roulette.' + k: v for k, v in ROULETTE_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.poker.' + k: v for k, v in POKER_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.mines.' + k: v for k, v in MINES_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)
