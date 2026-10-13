@@ -80,14 +80,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Versión fija: la 3.5.1 que trae el Maven nuevo de GitHub escribe un jar que el
-                 shade 3.5.0 no puede leer ("invalid LOC header") -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -100,7 +92,8 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <outputFile>${project.build.directory}/${project.build.finalName}.jar</outputFile>
+                            <!-- Sin outputFile: el shade reemplaza target/GamblingDex.jar por su cuenta
+                                 (escribir encima del jar que está leyendo lo corrompía) -->
                         </configuration>
                     </execution>
                 </executions>
