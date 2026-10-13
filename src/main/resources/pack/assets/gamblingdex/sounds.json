@@ -142,5 +142,71 @@
       "gamblingdex:plinko/bigwin"
     ],
     "subtitle": "subtitles.gamblingdex.plinko.bigwin"
+  },
+  "tower.start": {
+    "sounds": [
+      "gamblingdex:tower/start"
+    ],
+    "subtitle": "subtitles.gamblingdex.tower.start"
+  },
+  "tower.door": {
+    "sounds": [
+      "gamblingdex:tower/door"
+    ],
+    "subtitle": "subtitles.gamblingdex.tower.door"
+  },
+  "tower.trap": {
+    "sounds": [
+      "gamblingdex:tower/trap"
+    ],
+    "subtitle": "subtitles.gamblingdex.tower.trap"
+  },
+  "tower.cashout": {
+    "sounds": [
+      "gamblingdex:tower/cashout"
+    ],
+    "subtitle": "subtitles.gamblingdex.tower.cashout"
+  },
+  "tower.top": {
+    "sounds": [
+      "gamblingdex:tower/top"
+    ],
+    "subtitle": "subtitles.gamblingdex.tower.top"
+  },
+  "crash.bet": {
+    "sounds": [
+      "gamblingdex:crash/bet"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.bet"
+  },
+  "crash.tick": {
+    "sounds": [
+      "gamblingdex:crash/tick"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.tick"
+  },
+  "crash.launch": {
+    "sounds": [
+      "gamblingdex:crash/launch"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.launch"
+  },
+  "crash.rise": {
+    "sounds": [
+      "gamblingdex:crash/rise"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.rise"
+  },
+  "crash.cashout": {
+    "sounds": [
+      "gamblingdex:crash/cashout"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.cashout"
+  },
+  "crash.explode": {
+    "sounds": [
+      "gamblingdex:crash/explode"
+    ],
+    "subtitle": "subtitles.gamblingdex.crash.explode"
   }
 }

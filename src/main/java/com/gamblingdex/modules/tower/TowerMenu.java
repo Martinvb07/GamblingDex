@@ -6,7 +6,9 @@ import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.gui.Icons;
 import com.gamblingdex.modules.GameModule;
 import com.gamblingdex.modules.tower.TowerModule.Difficulty;
+import com.gamblingdex.pack.CasinoPack;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -25,7 +27,9 @@ import java.util.*;
 /**
  * Menú de Tower (estación de un bloque). Arriba se ve una ventana de 5 pisos de
  * la torre (el más alto arriba) que sube a medida que el jugador avanza; abajo,
- * la apuesta, la dificultad y el botón de jugar/subir/retirarse.
+ * la apuesta, la dificultad y el botón de jugar/subir/retirarse. Con el resource
+ * pack tiene fondo propio y sonidos propios (tower.*); si la estación tiene la
+ * máquina 3D, su torre repite la partida del último que empezó ahí.
  *
  * <pre>
  *  col 0: piso y multiplicador | cols 1..7: puertas | col 8: "estás aquí"
@@ -43,6 +47,7 @@ final class TowerMenu implements Listener {
     static final class Session implements InventoryHolder {
         final UUID player;
         Inventory inv;
+        Location station; // estación desde la que se abrió (para la máquina 3D)
         long bet;
         int diff;
         boolean playing;
@@ -102,7 +107,7 @@ final class TowerMenu implements Listener {
 
     // ------------------------------------------------------------------
 
-    void open(Player p) {
+    void open(Player p, Location station) {
         Session old = sessions.get(p.getUniqueId());
         if (old != null && old.playing) {
             p.openInventory(old.inv);
@@ -110,11 +115,30 @@ final class TowerMenu implements Listener {
         }
         long[] l = last.getOrDefault(p.getUniqueId(), new long[] { min(), defaultDiff() });
         Session s = new Session(p.getUniqueId(), Math.max(min(), l[0]), (int) l[1]);
-        s.inv = Bukkit.createInventory(s, 54, m.color("&8&l✦ &b&lTOWER &8&l✦"));
+        s.station = station != null ? station.clone() : old != null ? old.station : null;
+        s.inv = CasinoPack.customGui()
+                ? Bukkit.createInventory(s, 54, CasinoPack.titleWithBackground(CasinoPack.TOWER_BG, m.color("&b&lTOWER")))
+                : Bukkit.createInventory(s, 54, m.color("&8&l✦ &b&lTOWER &8&l✦"));
         sessions.put(p.getUniqueId(), s);
         render(p, s);
         p.openInventory(s.inv);
-        p.playSound(p.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+        CasinoPack.sound(p, "slots.coin", Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+    }
+
+    private static com.gamblingdex.models.StationModels models(Session s) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var models = plugin == null ? null : plugin.getStationModels();
+        return s.station == null || models == null || !models.towerActive() ? null : models;
+    }
+
+    /** Sonido para el jugador y, si la estación tiene la máquina 3D, para los que están cerca. */
+    private void sound(Player p, Session s, String key, Sound vanilla, float volume, float pitch) {
+        if (p != null)
+            CasinoPack.sound(p, "tower." + key, vanilla, volume, pitch);
+        var models = models(s);
+        if (models != null)
+            CasinoPack.soundNear(s.station.clone().add(0.5, 1.2, 0.5), p, "tower." + key, vanilla, volume * 0.8f, pitch,
+                    models.towerSoundRadius());
     }
 
     private int defaultDiff() {
@@ -181,9 +205,10 @@ final class TowerMenu implements Listener {
                         List.of("&7Llega arriba y cobra &fx" + TowerModule.fmt(m.multiplier(d, floors))), true));
         }
 
-        // Fila inferior
+        // Fila inferior (con el fondo del pack, en partida queda vacía: se ven los paneles)
+        boolean custom = CasinoPack.customGui();
         if (s.playing) {
-            for (int i = S_MIN; i <= S_DIFF; i++)
+            for (int i = S_MIN; i <= S_DIFF && !custom; i++)
                 inv.setItem(i, Icons.of(Material.GRAY_STAINED_GLASS_PANE, "&8Partida en curso", null));
         } else {
             inv.setItem(S_MIN, Icons.of(Material.IRON_NUGGET, "&fMínimo", List.of("&7Apuesta " + GameModule.units(min()))));
@@ -226,7 +251,8 @@ final class TowerMenu implements Listener {
                     "&7Primer piso: &fx" + TowerModule.fmt(m.multiplier(d, 1)),
                     "&7Cima: &fx" + TowerModule.fmt(m.multiplier(d, floors))), true));
         }
-        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        if (!custom)
+            Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
 
     private long capped(long win) {
@@ -243,7 +269,7 @@ final class TowerMenu implements Listener {
         s.bet = Math.max(min(), Math.min(hi, v));
         remember(s);
         render(p, s);
-        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+        CasinoPack.sound(p, "slots.coin", Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
     private void remember(Session s) {
@@ -277,7 +303,10 @@ final class TowerMenu implements Listener {
             for (int t = 0; t < d.traps(); t++)
                 s.trap[f][idx.get(t)] = true;
         }
-        p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
+        sound(p, s, "start", Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.2f);
+        var models = models(s);
+        if (models != null)
+            models.towerStart(s.station, s.player);
         render(p, s);
     }
 
@@ -291,15 +320,24 @@ final class TowerMenu implements Listener {
             s.over = true;
             s.lost = true;
             GamblingDexPlugin.recordStats(s.player, "tower", s.bet, 0L);
-            p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.2f);
+            sound(p, s, "trap", Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.2f);
+            var models = models(s);
+            if (models != null) {
+                models.towerTrap(s.station, s.player, f, s.chosen.length);
+                models.towerEnd(s.station, s.player, false, false);
+            }
             p.sendMessage(m.msg("lost", "&c&l¡TRAMPA! &7en el piso &f{floor}&7. Perdiste &e{amount}&7.",
                     "floor", String.valueOf(f + 1), "amount", GameModule.units(s.bet)));
             render(p, s);
             return;
         }
         s.cleared++;
-        p.playSound(p.getLocation(), Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.0f);
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, 0.8f + s.cleared * 0.08f);
+        if (!CasinoPack.customSoundsOn())
+            p.playSound(p.getLocation(), Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.0f);
+        sound(p, s, "door", Sound.BLOCK_NOTE_BLOCK_CHIME, 0.8f, Math.min(2f, 0.8f + s.cleared * 0.08f));
+        var models = models(s);
+        if (models != null)
+            models.towerClimb(s.station, s.player, f, s.chosen.length);
         if (s.cleared >= s.chosen.length) {
             GamblingDexPlugin.achievement(s.player, "tower_top");
             cashOut(p, s);
@@ -316,10 +354,14 @@ final class TowerMenu implements Listener {
         s.over = true;
         s.lastPay = pay;
         TokenWallet.give(s.player, pay);
+        boolean top = s.cleared >= s.chosen.length;
+        var models = models(s);
+        if (models != null)
+            models.towerEnd(s.station, s.player, s.cleared > 0, top);
         if (s.cleared > 0) {
             GamblingDexPlugin.recordStats(s.player, "tower", s.bet, pay);
+            sound(p, s, top ? "top" : "cashout", top ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
             if (p != null) {
-                boolean top = s.cleared >= s.chosen.length;
                 p.sendMessage(top
                         ? m.msg("top", "&6&l¡CIMA! &7Subiste los &f{floors}&7 pisos &fx{mult} &7→ &e+{amount}",
                                 "floors", String.valueOf(s.cleared), "mult", TowerModule.fmt(m.multiplier(diff(s), s.cleared)),
@@ -327,7 +369,6 @@ final class TowerMenu implements Listener {
                         : m.msg("cashed_out", "&a&l¡RETIRASTE! &7en el piso &f{floor}&7 &fx{mult} &7→ &e+{amount}",
                                 "floor", String.valueOf(s.cleared), "mult", TowerModule.fmt(m.multiplier(diff(s), s.cleared)),
                                 "amount", GameModule.units(pay)));
-                p.playSound(p.getLocation(), top ? Sound.UI_TOAST_CHALLENGE_COMPLETE : Sound.ENTITY_PLAYER_LEVELUP, 0.9f, 1.2f);
             }
         } else if (p != null) {
             p.sendMessage(m.msg("refunded", "&7No subiste ningún piso: se te devolvieron &e{amount}&7.",
@@ -391,12 +432,13 @@ final class TowerMenu implements Listener {
             case S_CUSTOM -> {
                 int diff = s.diff;
                 String name = diff(s).name();
+                Location station = s.station;
                 p.closeInventory();
                 AmountPickerMenu.open(p, "&b&lTower &8- &eTu apuesta", min(), max(), s.bet,
                         List.of("&7Dificultad: " + name), amount -> {
                             last.put(p.getUniqueId(), new long[] { amount, diff });
-                            open(p);
-                        }, () -> open(p));
+                            open(p, station);
+                        }, () -> open(p, station));
             }
             case S_DIFF -> {
                 int n = m.difficulties().size();
@@ -407,7 +449,7 @@ final class TowerMenu implements Listener {
                 s.chosen = new int[0];
                 remember(s);
                 render(p, s);
-                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.2f);
+                CasinoPack.sound(p, "slots.coin", Sound.UI_BUTTON_CLICK, 0.4f, 1.2f);
             }
             default -> {
             }

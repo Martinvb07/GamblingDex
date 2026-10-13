@@ -53,7 +53,9 @@ public class StationModels implements Listener {
         BLACKJACK(null, "blackjack.model", "blackjack_table", 1.0, 3.5, 1.0),
         /** Estaciones con menú de módulos (su config va en modules/<módulo>.yml → model). */
         MINES("mines", "mines_machine"),
-        PLINKO("plinko", "plinko_machine");
+        PLINKO("plinko", "plinko_machine"),
+        TOWER("tower", "tower_machine"),
+        CRASH("crash", "crash_machine");
 
         final GameItemType type;
         final String path, defaultId;
@@ -134,10 +136,15 @@ public class StationModels implements Listener {
         /** Ruleta: casillas ganadoras iluminadas sobre el paño. */
         final List<UUID> lit = new ArrayList<>();
         BukkitTask litTask;
-        /** Mines: el jugador cuya partida muestra la pantalla (el último que empezó aquí). */
-        UUID minesOwner;
+        /** Mines / Tower: el jugador cuya partida muestra la pantalla (el último que empezó aquí). */
+        UUID owner;
         /** Plinko: la próxima bola que se suelta (se turnan las 3 del modelo). */
         int nextBall;
+        /** Crash: estado que muestra la máquina (-1 = ninguno aún), cifras del marcador (-1 = vacía,
+         * -2 = sin saber) y punto decimal (0 = ninguno, 1 = a, 2 = b, -2 = sin saber). */
+        int crashState = -1;
+        final int[] digits = { -2, -2, -2, -2 };
+        int point = -2;
 
         Machine(Location station, Kind kind) {
             this.station = station;
@@ -395,6 +402,9 @@ public class StationModels implements Listener {
             }
             failedSpawns.remove(m.kind);
             bridge.play(m.handle, "idle", 0, 0, false);
+            m.crashState = -1; // modelo nuevo: hay que volver a poner el estado y el marcador
+            Arrays.fill(m.digits, -2);
+            m.point = -2;
             if (m.kind == Kind.ROULETTE)
                 m.scale = rouletteScale(m);
             else if (m.kind == Kind.POKER)
@@ -403,6 +413,12 @@ public class StationModels implements Listener {
                 m.scale = blackjackScale(m);
             if (m.scale != 1 && !bridge.setScale(m.handle, m.scale))
                 m.scale = 1;
+            if (m.kind == Kind.ROULETTE && hideRing() && plugin.getWorldRouletteManager() != null) {
+                // La mesa 3D ya está: el anillo de bloques y sus números sobran (se devuelven los bloques de antes)
+                var table = rouletteOf(m);
+                if (table != null && table.hasRing())
+                    plugin.getWorldRouletteManager().dropRing(table);
+            }
         }
         spawnColliders(m, at);
         if (m.kind == Kind.ROULETTE) {
@@ -737,7 +753,7 @@ public class StationModels implements Listener {
 
     private Machine minesOf(Location station, UUID player) {
         Machine m = machine(station, Kind.MINES);
-        return m == null || player == null || !player.equals(m.minesOwner) ? null : m;
+        return m == null || player == null || !player.equals(m.owner) ? null : m;
     }
 
     private void minesCover(Machine m) {
@@ -756,7 +772,7 @@ public class StationModels implements Listener {
             m.pending.cancel();
             m.pending = null;
         }
-        m.minesOwner = player;
+        m.owner = player;
         minesCover(m);
         bridge.stop(m.handle, "cashout");
         bridge.stop(m.handle, "boom");
@@ -806,7 +822,7 @@ public class StationModels implements Listener {
                         minesCover(m);
                         bridge.play(m.handle, "start", 0, 0.1, true);
                     }
-                    m.minesOwner = null;
+                    m.owner = null;
                     if (m.pending != null)
                         m.pending.cancel();
                     m.pending = null;
@@ -853,6 +869,196 @@ public class StationModels implements Listener {
         bridge.play(m.handle, "hit_" + slot, 0, 0.1, true);
         if (big)
             bridge.play(m.handle, "bigwin", 0, 0.1, true);
+    }
+
+    // ------------------------------------------------------------------
+    // Animaciones: Tower (models/tools/tower_machine.js). La pantalla tiene 8 pisos y la ficha
+    // del jugador que sube por el riel; muestra la partida del último que empezó en esa máquina.
+    // Con más de 8 pisos en la config, varios pisos reales caen en el mismo piso del modelo.
+    // ------------------------------------------------------------------
+
+    private static final int TOWER_FLOORS = 8;
+
+    public boolean towerActive() {
+        return configEnabled(Kind.TOWER) && bridge.present();
+    }
+
+    public double towerSoundRadius() {
+        return cfg(Kind.TOWER, "sound_radius", 12);
+    }
+
+    /** Piso del modelo (0..7) para el piso real {@code floor} (0 = abajo) de una torre de {@code floors}. */
+    private static int towerModelFloor(int floor, int floors) {
+        int f = floors <= TOWER_FLOORS ? floor : floor * TOWER_FLOORS / Math.max(1, floors);
+        return Math.max(0, Math.min(TOWER_FLOORS - 1, f));
+    }
+
+    private void towerClear(Machine m) {
+        for (int k = 0; k < TOWER_FLOORS; k++) {
+            bridge.stop(m.handle, "floor_" + k + "_ok");
+            bridge.stop(m.handle, "floor_" + k + "_trap");
+            bridge.stop(m.handle, "fall_" + k);
+            bridge.stop(m.handle, "climb_" + (k + 1));
+        }
+        bridge.stop(m.handle, "cashout");
+        bridge.stop(m.handle, "boom");
+        bridge.stop(m.handle, "top");
+    }
+
+    /** Empieza una partida: la ficha vuelve abajo, se cierran los pisos y pasa una ola de luz. */
+    public void towerStart(Location station, UUID player) {
+        Machine m = machine(station, Kind.TOWER);
+        if (m == null)
+            return;
+        if (m.pending != null) {
+            m.pending.cancel();
+            m.pending = null;
+        }
+        m.owner = player;
+        towerClear(m);
+        bridge.play(m.handle, "start", 0, 0.1, true);
+    }
+
+    /** Superó el piso {@code floor} (0 = el primero): se abre en verde y la ficha sube. */
+    public void towerClimb(Location station, UUID player, int floor, int floors) {
+        Machine m = machine(station, Kind.TOWER);
+        if (m == null || player == null || !player.equals(m.owner))
+            return;
+        int f = towerModelFloor(floor, floors);
+        // la cima siempre deja la ficha arriba del todo
+        int to = floor >= floors - 1 ? TOWER_FLOORS : Math.min(TOWER_FLOORS, f + 1);
+        bridge.play(m.handle, "floor_" + f + "_ok", 0, 0, true);
+        for (int k = 1; k <= TOWER_FLOORS; k++)
+            if (k != to)
+                bridge.stop(m.handle, "climb_" + k);
+        bridge.play(m.handle, "climb_" + to, 0, 0, true);
+    }
+
+    /** Cayó en una trampa en el piso {@code floor}: el piso se pone rojo, la ficha se cae y la torre tiembla. */
+    public void towerTrap(Location station, UUID player, int floor, int floors) {
+        Machine m = machine(station, Kind.TOWER);
+        if (m == null || player == null || !player.equals(m.owner))
+            return;
+        int f = towerModelFloor(floor, floors);
+        bridge.play(m.handle, "floor_" + f + "_trap", 0, 0, true);
+        for (int k = 1; k <= TOWER_FLOORS; k++)
+            bridge.stop(m.handle, "climb_" + k);
+        bridge.play(m.handle, "fall_" + f, 0, 0, true);
+        bridge.play(m.handle, "boom", 0, 0.1, true);
+    }
+
+    /** Terminó: si cobró caen monedas (y en la cima sale la estrella); al rato la torre se reinicia. */
+    public void towerEnd(Location station, UUID player, boolean cashed, boolean top) {
+        Machine m = machine(station, Kind.TOWER);
+        if (m == null || player == null || !player.equals(m.owner))
+            return;
+        if (m.pending != null)
+            m.pending.cancel();
+        if (cashed)
+            bridge.play(m.handle, "cashout", 0, 0.1, true);
+        if (top)
+            bridge.play(m.handle, "top", 0, 0.1, true);
+        m.pending = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            m.pending = null;
+            m.owner = null;
+            if (m.handle != null)
+                towerClear(m);
+        }, 20L * Math.max(1, Math.round(cfg(Kind.TOWER, "reset_seconds", 6))) + (top ? 40L : 0L));
+    }
+
+    // ------------------------------------------------------------------
+    // Animaciones: Crash (models/tools/crash_machine.js). El marcador muestra el multiplicador
+    // con 4 cifras (cada cifra es una animación d<P>_<N>) y el cohete sube por la curva a la
+    // velocidad de growth_per_second; al explotar revienta y el marcador se pone rojo.
+    // ------------------------------------------------------------------
+
+    /** Velocidad a la que está hecha la animación fly del modelo (growth_per_second por defecto). */
+    private static final double CRASH_MODEL_GROWTH = 0.07;
+
+    public boolean crashActive() {
+        return configEnabled(Kind.CRASH) && bridge.present();
+    }
+
+    public double crashSoundRadius() {
+        return cfg(Kind.CRASH, "sound_radius", 16);
+    }
+
+    /**
+     * Estado de la mesa (lo llama Crash en cada tick): 0 = apuestas, 1 = en vuelo, 2 = explotó;
+     * {@code value} = lo que muestra el marcador. Solo se reproducen los cambios.
+     */
+    public void crashUpdate(Location station, int state, double value, double growth) {
+        Machine m = machine(station, Kind.CRASH);
+        if (m == null)
+            return;
+        if (state != m.crashState) {
+            switch (state) {
+                case 0 -> {
+                    for (String a : new String[] { "fly", "flame", "explode", "lcd_red", "cashout" })
+                        bridge.stop(m.handle, a);
+                    bridge.play(m.handle, "countdown", 0, 0.1, true);
+                }
+                case 1 -> {
+                    for (String a : new String[] { "countdown", "explode", "lcd_red" })
+                        bridge.stop(m.handle, a);
+                    bridge.play(m.handle, "fly", 0, 0, Math.max(0.05, growth / CRASH_MODEL_GROWTH), true);
+                    bridge.play(m.handle, "flame", 0, 0, true);
+                }
+                default -> {
+                    bridge.stop(m.handle, "flame");
+                    bridge.stop(m.handle, "countdown");
+                    bridge.play(m.handle, "explode", 0, 0, true);
+                    bridge.play(m.handle, "lcd_red", 0, 0, true);
+                }
+            }
+            m.crashState = state;
+        }
+        crashDisplay(m, value);
+    }
+
+    /** Alguien retiró en esta mesa: caen monedas a la bandeja. */
+    public void crashCashout(Location station) {
+        Machine m = machine(station, Kind.CRASH);
+        if (m != null)
+            bridge.play(m.handle, "cashout", 0, 0.1, true);
+    }
+
+    /** Pone el número en el marcador: x1.85 / x12.40 (punto a), x123.4 (punto b), x1234. */
+    private void crashDisplay(Machine m, double value) {
+        int[] want = { -1, -1, -1, -1 };
+        int point;
+        String txt;
+        if (value < 100) {
+            txt = String.format(Locale.ROOT, "%.2f", Math.max(0, value)).replace(".", "");
+            point = 1;
+        } else if (value < 1000) {
+            txt = String.format(Locale.ROOT, "%.1f", value).replace(".", "");
+            point = 2;
+        } else {
+            txt = String.valueOf(Math.min(9999, Math.round(value)));
+            point = 0;
+        }
+        for (int i = 0; i < txt.length() && i < 4; i++)
+            want[4 - txt.length() + i] = txt.charAt(i) - '0'; // alineado a la derecha
+        for (int p = 0; p < 4; p++) {
+            if (want[p] == m.digits[p])
+                continue;
+            if (m.digits[p] >= 0)
+                bridge.stop(m.handle, "d" + p + "_" + m.digits[p]);
+            else if (m.digits[p] == -2)
+                for (int n = 0; n < 10; n++)
+                    bridge.stop(m.handle, "d" + p + "_" + n);
+            if (want[p] >= 0)
+                bridge.play(m.handle, "d" + p + "_" + want[p], 0, 0, true);
+            m.digits[p] = want[p];
+        }
+        if (point != m.point) {
+            bridge.stop(m.handle, "point_a");
+            bridge.stop(m.handle, "point_b");
+            if (point > 0)
+                bridge.play(m.handle, point == 1 ? "point_a" : "point_b", 0, 0, true);
+            m.point = point;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -1548,7 +1754,7 @@ public class StationModels implements Listener {
                 if (poker != null)
                     poker.openMenu(p);
             }
-            case MINES, PLINKO -> {
+            case MINES, PLINKO, TOWER, CRASH -> {
                 if (stationModule(m.kind) != null)
                     stationModule(m.kind).openFromModel(p, m.station);
             }

@@ -294,10 +294,13 @@ public class WorldRouletteManager {
         Set<String> used = new HashSet<>();
         used.add(centerKey);
 
+        // Con la mesa 3D (ModelEngine) y hide_ring, el anillo de bloques y sus números no se construyen:
+        // se apuesta en el paño de la mesa.
+        boolean ring = !noRing();
         int segmentYOffset = (segmentYOffsetOverride != null)
                 ? segmentYOffsetOverride
                 : plugin.getConfig().getInt("roulette_world.segment_y_offset", -1);
-        for (int i = 0; i < WorldRouletteTables.WHEEL_ORDER.length; i++) {
+        for (int i = 0; ring && i < WorldRouletteTables.WHEEL_ORDER.length; i++) {
             int number = WorldRouletteTables.WHEEL_ORDER[i];
 
             double angle = (2.0 * Math.PI) * (i / (double) WorldRouletteTables.WHEEL_ORDER.length);
@@ -382,6 +385,26 @@ public class WorldRouletteManager {
         persistTable(centerKey, r, segments, originals, numberDisplays, holoDisplays);
 
         return table;
+    }
+
+    /** ¿Las ruletas van sin anillo? (mesa 3D activa y roulette_world.model.hide_ring) */
+    public boolean noRing() {
+        var models = plugin.getStationModels();
+        return models != null && models.active(GameItemType.ROULETTE)
+                && plugin.getConfig().getBoolean("roulette_world.model.hide_ring", true);
+    }
+
+    /** Quita el anillo de una ruleta ya construida y lo guarda (la mesa 3D ya está puesta). */
+    public void dropRing(WorldRouletteTable table) {
+        if (table == null || !table.hasRing())
+            return;
+        segmentToCenter.entrySet().removeIf(e -> e.getValue().equalsIgnoreCase(table.getTableKey()));
+        table.removeRing();
+        persistTable(table.getTableKey(), table.getRadius(), Map.of(), table.getOriginals(), List.of(),
+                table.getHoloDisplayIds());
+        save();
+        plugin.getLogger().info("[Ruleta] Se quitó el anillo de bloques de la ruleta " + table.getTableKey()
+                + " (tiene la mesa 3D).");
     }
 
     private Map<String, WorldRouletteTable.OriginalBlock> captureOriginalBlocks(Block centerBlock, String centerKey) {

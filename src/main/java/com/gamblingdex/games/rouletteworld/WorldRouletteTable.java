@@ -1149,6 +1149,47 @@ public class WorldRouletteTable {
         restoreOriginalBlocks();
     }
 
+    /** ¿Tiene todavía el anillo de bloques con números? */
+    public boolean hasRing() {
+        return !segmentKeyToNumber.isEmpty() || !numberDisplayIds.isEmpty();
+    }
+
+    /**
+     * Quita el anillo (con la mesa 3D no hace falta): devuelve los bloques que había antes en
+     * cada casilla y borra los números flotantes. El centro y los hologramas se quedan.
+     */
+    public void removeRing() {
+        World w = center.getWorld();
+        for (String key : new ArrayList<>(segmentKeyToNumber.keySet())) {
+            Location loc = parseKey(key);
+            OriginalBlock ob = originals.remove(key);
+            if (loc == null || loc.getWorld() == null)
+                continue;
+            Block b = loc.getWorld().getBlockAt(loc);
+            try {
+                if (ob != null && ob.getType() != null) {
+                    b.setType(ob.getType(), false);
+                    if (ob.getBlockData() != null && !ob.getBlockData().isEmpty())
+                        b.setBlockData(Bukkit.createBlockData(ob.getBlockData()), false);
+                } else {
+                    b.setType(Material.AIR, false);
+                }
+            } catch (Throwable t) {
+                b.setType(ob != null && ob.getType() != null ? ob.getType() : Material.AIR, false);
+            }
+        }
+        if (w != null)
+            for (UUID id : numberDisplayIds) {
+                Entity e = w.getEntity(id);
+                if (e != null)
+                    e.remove();
+            }
+        lastHighlightKey = null;
+        segmentKeyToNumber.clear();
+        numberToBlockLocation.clear();
+        numberDisplayIds.clear();
+    }
+
     public void restoreOriginalBlocks() {
         if (originals == null || originals.isEmpty()) {
             // fallback: clear to air (older tables built before originals existed)

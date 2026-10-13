@@ -22,5 +22,16 @@
   "subtitles.gamblingdex.plinko.land": "Bola cae en la casilla",
   "subtitles.gamblingdex.plinko.lose": "Casilla sin premio",
   "subtitles.gamblingdex.plinko.win": "Premio de Plinko",
-  "subtitles.gamblingdex.plinko.bigwin": "¡Gran premio de Plinko!"
+  "subtitles.gamblingdex.plinko.bigwin": "¡Gran premio de Plinko!",
+  "subtitles.gamblingdex.tower.start": "Torre lista",
+  "subtitles.gamblingdex.tower.door": "Puerta segura",
+  "subtitles.gamblingdex.tower.trap": "¡Trampa!",
+  "subtitles.gamblingdex.tower.cashout": "Premio de Tower",
+  "subtitles.gamblingdex.tower.top": "¡Cima de la torre!",
+  "subtitles.gamblingdex.crash.bet": "Apuesta en Crash",
+  "subtitles.gamblingdex.crash.tick": "Cuenta atrás de Crash",
+  "subtitles.gamblingdex.crash.launch": "Despega el cohete",
+  "subtitles.gamblingdex.crash.rise": "El multiplicador sube",
+  "subtitles.gamblingdex.crash.cashout": "Retiro en Crash",
+  "subtitles.gamblingdex.crash.explode": "¡Explotó!"
 }

@@ -5,6 +5,7 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
+import com.gamblingdex.pack.CasinoPack;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -44,19 +45,21 @@ import java.util.*;
  * Se juega en mesas: /gdx station set crash (mirando un bloque). Click derecho
  * a la mesa = apostar; shift + click derecho = retirar. El holograma muestra
  * el multiplicador y cada jugador ve su apuesta y lo que cobraría sobre la
- * barra de experiencia.
+ * barra de experiencia. Click derecho abre el menú de Crash (CrashMenu); con el
+ * resource pack hay sonidos propios (crash.*) que oyen los que están cerca, y con
+ * ModelEngine cada mesa lleva la máquina 3D (cohete y marcador con el multiplicador).
  */
-public class CrashModule extends GameModule {
+public class CrashModule extends GameModule implements com.gamblingdex.modules.ModelStations {
 
     private static final SecureRandom RNG = new SecureRandom();
 
-    private enum State {
+    enum State {
         BETTING,
         RUNNING,
         PAUSE
     }
 
-    private static final class Bet {
+    static final class Bet {
         final long amount;
         double auto; // 0 = sin retiro automático
         double cashedAt; // 0 = no retiró
@@ -68,9 +71,11 @@ public class CrashModule extends GameModule {
     }
 
     /** Mesa de Crash: un bloque con holograma y su propia ronda. */
-    private static final class Station {
+    static final class Station {
         final Location loc;
         UUID holo;
+        /** Hacia dónde mira la máquina 3D (grados). */
+        float yaw;
         State state = State.PAUSE;
         final Map<UUID, Bet> bets = new LinkedHashMap<>();
         double crashPoint = 1.0;
@@ -87,7 +92,8 @@ public class CrashModule extends GameModule {
 
     private final Map<String, Station> stations = new LinkedHashMap<>();
     /** Dónde explotaron las últimas rondas (de cualquier mesa), la más reciente primero. */
-    private final Deque<Double> recentCrashes = new ArrayDeque<>();
+    final Deque<Double> recentCrashes = new ArrayDeque<>();
+    private CrashMenu menu;
 
     @Override
     public String id() {
@@ -102,11 +108,23 @@ public class CrashModule extends GameModule {
     @Override
     public void enable() {
         stations.clear();
-        for (String k : loadData().getStringList("stations")) {
+        YamlConfiguration data = loadData();
+        for (String k : data.getStringList("stations")) {
             Location l = BlackjackTables.parseKey(k);
             if (l != null)
                 stations.put(k, newStation(l));
         }
+        for (String y : data.getStringList("yaw")) { // "clave|grados"
+            int bar = y.lastIndexOf('|');
+            Station st = bar > 0 ? stations.get(y.substring(0, bar)) : null;
+            if (st != null)
+                try {
+                    st.yaw = Float.parseFloat(y.substring(bar + 1));
+                } catch (NumberFormatException ignored) {
+                }
+        }
+        menu = new CrashMenu(this);
+        listen(menu);
         listen(new Events());
         // 2 ticks = 0,1 s: suficiente para que el número suba suave.
         runTimer(this::tick, 2L, 2L);
@@ -114,6 +132,8 @@ public class CrashModule extends GameModule {
 
     @Override
     public void disable() {
+        if (menu != null)
+            menu.closeAll();
         for (Station st : stations.values()) {
             closeStation(st);
             removeHolo(st);
@@ -201,9 +221,11 @@ public class CrashModule extends GameModule {
     public List<String> helpLines(boolean admin) {
         List<String> l = new ArrayList<>();
         l.add("&6&lCrash");
-        l.add("&8• &fClick derecho&7 a la mesa: apostar &8| &fShift + click derecho&7: retirar");
-        if (admin)
+        l.add("&8• &fClick derecho&7 a la mesa: abre el menú &8| &fShift + click derecho&7: retirar");
+        if (admin) {
             l.add("&8• &e/gdx station set crash &7- Crear mesa (mirando un bloque)");
+            l.add("&8• &e/gdx station rotate &7- Girar la máquina 3D de una mesa");
+        }
         l.add("");
         return l;
     }
@@ -235,6 +257,7 @@ public class CrashModule extends GameModule {
             return;
         }
         Station st = newStation(target.getLocation());
+        st.yaw = snapYaw(player.getLocation().getYaw() + 180f); // la máquina 3D mira hacia quien la puso
         stations.put(k, st);
         saveStations();
         updateHolo(st);
@@ -258,8 +281,89 @@ public class CrashModule extends GameModule {
         return List.of("&8- &6Crash&7: &f" + stations.size());
     }
 
-    /** Click derecho a la mesa = apostar; shift + click derecho = retirar. */
+    private static float snapYaw(float yaw) {
+        float y = Math.round(yaw / 90f) * 90f;
+        return ((y % 360) + 360) % 360;
+    }
+
+    @Override
+    public boolean rotateStation(Player player, Block target) {
+        Station st = stationAt(target);
+        if (st == null)
+            return false;
+        st.yaw = snapYaw(st.yaw + 90f);
+        saveStations();
+        var models = plugin.getStationModels();
+        if (models != null)
+            models.respawn(st.loc);
+        player.sendMessage(color("&aMáquina de Crash girada: &f" + Math.round(st.yaw) + "°"
+                + (models == null || !models.crashActive() ? " &7(ModelEngine no está activo)" : "")));
+        return true;
+    }
+
+    // Máquina 3D de las mesas (StationModels, Kind.CRASH)
+
+    @Override
+    public List<Location> modelStationLocations() {
+        List<Location> out = new ArrayList<>();
+        for (Station st : stations.values())
+            out.add(st.loc.clone());
+        return out;
+    }
+
+    @Override
+    public UUID modelStationHologram(Location station) {
+        Station st = station == null ? null : stationAt(station.getBlock());
+        return st == null ? null : st.holo;
+    }
+
+    @Override
+    public float modelStationYaw(Location station) {
+        Station st = station == null ? null : stationAt(station.getBlock());
+        return st == null ? 0f : st.yaw;
+    }
+
+    @Override
+    public void openFromModel(Player p, Location station) {
+        Station st = stationAt(station.getBlock());
+        if (st != null)
+            stationClick(p, st, p.isSneaking());
+    }
+
+    /** Sonido de la mesa para los que apostaron en ella y los que están cerca. */
+    void sound(Station st, String key, Sound vanilla, float volume, float pitch) {
+        var models = plugin.getStationModels();
+        double radius = models != null ? models.crashSoundRadius() : 16;
+        Set<UUID> heard = new HashSet<>();
+        Location at = st.loc.clone().add(0.5, 1.2, 0.5);
+        if (at.getWorld() != null)
+            for (Player o : at.getWorld().getPlayers())
+                if (o.getLocation().distanceSquared(at) <= radius * radius && heard.add(o.getUniqueId()))
+                    CasinoPack.sound(o, "crash." + key, vanilla, volume, pitch);
+        for (UUID id : st.bets.keySet()) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && heard.add(id))
+                CasinoPack.sound(p, "crash." + key, vanilla, volume, pitch);
+        }
+    }
+
+    /** Click derecho a la mesa = menú; shift + click derecho en vuelo = retirar al instante. */
     private void stationClick(Player p, Station st, boolean sneaking) {
+        Bet own = st.bets.get(p.getUniqueId());
+        if (!(sneaking && st.state == State.RUNNING && own != null && own.cashedAt == 0)) {
+            Station other = stationOf(p.getUniqueId());
+            if (other != null && other != st && other.state != State.PAUSE) {
+                p.sendMessage(msg("other_station", "&cYa estás jugando en otra mesa de Crash."));
+                return;
+            }
+            menu.open(p, st);
+            return;
+        }
+        legacyClick(p, st, sneaking);
+    }
+
+    /** Lo de antes (sin menú): apostar con el selector de cantidad o retirar. */
+    private void legacyClick(Player p, Station st, boolean sneaking) {
         Station mine = stationOf(p.getUniqueId());
         if (mine != null && mine != st && !(mine.state == State.PAUSE)) {
             p.sendMessage(msg("other_station", "&cYa estás jugando en otra mesa de Crash."));
@@ -300,10 +404,14 @@ public class CrashModule extends GameModule {
     private void saveStations() {
         YamlConfiguration d = new YamlConfiguration();
         d.set("stations", new ArrayList<>(stations.keySet()));
+        List<String> yaw = new ArrayList<>();
+        for (Map.Entry<String, Station> e : stations.entrySet())
+            yaw.add(e.getKey() + "|" + Math.round(e.getValue().yaw));
+        d.set("yaw", yaw);
         saveData(d);
     }
 
-    private Station stationAt(Block b) {
+    Station stationAt(Block b) {
         return b == null ? null : stations.get(BlackjackTables.key(b.getLocation()));
     }
 
@@ -378,11 +486,7 @@ public class CrashModule extends GameModule {
         st.crashPoint = Math.max(1.0, Math.min(maxMult, cp));
         st.multiplier = 1.0;
         st.runStartMs = System.currentTimeMillis();
-        for (UUID id : st.bets.keySet()) {
-            Player p = Bukkit.getPlayer(id);
-            if (p != null)
-                p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f, 1.0f);
-        }
+        sound(st, "launch", Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f, 1.0f);
     }
 
     private void tick() {
@@ -394,10 +498,13 @@ public class CrashModule extends GameModule {
         st.tickCounter++;
         switch (st.state) {
             case BETTING -> {
-                if (st.tickCounter % 10 == 0 && --st.secondsLeft <= 0)
+                if (st.tickCounter % 10 == 0 && --st.secondsLeft <= 0) {
                     startRun(st);
-                else
+                } else {
+                    if (st.tickCounter % 10 == 0 && st.secondsLeft <= 5 && !st.bets.isEmpty())
+                        sound(st, "tick", Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, st.secondsLeft <= 1 ? 2f : 1.4f);
                     sendActionBars(st);
+                }
             }
             case RUNNING -> {
                 double growth = Math.max(0.01, config().getDouble("growth_per_second", 0.07));
@@ -414,6 +521,9 @@ public class CrashModule extends GameModule {
                     st.multiplier = st.crashPoint;
                     crash(st);
                 } else {
+                    if (st.tickCounter % 10 == 0) // zumbido que sube con el multiplicador
+                        sound(st, "rise", Sound.BLOCK_NOTE_BLOCK_BIT, 0.5f,
+                                (float) Math.min(2.0, 0.6 + Math.log(st.multiplier) * 0.45));
                     sendActionBars(st);
                 }
             }
@@ -424,6 +534,13 @@ public class CrashModule extends GameModule {
         }
         updateBar(st);
         updateHolo(st);
+        var models = plugin.getStationModels();
+        if (models != null && models.crashActive())
+            models.crashUpdate(st.loc, st.state.ordinal(), st.state == State.BETTING ? 1.0
+                    : st.state == State.RUNNING ? st.multiplier : st.crashPoint,
+                    Math.max(0.01, config().getDouble("growth_per_second", 0.07)));
+        if (menu != null && st.tickCounter % 2 == 0)
+            menu.refresh(st);
     }
 
     private void crash(Station st) {
@@ -432,6 +549,7 @@ public class CrashModule extends GameModule {
         while (recentCrashes.size() > 10)
             recentCrashes.removeLast();
         st.secondsLeft = Math.max(1, config().getInt("pause_seconds", 5));
+        sound(st, "explode", Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.0f);
 
         // Resumen solo para los que jugaron la ronda de esta mesa.
         List<String> winners = new ArrayList<>();
@@ -459,7 +577,6 @@ public class CrashModule extends GameModule {
                 p.sendMessage(msg("crashed_lost", "&c&l¡EXPLOTÓ en x{mult}! &7Perdiste &e{amount}&7.",
                         "mult", fmt(st.crashPoint), "amount", units(b.amount)));
                 p.sendTitle(color("&c&lx" + fmt(st.crashPoint)), color("&7Explotó"), 2, 30, 10);
-                p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.0f);
             }
             p.sendMessage(summary);
         }
@@ -473,7 +590,7 @@ public class CrashModule extends GameModule {
                 + " | apostado " + totalBet + " pagado " + totalPaid + " jugadores " + st.bets.size());
     }
 
-    private long payoutFor(Bet b, double mult) {
+    long payoutFor(Bet b, double mult) {
         long win = (long) Math.floor(b.amount * mult);
         long maxWin = config().getLong("max_win", 0L);
         return maxWin > 0 ? Math.min(win, maxWin) : win;
@@ -483,7 +600,7 @@ public class CrashModule extends GameModule {
     // Apostar / retirar
     // ------------------------------------------------------------------
 
-    private void placeBet(Player player, Station st, long amount, double auto) {
+    void placeBet(Player player, Station st, long amount, double auto) {
         if (!stations.containsValue(st))
             return;
         Station mine = stationOf(player.getUniqueId());
@@ -523,10 +640,10 @@ public class CrashModule extends GameModule {
         String suffix = a > 0 ? msg("auto_suffix", " &7Retiro automático en &fx{auto}&7.", "auto", fmt(a)) : "";
         player.sendMessage(msg("joined", "&aApostaste &e{amount}&a en Crash.{auto}",
                 "amount", units(amount), "auto", suffix));
-        player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.4f);
+        CasinoPack.sound(player, "crash.bet", Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.4f);
     }
 
-    private void cashOut(Player player, Station st) {
+    void cashOut(Player player, Station st) {
         Bet b = st.bets.get(player.getUniqueId());
         if (b == null || st.state != State.RUNNING || b.cashedAt > 0) {
             player.sendMessage(msg("not_in", "&cNo estás jugando esta ronda."));
@@ -546,8 +663,11 @@ public class CrashModule extends GameModule {
             p.sendMessage(msg("cashed_out", "&a&l¡RETIRASTE! &7en &fx{mult} &7→ &e+{amount}",
                     "mult", fmt(mult), "amount", units(payout)));
             p.sendTitle(color("&a&lx" + fmt(mult)), color("&e+" + units(payout)), 2, 30, 10);
-            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.3f);
         }
+        sound(st, "cashout", Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.3f);
+        var models = plugin.getStationModels();
+        if (models != null && models.crashActive())
+            models.crashCashout(st.loc);
         String others = msg("cashout_others", "&6&lCrash &8» &f{player} &7retiró en &ax{mult} &7y ganó &e{amount}",
                 "player", p == null ? "?" : p.getName(), "mult", fmt(mult), "amount", units(payout));
         for (UUID other : st.bets.keySet()) {
@@ -643,7 +763,7 @@ public class CrashModule extends GameModule {
         }
     }
 
-    private static String fmt(double d) {
+    static String fmt(double d) {
         return String.format(Locale.ROOT, "%.2f", d);
     }
 

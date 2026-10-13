@@ -33,6 +33,8 @@ CH_ROULETTE_BG = '\uE106'      # menu de apuestas de la ruleta
 CH_ROULETTE_NUM_BG = '\uE107'  # menu de plenos de la ruleta (la rueda)
 CH_MINES_BG = '\uE108'         # menu de Mines
 CH_PLINKO_BG = '\uE109'        # menu de Plinko
+CH_TOWER_BG = '\uE10A'         # menu de Tower
+CH_CRASH_BG = '\uE10B'         # menu de Crash
 
 
 def mkdir(p):
@@ -852,6 +854,210 @@ PLINKO_SUBTITLES = {'drop': 'Bola de Plinko', 'peg': 'Bola rebota en un clavo', 
 
 
 # ----------------------------------------------------------------------------
+# Tower (TowerMenu): muro de piedra azulada como la torre 3D. Filas 0-4 = pisos
+# (columna 0 = piso y multiplicador, 1..7 = puertas, 8 = escalera "estas aqui"),
+# fila 5: apuesta (45..49), dificultad (50), info (51), fichas (52) y accion (53).
+# ----------------------------------------------------------------------------
+STONE, STONE_D, STONE_L = (74, 84, 104), (50, 58, 74), (90, 100, 122)
+CYAN, CYAN_D, CYAN_L = (46, 200, 224), (14, 106, 122), (176, 244, 255)
+
+
+def tower_background():
+    w, h = 176, 130
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(43)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=CYAN_D)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=CYAN)
+    # Muro de ladrillos
+    d.rectangle((3, 3, w - 4, h - 4), fill=STONE)
+    for y in range(17, h - 4, 6):
+        d.line([(3, y), (w - 4, y)], fill=STONE_D)
+        off = 0 if (y // 6) % 2 else 6
+        for x in range(3 + off, w - 4, 12):
+            d.line([(x, y + 1), (x, y + 5)], fill=STONE_D)
+    for _ in range(700):
+        x, y = rng.integers(3, w - 3), rng.integers(17, h - 3)
+        d.point((int(x), int(y)), fill=[STONE_L, (66, 76, 94)][rng.integers(0, 2)])
+    # Franja del titulo con almenas
+    d.rectangle((3, 3, w - 4, 15), fill=(10, 12, 20))
+    for x in range(3, w - 4, 10):
+        d.rectangle((x, 3, x + 4, 5), fill=STONE_D)
+    d.line([(3, 16), (w - 4, 16)], fill=CYAN)
+    # Pisos: franja oscura para las puertas (columnas 1..7) y viga de madera debajo
+    for r in range(5):
+        x1, y1 = slot_box(r, 1)[:2]
+        x2, y2 = slot_box(r, 7)[2:]
+        d.rectangle((x1 - 1, y1, x2 + 1, y2), fill=(20, 26, 44))
+        d.rectangle((x1 - 1, y1, x2 + 1, y2), outline=STONE_D)
+        d.line([(x1 - 2, y2 + 1), (x2 + 2, y2 + 1)], fill=(116, 72, 42))
+        for c in range(1, 8):
+            bx1, by1, bx2, by2 = slot_box(r, c)
+            d.rounded_rectangle((bx1 + 1, by1 + 1, bx2 - 1, by2), radius=4, fill=(14, 18, 32), outline=(36, 44, 66))
+        info_slot(d, r, 0, GOLD if r else (255, 210, 60))
+    # Escalera (columna 8)
+    x1, _, x2, _ = slot_box(0, 8)
+    y1, y2 = slot_box(0, 8)[1], slot_box(4, 8)[3]
+    d.rectangle((x1 + 2, y1, x1 + 3, y2), fill=(116, 72, 42))
+    d.rectangle((x2 - 3, y1, x2 - 2, y2), fill=(116, 72, 42))
+    for y in range(y1 + 3, y2, 5):
+        d.line([(x1 + 4, y), (x2 - 4, y)], fill=(150, 98, 56))
+    # Fila 5
+    x1, y1 = slot_box(5, 0)[:2]
+    x2, y2 = slot_box(5, 4)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=CYAN_D, outline=(6, 50, 60))
+    for c, col in ((0, (200, 200, 196)), (1, RED_B), (2, GOLD_L), (3, GREEN_B), (4, GOLD)):
+        info_slot(d, 5, c, col)
+    info_slot(d, 5, 5, CYAN)
+    info_slot(d, 5, 6, (240, 240, 232))
+    info_slot(d, 5, 7, GOLD)
+    x1, y1, x2, y2 = slot_box(5, 8)
+    d.rounded_rectangle((x1 - 3, y1 - 3, x2 + 2, y2 + 2), radius=3, fill=(30, 140, 54), outline=(10, 60, 22))
+    d.rectangle((x1 - 1, y1 - 1, x2, y2), outline=(140, 255, 160))
+    button_slot(d, 5, 8, GREEN_B)
+    return img
+
+
+def tower_sounds():
+    s = {}
+    # Empezar: reja de piedra que sube (ruido grave) + campanita
+    s['start'] = mix(1.0, (0, noise(0.6, 0.25, 0.6, 0.05, 100)), (0, tone(70, 0.6, r=0.25, vol=0.6)),
+                     (0.55, tone(1318.5, 0.4, 'bell', r=0.14, vol=0.4)))
+    # Puerta segura: chirrido de madera + campana (el plugin la sube piso a piso)
+    creak = np.sin(2 * np.pi * np.cumsum(np.linspace(260, 420, int(SR * 0.18))) / SR) * env(int(SR * 0.18), 0.01, 0.08) * 0.25
+    s['door'] = mix(0.7, (0, noise(0.05, 0.02, 0.5, 0.25, 101)), (0, creak), (0.1, tone(1174.7, 0.5, 'bell', r=0.16, vol=0.5)),
+                    (0.14, tone(1760.0, 0.45, 'bell', r=0.14, vol=0.3)))
+    # Trampa: trampilla que se abre + caida (silbido que baja) + golpe
+    fall = np.sin(2 * np.pi * np.cumsum(np.linspace(1400, 200, int(SR * 0.5))) / SR) * env(int(SR * 0.5), 0.01, 0.3) * 0.3
+    s['trap'] = mix(1.4, (0, noise(0.06, 0.02, 0.8, 0.3, 102)), (0, tone(110, 0.15, r=0.05, vol=0.7)), (0.08, fall),
+                    (0.6, tone(50, 0.6, r=0.25, vol=1.0)), (0.6, noise(0.6, 0.2, 0.9, 0.08, 103)))
+    # Cobrar: monedas + arpegio
+    rng = np.random.default_rng(104)
+    coins = [(0.02 + i * 0.06 + float(rng.uniform(0, 0.02)), tone(float(rng.uniform(2300, 3300)), 0.25, 'bell', r=0.06, vol=0.35))
+             for i in range(8)]
+    s['cashout'] = mix(1.3, *coins, *[(0.15 + i * 0.08, tone(f, 0.45, 'square', r=0.15, vol=0.25))
+                                      for i, f in enumerate([E5, G5, C6, E6])], (0.5, tone(G6, 0.7, 'bell', r=0.3, vol=0.45)))
+    # Cima: fanfarria de trompetas + campanas
+    fan = [(0, G5), (0.15, G5), (0.3, C6), (0.6, E6), (0.75, C6), (0.9, G6)]
+    bells = [(1.0 + i * 0.07, tone(float(rng.choice([C6, E6, G6, 2093.0])), 0.4, 'bell', r=0.15, vol=0.3)) for i in range(14)]
+    s['top'] = mix(2.4, *[(t, tone(f, 0.35, 'square', r=0.15, vol=0.32)) for t, f in fan],
+                   (0.9, tone(G6, 1.0, 'bell', r=0.5, vol=0.5)), *bells)
+    return s
+
+
+TOWER_SUBTITLES = {'start': 'Torre lista', 'door': 'Puerta segura', 'trap': '¡Trampa!', 'cashout': 'Premio de Tower',
+                   'top': '¡Cima de la torre!'}
+
+
+# ----------------------------------------------------------------------------
+# Crash (CrashMenu): azul noche y rojo como la maquina 3D. Fila 0 = historial,
+# filas 1-3 = grafico (columnas 1..7) con columna 0 (multiplicador, estado, tu
+# apuesta) y 8 (jugadores, mejor retiro), fila 4 = jugadores, fila 5 = controles.
+# ----------------------------------------------------------------------------
+NAVY, NAVY_D, NAVY_L = (20, 24, 42), (14, 16, 30), (28, 32, 54)
+NEON = (80, 255, 128)
+
+
+def crash_background():
+    w, h = 176, 130
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(47)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=(150, 30, 20))
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=(232, 58, 42))
+    d.rectangle((3, 3, w - 4, h - 4), fill=NAVY)
+    for _ in range(800):
+        x, y = rng.integers(3, w - 3), rng.integers(3, h - 3)
+        d.point((int(x), int(y)), fill=[NAVY_D, NAVY_L][rng.integers(0, 2)])
+    d.rectangle((3, 3, w - 4, 15), fill=(8, 8, 14))
+    d.line([(3, 16), (w - 4, 16)], fill=(232, 58, 42))
+    for x in range(5, w - 4, 4):
+        d.point((x, 4), fill=NEON if (x // 4) % 2 else (30, 90, 50))
+        d.point((x + 2, 14), fill=NEON if (x // 4) % 2 == 0 else (30, 90, 50))
+    # Fila 0: historial en una tira oscura
+    x1, y1 = slot_box(0, 0)[:2]
+    x2, y2 = slot_box(0, 8)[2:]
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=(8, 10, 18), outline=(60, 70, 110))
+    for c in range(9):
+        recess(d, 0, c)
+    # Filas 1-3: grafico con cuadricula, ejes y curva tenue
+    x1, y1 = slot_box(1, 1)[:2]
+    x2, y2 = slot_box(3, 7)[2:]
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=(10, 14, 28))
+    for gx in range(x1, x2 + 1, 6):
+        d.line([(gx, y1), (gx, y2)], fill=(18, 26, 48))
+    for gy in range(y1, y2 + 1, 6):
+        d.line([(x1, gy), (x2, gy)], fill=(18, 26, 48))
+    d.line([(x1, y1), (x1, y2)], fill=(58, 72, 112))
+    d.line([(x1, y2), (x2, y2)], fill=(58, 72, 112))
+    pts = []
+    for i in range(41):
+        f = i / 40
+        pts.append((x1 + 4 + f * (x2 - x1 - 8), y2 - 4 - (np.exp(2.3 * f) - 1) / (np.exp(2.3) - 1) * (y2 - y1 - 8)))
+    d.line(pts, fill=(34, 80, 56), width=1)
+    d.rectangle((x1 + 2, y2 - 2, x1 + 12, y2), fill=(128, 136, 152))  # plataforma
+    # Columnas 0 y 8
+    for r, col in ((1, NEON), (2, GOLD), (3, GOLD_L)):
+        info_slot(d, r, 0, col)
+    for r, col in ((1, (240, 240, 232)), (2, GOLD)):
+        info_slot(d, r, 8, col)
+    # Fila 4: jugadores
+    x1, y1 = slot_box(4, 0)[:2]
+    x2, y2 = slot_box(4, 8)[2:]
+    d.rectangle((x1 - 1, y1 - 1, x2 + 1, y2 + 1), fill=(14, 16, 30), outline=(60, 70, 110))
+    for c in range(9):
+        recess(d, 4, c)
+    # Fila 5: controles
+    x1, y1 = slot_box(5, 0)[:2]
+    x2, y2 = slot_box(5, 4)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=(150, 30, 20), outline=(70, 10, 6))
+    for c, col in ((0, (200, 200, 196)), (1, RED_B), (2, GOLD_L), (3, GREEN_B), (4, GOLD)):
+        info_slot(d, 5, c, col)
+    info_slot(d, 5, 5, BLUE_B)
+    info_slot(d, 5, 6, (240, 240, 232))
+    info_slot(d, 5, 7, GOLD)
+    x1, y1, x2, y2 = slot_box(5, 8)
+    d.rounded_rectangle((x1 - 3, y1 - 3, x2 + 2, y2 + 2), radius=3, fill=(30, 140, 54), outline=(10, 60, 22))
+    d.rectangle((x1 - 1, y1 - 1, x2, y2), outline=(140, 255, 160))
+    button_slot(d, 5, 8, GREEN_B)
+    return img
+
+
+def crash_sounds():
+    s = {}
+    # Apostar: fichas sobre la mesa
+    rng = np.random.default_rng(110)
+    s['bet'] = mix(0.4, *[(i * 0.05, mix(0.05, (0, noise(0.02, 0.005, 0.8, 0.5, 111 + i)),
+                                         (0, tone(float(rng.uniform(2400, 3200)), 0.03, 'bell', r=0.01, vol=0.5)))) for i in range(4)])
+    # Cuenta atras: pitido corto
+    s['tick'] = mix(0.15, (0, tone(1046.5, 0.12, 'square', r=0.04, vol=0.4)))
+    # Despegue: rugido de motor que sube
+    n = int(SR * 1.6)
+    roar = np.random.default_rng(112).uniform(-1, 1, n)
+    y = np.zeros(n)
+    for i in range(1, n):
+        y[i] = y[i - 1] + (0.02 + 0.2 * i / n) * (roar[i] - y[i - 1])
+    y = y / np.abs(y).max() * np.minimum(1, np.arange(n) / (SR * 0.15)) * np.exp(-np.arange(n) / (SR * 0.9))
+    sweep = np.sin(2 * np.pi * np.cumsum(np.linspace(80, 260, n)) / SR) * 0.4 * np.exp(-np.arange(n) / (SR * 0.8))
+    s['launch'] = mix(1.6, (0, y * 0.9), (0, sweep))
+    # Subiendo: zumbido corto (el plugin le sube el tono con el multiplicador)
+    m = int(SR * 0.25)
+    s['rise'] = mix(0.3, (0, np.sin(2 * np.pi * np.cumsum(np.linspace(500, 620, m)) / SR) * env(m, 0.01, 0.12) * 0.35),
+                    (0, tone(1000, 0.2, 'square', r=0.06, vol=0.1)))
+    # Retiro: caja registradora
+    s['cashout'] = mix(1.0, (0, noise(0.1, 0.04, 0.5, 0.15, 113)), (0.1, tone(2093.0, 0.7, 'bell', r=0.3, vol=0.6)),
+                       (0.16, tone(2637.0, 0.7, 'bell', r=0.3, vol=0.5)))
+    # Explota: golpe grave y estruendo largo
+    s['explode'] = mix(1.8, (0, tone(48, 0.8, r=0.35, vol=1.0)), (0, noise(1.4, 0.45, 1.0, 0.05, 114)),
+                       (0, noise(0.1, 0.03, 0.9, 0.6, 115)))
+    return s
+
+
+CRASH_SUBTITLES = {'bet': 'Apuesta en Crash', 'tick': 'Cuenta atrás de Crash', 'launch': 'Despega el cohete',
+                   'rise': 'El multiplicador sube', 'cashout': 'Retiro en Crash', 'explode': '¡Explotó!'}
+
+
+# ----------------------------------------------------------------------------
 # Fichas en 3D: un modelo de item (chip.json) + una textura por valor. Cada tinte
 # de ficha (TokenManager.DENOMS) se cambia por su ficha cuando el item tiene
 # custom_model_data = CHIP_CMD (1.20.4-1.21.3: overrides; 1.21.4+: items/*.json).
@@ -1328,7 +1534,9 @@ def main():
                          ('roulette_gui', roulette_background, CH_ROULETTE_BG),
                          ('roulette_num_gui', roulette_numbers_background, CH_ROULETTE_NUM_BG),
                          ('mines_gui', mines_background, CH_MINES_BG),
-                         ('plinko_gui', plinko_background, CH_PLINKO_BG)):
+                         ('plinko_gui', plinko_background, CH_PLINKO_BG),
+                         ('tower_gui', tower_background, CH_TOWER_BG),
+                         ('crash_gui', crash_background, CH_CRASH_BG)):
         im = fn()
         im.save(os.path.join(tex, name + '.png'))
         font['providers'].append({'type': 'bitmap', 'file': 'gamblingdex:font/' + name + '.png',
@@ -1359,6 +1567,12 @@ def main():
     for name, sig in plinko_sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'plinko', name + '.ogg'), sig)
         sj['plinko.' + name] = {'sounds': ['gamblingdex:plinko/' + name], 'subtitle': 'subtitles.gamblingdex.plinko.' + name}
+    for name, sig in tower_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'tower', name + '.ogg'), sig)
+        sj['tower.' + name] = {'sounds': ['gamblingdex:tower/' + name], 'subtitle': 'subtitles.gamblingdex.tower.' + name}
+    for name, sig in crash_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'crash', name + '.ogg'), sig)
+        sj['crash.' + name] = {'sounds': ['gamblingdex:crash/' + name], 'subtitle': 'subtitles.gamblingdex.crash.' + name}
     with open(os.path.join(NS, 'sounds.json'), 'w', encoding='utf-8') as f:
         json.dump(sj, f, indent=2)
     mkdir(os.path.join(NS, 'lang'))
@@ -1368,6 +1582,8 @@ def main():
     lang.update({'subtitles.gamblingdex.poker.' + k: v for k, v in POKER_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.mines.' + k: v for k, v in MINES_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.plinko.' + k: v for k, v in PLINKO_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.tower.' + k: v for k, v in TOWER_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.crash.' + k: v for k, v in CRASH_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)

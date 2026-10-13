@@ -107,6 +107,53 @@ con menú de Plinko (`/gdx station set plinko`), mirando hacia quien la puso.
 
   ![menú de Plinko](previews/plinko_gui.png)
 
+## Máquina de Tower en 3D (ModelEngine R4)
+
+![máquina de Tower](previews/tower_machine.png)
+
+`tower_machine.bbmodel`: torre de castillo con almenas, bandera ondeando y cartel "TOWER"; en la
+pantalla 8 pisos con sus puertas y el riel por el que sube la ficha del jugador.
+
+| Animación | Qué hace |
+|---|---|
+| `idle` | Bombillos y bandera (en bucle) |
+| `start` | Ola de luz de abajo arriba (la ficha vuelve abajo) |
+| `floor_K_ok` / `floor_K_trap` | El piso K (0 = abajo) se abre en verde o en rojo. Se queda así |
+| `climb_K` | La ficha salta al piso K (8 = arriba del todo) |
+| `fall_K` | La ficha se cae desde el piso K |
+| `boom` / `cashout` / `top` | Tiembla en rojo / caen monedas / sale una estrella girando sobre la torre |
+
+- Repite la partida del último que empezó en esa máquina; con más de 8 pisos en la config, varios
+  pisos reales comparten piso del modelo. Opciones en `modules/tower.yml → model`.
+- Menú con fondo propio (muro de piedra, pisos, escalera) y sonidos: torre lista, puerta segura
+  (más aguda piso a piso), trampa, cobro y fanfarria en la cima.
+
+  ![menú de Tower](previews/tower_gui.png)
+
+## Máquina de Crash en 3D (ModelEngine R4)
+
+![máquina de Crash](previews/crash_machine.png)
+
+`crash_machine.bbmodel`: cabina con cartel "CRASH", **marcador digital con el multiplicador en vivo**
+y el gráfico por el que sube el cohete.
+
+| Animación | Qué hace |
+|---|---|
+| `countdown` | Apuestas abiertas: el cohete tiembla en la plataforma |
+| `fly` + `flame` | Despega y sube por la curva dejando estela (el plugin ajusta la velocidad a `growth_per_second`) |
+| `explode` + `lcd_red` | Revienta donde esté, la máquina tiembla y el marcador se pone rojo |
+| `cashout` | Alguien retiró: caen monedas |
+| `d<P>_<N>`, `point_a`, `point_b` | Cada cifra del marcador (x1.85, x12.40, x123.4, x1234) |
+
+- **Menú nuevo de Crash** (click derecho a la mesa): historial de las últimas rondas, el cohete
+  subiendo en vivo, tu apuesta, los jugadores de la ronda, apuesta, retiro automático y botón
+  APOSTAR / RETIRAR. Shift + click derecho a la mesa sigue retirando al instante.
+- Sonidos para los que apostaron y los que están cerca (`model.sound_radius`): apuesta, cuenta
+  atrás, despegue, zumbido que sube con el multiplicador, retiros y explosión.
+- Opciones en `modules/crash.yml → model`. Las mesas miran hacia quien las puso (`/gdx station rotate`).
+
+  ![menú de Crash](previews/crash_gui.png)
+
 ## Mesa de ruleta en 3D (ModelEngine R4)
 
 ![ruleta](previews/roulette_table.png)
@@ -120,9 +167,10 @@ columnas "2:1", 1-18, par, rojo, negro, impar, 19-36) y fichas de decoración (b
 | `idle` | El plato gira despacio (en bucle) |
 | `ball_<N>` | La bola corre en contra del plato, frena, rebota y se queda en el número N (0..36 o 00). 7 s |
 
-- La mesa se pone en el centro de cada ruleta. Quien ve la mesa 3D **no ve el anillo de bloques
-  ni sus números** (se apuesta solo en la mesa; el mundo no se toca, así que con
-  `hide_ring: false` o sin ModelEngine vuelve todo como siempre).
+- La mesa se pone en el centro de cada ruleta y **ya no se construye el anillo de bloques ni sus
+  números** (se apuesta solo en la mesa); a las ruletas viejas se les quita solo y vuelven los
+  bloques de antes. Con `hide_ring: false` o sin ModelEngine se construye como siempre.
+- La mesa mira hacia quien construye la ruleta; para girarla, mira el centro y usa `/gdx station rotate`.
 - La mesa es sólida (shulkers invisibles, `collision: true`).
 - **Click en una casilla del paño** = elegirla (con fichas en la mano, apostar ahí; shift = todo
   el stack). Click en la rueda = lo mismo que el centro (menú de apuestas).
@@ -242,9 +290,9 @@ VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_tab
 VIEWS='[["angle",[0,60,110],[0,8,0]]]' node tools/render.mjs tools/poker_table.js poker_table.bbmodel previews/
 VIEWS='[["players",[0,55,-95],[0,8,-24]]]' node tools/render.mjs tools/blackjack_table.js blackjack_table.bbmodel previews/
 VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/mines_machine.js mines_machine.bbmodel previews/
-VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/plinko_machine.js plinko_machine.bbmodel previews/
+for m in plinko tower crash; do VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/${m}_machine.js ${m}_machine.bbmodel previews/; done
 cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel \
-   mines_machine.bbmodel plinko_machine.bbmodel ../src/main/resources/models/
+   mines_machine.bbmodel plinko_machine.bbmodel tower_machine.bbmodel crash_machine.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en

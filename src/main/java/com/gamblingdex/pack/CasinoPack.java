@@ -20,7 +20,7 @@ public final class CasinoPack {
     public static final String BACK_8 = "", BACK_169 = "";
     public static final String SLOTS_BG = "\uE100", EXCHANGE_BG = "\uE101", POKER_ACTION_BG = "\uE102",
             POKER_BUYIN_BG = "\uE103", BJ_ACTION_BG = "\uE104", BJ_BET_BG = "\uE105",
-            ROULETTE_BG = "\uE106", ROULETTE_NUM_BG = "\uE107", MINES_BG = "\uE108", PLINKO_BG = "\uE109";
+            ROULETTE_BG = "\uE106", ROULETTE_NUM_BG = "\uE107", MINES_BG = "\uE108", PLINKO_BG = "\uE109", TOWER_BG = "\uE10A", CRASH_BG = "\uE10B";
 
     private CasinoPack() {
     }
@@ -47,6 +47,11 @@ public final class CasinoPack {
         return customGui()
                 ? org.bukkit.Bukkit.createInventory(holder, size, titleWithBackground(background, legacyTitle))
                 : org.bukkit.Bukkit.createInventory(holder, size, legacyTitle);
+    }
+
+    /** ¿Suenan los sonidos del pack? (resource_pack.custom_sounds) */
+    public static boolean customSoundsOn() {
+        return customSounds();
     }
 
     private static boolean customSounds() {
