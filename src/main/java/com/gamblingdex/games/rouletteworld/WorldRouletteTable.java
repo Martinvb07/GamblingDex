@@ -712,6 +712,9 @@ public class WorldRouletteTable {
         if (sequence.isEmpty()) {
             sequence.addAll(numberToBlockLocation.keySet());
         }
+        if (sequence.isEmpty()) // sin anillo de bloques (mesa 3D): todos los números de la rueda
+            for (int num : WorldRouletteTables.WHEEL_ORDER)
+                sequence.add(num);
 
         int winningNumber = sequence.get(ThreadLocalRandom.current().nextInt(sequence.size()));
 
@@ -999,8 +1002,9 @@ public class WorldRouletteTable {
         if (ThreadLocalRandom.current().nextDouble(100.0) >= chance)
             return;
         List<Integer> nums = new ArrayList<>(numberToBlockLocation.keySet());
-        if (nums.isEmpty())
-            return;
+        if (nums.isEmpty()) // sin anillo de bloques (mesa 3D): cualquier número de la rueda
+            for (int num : WorldRouletteTables.WHEEL_ORDER)
+                nums.add(num);
         jackpotNumber = nums.get(ThreadLocalRandom.current().nextInt(nums.size()));
         updateHologramLine(1, plugin.color(msg("messages.roulette_world.jackpot_holo",
                 "&6&l★ JACKPOT en el {number}: &e&l{pot} &6&l★",

@@ -41,7 +41,11 @@ public class Chairs implements Listener {
     private final Map<String, UUID[]> chairs = new HashMap<>();
     /** Losas de los asientos que reemplaza la silla (se esconden en la pantalla de cada uno). */
     private final Map<String, Location> pads = new HashMap<>();
-    private BukkitTask task;
+    private BukkitTask task, exitTask;
+    /** Asiento invisible en el que va montado cada jugador -> el jugador (para pararlo bien al bajarse). */
+    private final Map<UUID, UUID> riders = new HashMap<>();
+    /** Asiento invisible -> clave de la silla. */
+    private final Map<UUID, String> riderSeat = new HashMap<>();
 
     public Chairs(GamblingDexPlugin plugin) {
         this.plugin = plugin;
@@ -60,6 +64,7 @@ public class Chairs implements Listener {
                 if (e.getScoreboardTags().contains(TAG) || e.getScoreboardTags().contains(SEAT_TAG))
                     e.remove();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 40L, 20L);
+        exitTask = Bukkit.getScheduler().runTaskTimer(plugin, this::checkExits, 2L, 2L);
     }
 
     public void stop() {
@@ -67,6 +72,19 @@ public class Chairs implements Listener {
             task.cancel();
             task = null;
         }
+        if (exitTask != null) {
+            exitTask.cancel();
+            exitTask = null;
+        }
+        for (UUID seat : riders.keySet()) {
+            Entity e = Bukkit.getEntity(seat);
+            if (e != null) {
+                e.eject();
+                e.remove();
+            }
+        }
+        riders.clear();
+        riderSeat.clear();
         for (UUID[] ids : chairs.values())
             removeIds(ids);
         chairs.clear();
@@ -140,7 +158,10 @@ public class Chairs implements Listener {
         for (Location pad : pads.values())
             for (Player p : pad.getWorld().getPlayers())
                 if (p.getLocation().distanceSquared(pad) < 48 * 48)
-                    p.sendBlockChange(pad, org.bukkit.Material.AIR.createBlockData());
+                    // Con colisión la silla es un bloque sólido: el cliente ve una barrera (invisible y
+                    // sólida, como en el server). Con aire el cliente intentaba pasar y se trababa.
+                    p.sendBlockChange(pad, (plugin.getConfig().getBoolean("chairs.collision", true)
+                            ? org.bukkit.Material.BARRIER : org.bukkit.Material.AIR).createBlockData());
         // Asientos vacíos (alguien se paró): se quitan
         for (World w : Bukkit.getWorlds())
             for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class))
@@ -260,10 +281,68 @@ public class Chairs implements Listener {
             d.getPersistentDataContainer().set(seatKey, PersistentDataType.STRING, key);
         };
         ItemDisplay seat = chairBase.getWorld().spawn(at, ItemDisplay.class, setup);
-        if (!seat.addPassenger(p))
+        if (!seat.addPassenger(p)) {
             seat.remove();
-        else
+        } else {
             p.setRotation(yaw, p.getLocation().getPitch());
+            riders.put(seat.getUniqueId(), p.getUniqueId());
+            riderSeat.put(seat.getUniqueId(), key);
+        }
+    }
+
+    /**
+     * Quien se baja de una silla (shift) queda, por Minecraft, donde estaba sentado: dentro del
+     * bloque sólido de la silla, y se traba. Se lo pone de pie detrás de la silla (o encima si
+     * detrás no hay sitio) y se borra el asiento invisible.
+     */
+    private void checkExits() {
+        for (Iterator<Map.Entry<UUID, UUID>> it = riders.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<UUID, UUID> e = it.next();
+            Entity seat = Bukkit.getEntity(e.getKey());
+            Player p = Bukkit.getPlayer(e.getValue());
+            if (seat != null && p != null && seat.getPassengers().contains(p))
+                continue;
+            it.remove();
+            String key = riderSeat.remove(e.getKey());
+            Location base = seat != null ? seat.getLocation() : null;
+            if (seat != null) {
+                seat.eject();
+                seat.remove();
+            }
+            if (p == null || p.isInsideVehicle() || base == null || base.getWorld() != p.getWorld()
+                    || p.getLocation().distanceSquared(base) > 9)
+                continue;
+            p.teleport(standUpSpot(base, key, p));
+        }
+    }
+
+    private Location standUpSpot(Location seatPos, String key, Player p) {
+        Block chair = seatPos.getBlock();
+        Location center = key == null ? null : seats().get(key);
+        Location out = null;
+        if (center != null) {
+            org.bukkit.util.Vector away = chair.getLocation().add(0.5, 0, 0.5).toVector()
+                    .subtract(center.clone().add(0.5, 0, 0.5).toVector()).setY(0);
+            if (away.lengthSquared() > 1e-6) {
+                away.normalize();
+                // el bloque de la silla puede estar un poco más abajo que el asiento (losa): se prueba ese nivel y uno más
+                for (int dy = 0; dy <= 1 && out == null; dy++) {
+                    Block b = chair.getWorld().getBlockAt((int) Math.floor(chair.getX() + 0.5 + away.getX() * 1.1),
+                            chair.getY() + dy, (int) Math.floor(chair.getZ() + 0.5 + away.getZ() * 1.1));
+                    if (b.isPassable() && b.getRelative(BlockFace.UP).isPassable() && !b.getRelative(BlockFace.DOWN).isPassable())
+                        out = b.getLocation().add(0.5, 0, 0.5);
+                }
+            }
+        }
+        if (out == null) { // encima de la silla
+            Block up = chair.getRelative(BlockFace.UP);
+            while (!up.isPassable() && up.getY() < chair.getY() + 3)
+                up = up.getRelative(BlockFace.UP);
+            out = up.getLocation().add(0.5, 0, 0.5);
+        }
+        out.setYaw(p.getLocation().getYaw());
+        out.setPitch(p.getLocation().getPitch());
+        return out;
     }
 
     private static float yawOf(ItemDisplay d) {
