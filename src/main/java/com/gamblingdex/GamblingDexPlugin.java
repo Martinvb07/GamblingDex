@@ -163,6 +163,8 @@ public class GamblingDexPlugin extends JavaPlugin {
             moduleManager.reloadAll();
         if (stationModels != null)
             stationModels.start();
+        if (resourcePackManager != null)
+            resourcePackManager.startHost();
         if (tokenManager != null) // fichas 3D on/off (resource_pack.custom_chips)
             for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
                 tokenManager.refreshChipModels(p.getInventory());
@@ -272,6 +274,7 @@ public class GamblingDexPlugin extends JavaPlugin {
         blackjackVisuals.start();
         getServer().getPluginManager().registerEvents(chairs, this);
         chairs.start();
+        resourcePackManager.startHost();
         new com.gamblingdex.games.JackpotBell(this).start();
         this.casinoSigns = new com.gamblingdex.stats.CasinoSigns(this);
 
@@ -369,6 +372,8 @@ public class GamblingDexPlugin extends JavaPlugin {
                 blackjackVisuals.stop();
             if (chairs != null)
                 chairs.stop();
+            if (resourcePackManager != null)
+                resourcePackManager.stopHost();
         } catch (Throwable ignored) {
         }
         try {

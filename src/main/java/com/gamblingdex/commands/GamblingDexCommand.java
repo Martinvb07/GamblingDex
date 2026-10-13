@@ -93,8 +93,16 @@ public class GamblingDexCommand implements CommandExecutor {
                 } else if (plugin.getServer().getPluginManager().getPlugin("ModelEngine") != null) {
                     out.add("&eNo encontré el pack de ModelEngine: usa &f/meg reload&e y luego &f/gdx pack&e otra vez.");
                 }
-                out.add("&7Súbelo a una web (p. ej. mc-packs.net) y pon la URL y el SHA-1 en");
-                out.add("&7config.yml → resource_pack.send (o en server.properties).");
+                rp.publish(r);
+                String hosting = rp.hostingUrl();
+                if (hosting != null) {
+                    out.add("&aEl plugin sirve el pack: &f" + hosting);
+                    out.add("&7Se manda solo a cada jugador al entrar (y ya se lo mandé a los conectados).");
+                } else {
+                    out.add("&7Súbelo a una web (p. ej. mc-packs.net) y pon la URL y el SHA-1 en");
+                    out.add("&7config.yml → resource_pack.send, o activa resource_pack.host para que");
+                    out.add("&7el plugin lo mande solo.");
+                }
                 lines = out.toArray(new String[0]);
             } catch (Exception e) {
                 plugin.getLogger().warning("[Pack] " + e);
