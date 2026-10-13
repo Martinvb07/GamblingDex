@@ -82,10 +82,14 @@ public class GamblingDexCommand implements CommandExecutor {
                 java.util.List<String> out = new java.util.ArrayList<>();
                 out.add("&aResource pack listo: &fplugins/GamblingDex/" + r.pack().getName());
                 out.add("&7SHA-1: &f" + r.packSha1());
+                for (String miss : r.missing())
+                    out.add("&cNo encontré el pack &f" + miss + "&c (resource_pack.extra_packs).");
                 if (r.merged() != null) {
-                    out.add("&aCon los modelos de ModelEngine: &fplugins/GamblingDex/" + r.merged().getName());
+                    out.add("&aTodo junto: &fplugins/GamblingDex/" + r.merged().getName());
+                    if (!r.extras().isEmpty())
+                        out.add("&7Incluye: &f" + String.join(", ", r.extras()));
                     out.add("&7SHA-1: &f" + r.mergedSha1());
-                    out.add("&7Sube &fGamblingDex-merged.zip&7 (no el de ModelEngine por separado).");
+                    out.add("&7Sube &fGamblingDex-merged.zip&7 solo (sin los otros packs por separado).");
                 } else if (plugin.getServer().getPluginManager().getPlugin("ModelEngine") != null) {
                     out.add("&eNo encontré el pack de ModelEngine: usa &f/meg reload&e y luego &f/gdx pack&e otra vez.");
                 }

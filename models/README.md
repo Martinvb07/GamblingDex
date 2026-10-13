@@ -200,3 +200,11 @@ Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDE
   recolocan solos. En mundos en pacífico no se ponen.
 - Los clicks en los modelos, las mesas y las sillas funcionan aunque WorldGuard o la protección
   del spawn bloqueen interactuar con entidades (antes solo podían usarlos los admins).
+
+## Otros resource packs (DT3 Tools, etc.)
+
+Si otro plugin tiene su propio resource pack, ponlo en `config.yml → resource_pack.extra_packs`
+(carpeta o .zip, ruta desde la carpeta del server) y usa `/gdx pack`: `GamblingDex-merged.zip`
+lleva todo junto (ese pack + ModelEngine + GamblingDex). Los archivos que comparten (modelos de
+ítems con custom_model_data, ítems 1.21.4+, fuentes, atlas, sonidos, idiomas) se combinan en vez
+de pisarse, así que salen las texturas de todos con un solo pack.

@@ -233,6 +233,10 @@ resource_pack:
   custom_cards: false      # póker: cartas, fichas y botón del dealer en 3D sobre la mesa
   custom_chairs: false     # taburetes de casino en los asientos de póker y blackjack (click derecho = sentarse)
   modelengine_pack: ""     # ruta al pack de ModelEngine si no está en plugins/ModelEngine/resource pack
+  # Packs de otros plugins para juntar en GamblingDex-merged.zip (carpeta o .zip, ruta desde la
+  # carpeta del server). Así se sube UN solo pack y salen las texturas de todos, sin pelear por
+  # cuál va arriba. Ej: - "plugins/DT3Tools/resourcepack.zip"
+  extra_packs: []
   send:
     enabled: false         # mandar el pack a cada jugador al entrar
     url: ""                # enlace DIRECTO al .zip

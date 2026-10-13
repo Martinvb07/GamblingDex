@@ -23,7 +23,9 @@ import java.util.zip.ZipOutputStream;
  * <ul>
  * <li>{@code GamblingDex-pack.zip}: solo el de GamblingDex.</li>
  * <li>{@code GamblingDex-merged.zip}: el de GamblingDex + el que genera
- * ModelEngine (los modelos 3D), para subir uno solo.</li>
+ * ModelEngine (los modelos 3D) + los de otros plugins ({@code resource_pack.extra_packs}),
+ * para subir uno solo. Los archivos que tocan varios packs (modelos de ítems con
+ * custom_model_data, fuentes, sonidos, atlas, idiomas) se combinan en vez de pisarse.</li>
  * </ul>
  * Si {@code resource_pack.send.url} está puesto, se manda a cada jugador al entrar.
  */
@@ -48,8 +50,12 @@ public class ResourcePackManager implements Listener {
         return plugin.getConfig().getBoolean("resource_pack.custom_sounds", false);
     }
 
-    /** Resultado de {@link #build()}. merged = null si no se encontró el pack de ModelEngine. */
-    public record Result(File pack, String packSha1, File merged, String mergedSha1) {
+    /**
+     * Resultado de {@link #build()}. merged = null si no hay pack de ModelEngine ni otros packs.
+     * extras = los packs de otros plugins que se juntaron; missing = los de la config que no están.
+     */
+    public record Result(File pack, String packSha1, File merged, String mergedSha1, List<String> extras,
+            List<String> missing) {
     }
 
     /** Genera los zips. Hace E/S de disco: llamar fuera del hilo principal. */
@@ -59,15 +65,74 @@ public class ResourcePackManager implements Listener {
         File pack = new File(dir, PACK_ZIP);
         writeZip(pack, ours);
 
+        // Otros packs (p. ej. el de DT3 Tools): primero ellos, encima ModelEngine y GamblingDex,
+        // combinando los archivos que comparten
+        List<String> extras = new ArrayList<>(), missing = new ArrayList<>();
+        Map<String, byte[]> all = new TreeMap<>();
+        File server = plugin.getDataFolder().getParentFile().getParentFile();
+        for (String path : plugin.getConfig().getStringList("resource_pack.extra_packs")) {
+            if (path == null || path.isBlank())
+                continue;
+            File f = new File(path);
+            if (!f.isAbsolute())
+                f = new File(server, path);
+            Map<String, byte[]> files = readPack(f);
+            if (files.isEmpty()) {
+                missing.add(path);
+                continue;
+            }
+            extras.add(path);
+            PackMerger.mergeInto(all, files);
+        }
         Map<String, byte[]> me = modelEnginePack();
+        PackMerger.mergeInto(all, me);
         File merged = null;
-        if (!me.isEmpty()) {
-            Map<String, byte[]> all = new TreeMap<>(me);
-            all.putAll(ours); // pack.mcmeta y pack.png de GamblingDex (cubren más versiones)
+        if (!me.isEmpty() || !extras.isEmpty()) {
+            PackMerger.mergeInto(all, ours);
+            // pack.mcmeta y pack.png de GamblingDex (cubren más versiones)
+            all.put("pack.mcmeta", ours.get("pack.mcmeta"));
+            if (ours.containsKey("pack.png"))
+                all.put("pack.png", ours.get("pack.png"));
             merged = new File(dir, MERGED_ZIP);
             writeZip(merged, all);
         }
-        return new Result(pack, sha1(pack), merged, merged == null ? null : sha1(merged));
+        return new Result(pack, sha1(pack), merged, merged == null ? null : sha1(merged), extras, missing);
+    }
+
+    /** Lee un pack (carpeta o .zip). Si el zip tiene todo dentro de una carpeta, la quita. Vacío si no existe. */
+    private static Map<String, byte[]> readPack(File f) throws IOException {
+        Map<String, byte[]> out = new TreeMap<>();
+        if (f.isDirectory()) {
+            Path root = f.toPath();
+            try (var walk = Files.walk(root)) {
+                for (Path p : (Iterable<Path>) walk::iterator)
+                    if (Files.isRegularFile(p))
+                        out.put(root.relativize(p).toString().replace(File.separatorChar, '/'), Files.readAllBytes(p));
+            }
+        } else if (f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            try (ZipFile zip = new ZipFile(f)) {
+                for (ZipEntry e : Collections.list(zip.entries()))
+                    if (!e.isDirectory())
+                        try (InputStream in = zip.getInputStream(e)) {
+                            out.put(e.getName(), in.readAllBytes());
+                        }
+            }
+        }
+        // Zip con una carpeta adentro (MiPack/pack.mcmeta, MiPack/assets/...): se sube un nivel
+        if (!out.containsKey("pack.mcmeta")) {
+            String prefix = null;
+            for (String k : out.keySet())
+                if (k.endsWith("/pack.mcmeta") && k.indexOf('/') == k.length() - "/pack.mcmeta".length())
+                    prefix = k.substring(0, k.length() - "pack.mcmeta".length());
+            if (prefix != null) {
+                Map<String, byte[]> flat = new TreeMap<>();
+                for (Map.Entry<String, byte[]> e : out.entrySet())
+                    if (e.getKey().startsWith(prefix))
+                        flat.put(e.getKey().substring(prefix.length()), e.getValue());
+                return flat;
+            }
+        }
+        return out;
     }
 
     /** Archivos del pack que van dentro del jar (lista en pack/files.txt). */
