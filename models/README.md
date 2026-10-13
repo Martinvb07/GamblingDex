@@ -79,6 +79,34 @@ Va en cada estación con menú de Mines (`/gdx station set mines`), mirando haci
 
   ![menú de Mines](previews/mines_gui.png)
 
+## Máquina de Plinko en 3D (ModelEngine R4)
+
+![máquina de Plinko](previews/plinko_machine.png)
+
+`plinko_machine.bbmodel`: cabina morada y naranja con cartel "PLINKO", embudo, 8 filas de clavos
+y las 9 casillas del menú (con los colores de los multiplicadores por defecto). Va en cada estación
+con menú de Plinko (`/gdx station set plinko`), mirando hacia quien la puso.
+
+| Animación | Qué hace |
+|---|---|
+| `idle` | Bombillos titilando (en bucle) |
+| `drop_<a\|b\|c>` | Una de las 3 bolas sale del embudo, baja rebotando fila a fila y se hunde en la casilla |
+| `drop_<bola>_r<R>_<L\|R>` | Hacia dónde rebota esa bola en la fila R |
+| `hit_<K>` | La casilla K (0 = izquierda) se ilumina y salta |
+| `bigwin` | La pantalla destella en naranja y las luces a tope |
+
+- **La bola 3D hace el mismo camino que la del menú**: cuelga de 8 huesos anidados (uno por
+  fila) y al soltarla el plugin reproduce, junto con `drop_<bola>`, el rebote de cada fila según
+  el resultado; los movimientos se suman y cae en la misma casilla, a la vez que en el menú.
+  Pueden caer 3 bolas a la vez (se turnan). Todos los que estén cerca la ven y la oyen.
+- Click en la máquina = abrir el menú. Se gira con `/gdx station rotate`.
+- Opciones en `modules/plinko.yml → model` (`hide_station`, `collision`, `sound_radius`...).
+- Con el pack, el menú tiene fondo propio (los clavos van dibujados, casillas de colores, panel de
+  apuesta y botón SOLTAR naranja) y sonidos: bola que sale, tic de cada clavo (más agudo según baja),
+  caída en la casilla, sin premio, premio y gran premio.
+
+  ![menú de Plinko](previews/plinko_gui.png)
+
 ## Mesa de ruleta en 3D (ModelEngine R4)
 
 ![ruleta](previews/roulette_table.png)
@@ -214,7 +242,9 @@ VIEWS='[["top",[46,170,0.5],[46,0,0]]]' node tools/render.mjs tools/roulette_tab
 VIEWS='[["angle",[0,60,110],[0,8,0]]]' node tools/render.mjs tools/poker_table.js poker_table.bbmodel previews/
 VIEWS='[["players",[0,55,-95],[0,8,-24]]]' node tools/render.mjs tools/blackjack_table.js blackjack_table.bbmodel previews/
 VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/mines_machine.js mines_machine.bbmodel previews/
-cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel mines_machine.bbmodel ../src/main/resources/models/
+VIEWS='[["front",[-22,24,-50]]]' node tools/render.mjs tools/plinko_machine.js plinko_machine.bbmodel previews/
+cp slot_machine.bbmodel exchange_machine.bbmodel roulette_table.bbmodel poker_table.bbmodel blackjack_table.bbmodel \
+   mines_machine.bbmodel plinko_machine.bbmodel ../src/main/resources/models/
 ```
 
 Si cambias el orden de los símbolos en `slot_machine.js`, cambia también `ORDER` en

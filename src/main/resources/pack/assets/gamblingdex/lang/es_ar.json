@@ -16,5 +16,11 @@
   "subtitles.gamblingdex.mines.start": "Tablero de Mines barajado",
   "subtitles.gamblingdex.mines.gem": "Casilla segura",
   "subtitles.gamblingdex.mines.bomb": "¡Mina!",
-  "subtitles.gamblingdex.mines.cashout": "Premio de Mines"
+  "subtitles.gamblingdex.mines.cashout": "Premio de Mines",
+  "subtitles.gamblingdex.plinko.drop": "Bola de Plinko",
+  "subtitles.gamblingdex.plinko.peg": "Bola rebota en un clavo",
+  "subtitles.gamblingdex.plinko.land": "Bola cae en la casilla",
+  "subtitles.gamblingdex.plinko.lose": "Casilla sin premio",
+  "subtitles.gamblingdex.plinko.win": "Premio de Plinko",
+  "subtitles.gamblingdex.plinko.bigwin": "¡Gran premio de Plinko!"
 }

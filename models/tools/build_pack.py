@@ -32,6 +32,7 @@ CH_BJ_BET_BG = '\uE105'        # menu de apuestas del blackjack
 CH_ROULETTE_BG = '\uE106'      # menu de apuestas de la ruleta
 CH_ROULETTE_NUM_BG = '\uE107'  # menu de plenos de la ruleta (la rueda)
 CH_MINES_BG = '\uE108'         # menu de Mines
+CH_PLINKO_BG = '\uE109'        # menu de Plinko
 
 
 def mkdir(p):
@@ -751,6 +752,106 @@ MINES_SUBTITLES = {'start': 'Tablero de Mines barajado', 'gem': 'Casilla segura'
 
 
 # ----------------------------------------------------------------------------
+# Plinko (PlinkoMenu): morado noche y naranja como la maquina 3D. Filas 0-3 = tablero
+# con los clavos dibujados (donde el menu sin pack pone cristales), fila 4 = casillas
+# (colores de los multiplicadores por defecto), fila 5: apuesta (45..49), ultimas (50),
+# fichas (51), info (52) y SOLTAR (53).
+# ----------------------------------------------------------------------------
+PURP, PURP_D, PURP_L = (34, 26, 64), (24, 18, 48), (46, 36, 82)
+ORG, ORG_D, ORG_L = (238, 154, 30), (170, 96, 10), (255, 200, 110)
+PLINKO_BUCKETS = [(196, 28, 40), (224, 112, 16), (224, 184, 24), (224, 184, 24), (48, 160, 64),
+                  (224, 184, 24), (224, 184, 24), (224, 112, 16), (196, 28, 40)]
+
+
+def plinko_background():
+    w, h = 176, 130
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(37)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=4, fill=ORG_D)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), radius=3, fill=ORG)
+    d.rectangle((3, 3, w - 4, h - 4), fill=PURP)
+    for _ in range(900):
+        x, y = rng.integers(3, w - 3), rng.integers(3, h - 3)
+        d.point((int(x), int(y)), fill=[PURP_D, PURP_L, (30, 22, 56)][rng.integers(0, 3)])
+    # Franja del titulo con bombillos
+    d.rectangle((3, 3, w - 4, 15), fill=(12, 10, 22))
+    d.line([(3, 16), (w - 4, 16)], fill=ORG)
+    for x in range(5, w - 4, 4):
+        d.point((x, 4), fill=(255, 192, 64) if (x // 4) % 2 else (120, 70, 20))
+        d.point((x + 2, 14), fill=(255, 192, 64) if (x // 4) % 2 == 0 else (120, 70, 20))
+    # Tablero (filas 0-3): pantalla oscura con rejilla y los clavos en triangulo
+    x1, y1 = slot_box(0, 0)[:2]
+    x2, y2 = slot_box(3, 8)[2:]
+    d.rectangle((x1 - 1, y1, x2 + 1, y2 + 1), fill=(16, 12, 36))
+    for gx in range(x1, x2 + 1, 6):
+        d.line([(gx, y1), (gx, y2)], fill=(22, 17, 46))
+    for gy in range(y1, y2 + 1, 6):
+        d.line([(x1, gy), (x2, gy)], fill=(22, 17, 46))
+    d.polygon([(slot_center(0, 4)[0] - 6, y1), (slot_center(0, 4)[0] + 6, y1), (slot_center(0, 4)[0] + 2, y1 + 4),
+               (slot_center(0, 4)[0] - 2, y1 + 4)], fill=(170, 176, 190))  # embudo
+    for r in range(4):
+        for c in range(9):
+            if (c + r) % 2 == 0 and abs(c - 4) <= r * 2 + 1:
+                cx, cy = slot_center(r, c)
+                d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=(60, 50, 110))
+                d.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=(244, 246, 255))
+                d.point((cx - 1, cy - 1), fill=(255, 255, 255))
+    # Fila 4: casillas con el color de su multiplicador y divisiones cromadas
+    for c, col in enumerate(PLINKO_BUCKETS):
+        bx1, by1, bx2, by2 = slot_box(4, c)
+        dark = tuple(int(v * 0.5) for v in col)
+        d.rectangle((bx1, by1 - 1, bx2, by2 + 1), fill=col, outline=dark)
+        d.line([(bx1 + 1, by1), (bx2 - 1, by1)], fill=tuple(min(255, v + 70) for v in col))
+        recess(d, 4, c)
+    for c in range(1, 9):
+        x = slot_box(4, c)[0]
+        d.line([(x, slot_box(4, 0)[1] - 3), (x, slot_box(4, 0)[3] + 1)], fill=(200, 204, 214))
+    # Fila 5: apuesta en panel naranja, ultimas, fichas, info y SOLTAR
+    x1, y1 = slot_box(5, 0)[:2]
+    x2, y2 = slot_box(5, 4)[2:]
+    d.rounded_rectangle((x1 - 2, y1 - 2, x2 + 2, y2 + 2), radius=2, fill=ORG_D, outline=(110, 60, 6))
+    for c, col in ((0, (200, 200, 196)), (1, RED_B), (2, GOLD_L), (3, GREEN_B), (4, GOLD)):
+        info_slot(d, 5, c, col)
+    info_slot(d, 5, 5, (240, 240, 232))
+    info_slot(d, 5, 6, GOLD)
+    info_slot(d, 5, 7, BLUE_B)
+    x1, y1, x2, y2 = slot_box(5, 8)
+    d.rounded_rectangle((x1 - 3, y1 - 3, x2 + 2, y2 + 2), radius=3, fill=ORG, outline=(110, 60, 6))
+    d.rectangle((x1 - 1, y1 - 1, x2, y2), outline=ORG_L)
+    button_slot(d, 5, 8, (255, 140, 20))
+    return img
+
+
+def plinko_sounds():
+    s = {}
+    # Soltar: "plop" de la bola saliendo del embudo
+    s['drop'] = mix(0.3, (0, tone(520, 0.12, r=0.04, vol=0.6)), (0.0, tone(260, 0.15, r=0.05, vol=0.5)),
+                    (0, noise(0.03, 0.008, 0.4, 0.4, 90)))
+    # Clavo: tic corto de plastico (el plugin le sube el tono fila a fila)
+    s['peg'] = mix(0.08, (0, tone(2200, 0.05, 'bell', r=0.012, vol=0.5)), (0, noise(0.015, 0.003, 0.4, 0.6, 91)))
+    # Cae en la casilla: golpe + campanita
+    s['land'] = mix(0.6, (0, noise(0.04, 0.015, 0.7, 0.3, 92)), (0, tone(140, 0.15, r=0.05, vol=0.7)),
+                    (0.03, tone(1046.5, 0.45, 'bell', r=0.16, vol=0.45)))
+    # Sin premio: golpe sordo y dos notas que bajan
+    s['lose'] = mix(0.6, (0, noise(0.04, 0.015, 0.7, 0.3, 93)), (0, tone(120, 0.15, r=0.05, vol=0.7)),
+                    (0.05, tone(330.0, 0.2, 'square', r=0.08, vol=0.25)), (0.17, tone(262.0, 0.3, 'square', r=0.12, vol=0.25)))
+    # Premio: arpegio
+    s['win'] = mix(0.9, (0, noise(0.04, 0.015, 0.6, 0.3, 94)),
+                   *[(0.03 + i * 0.07, tone(f, 0.4, 'bell', r=0.15, vol=0.45)) for i, f in enumerate([C6, E6, G6])])
+    # Premio grande: fanfarria + lluvia de campanas
+    rng = np.random.default_rng(95)
+    bells = [(0.6 + i * 0.06, tone(float(rng.choice([C6, E6, G6, 2093.0])), 0.35, 'bell', r=0.12, vol=0.3)) for i in range(14)]
+    s['bigwin'] = mix(2.0, *[(i * 0.1, tone(f, 0.4, 'square', r=0.18, vol=0.3)) for i, f in enumerate([C5, E5, G5, C6, E6])],
+                      (0.5, tone(G6, 0.9, 'bell', r=0.4, vol=0.5)), *bells)
+    return s
+
+
+PLINKO_SUBTITLES = {'drop': 'Bola de Plinko', 'peg': 'Bola rebota en un clavo', 'land': 'Bola cae en la casilla',
+                    'lose': 'Casilla sin premio', 'win': 'Premio de Plinko', 'bigwin': '¡Gran premio de Plinko!'}
+
+
+# ----------------------------------------------------------------------------
 # Fichas en 3D: un modelo de item (chip.json) + una textura por valor. Cada tinte
 # de ficha (TokenManager.DENOMS) se cambia por su ficha cuando el item tiene
 # custom_model_data = CHIP_CMD (1.20.4-1.21.3: overrides; 1.21.4+: items/*.json).
@@ -1226,7 +1327,8 @@ def main():
                          ('bj_bet_gui', bj_bet_background, CH_BJ_BET_BG),
                          ('roulette_gui', roulette_background, CH_ROULETTE_BG),
                          ('roulette_num_gui', roulette_numbers_background, CH_ROULETTE_NUM_BG),
-                         ('mines_gui', mines_background, CH_MINES_BG)):
+                         ('mines_gui', mines_background, CH_MINES_BG),
+                         ('plinko_gui', plinko_background, CH_PLINKO_BG)):
         im = fn()
         im.save(os.path.join(tex, name + '.png'))
         font['providers'].append({'type': 'bitmap', 'file': 'gamblingdex:font/' + name + '.png',
@@ -1254,6 +1356,9 @@ def main():
     for name, sig in mines_sounds().items():
         write_ogg(os.path.join(NS, 'sounds', 'mines', name + '.ogg'), sig)
         sj['mines.' + name] = {'sounds': ['gamblingdex:mines/' + name], 'subtitle': 'subtitles.gamblingdex.mines.' + name}
+    for name, sig in plinko_sounds().items():
+        write_ogg(os.path.join(NS, 'sounds', 'plinko', name + '.ogg'), sig)
+        sj['plinko.' + name] = {'sounds': ['gamblingdex:plinko/' + name], 'subtitle': 'subtitles.gamblingdex.plinko.' + name}
     with open(os.path.join(NS, 'sounds.json'), 'w', encoding='utf-8') as f:
         json.dump(sj, f, indent=2)
     mkdir(os.path.join(NS, 'lang'))
@@ -1262,6 +1367,7 @@ def main():
     lang.update({'subtitles.gamblingdex.roulette.' + k: v for k, v in ROULETTE_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.poker.' + k: v for k, v in POKER_SUBTITLES.items()})
     lang.update({'subtitles.gamblingdex.mines.' + k: v for k, v in MINES_SUBTITLES.items()})
+    lang.update({'subtitles.gamblingdex.plinko.' + k: v for k, v in PLINKO_SUBTITLES.items()})
     for code in ('es_es', 'es_mx', 'es_ar', 'en_us'):
         with open(os.path.join(NS, 'lang', code + '.json'), 'w', encoding='utf-8') as f:
             json.dump(lang, f, indent=2, ensure_ascii=False)

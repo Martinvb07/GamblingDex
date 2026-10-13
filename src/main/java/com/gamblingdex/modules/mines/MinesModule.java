@@ -48,7 +48,7 @@ import java.util.*;
  * Multiplicador tras k casillas seguras con m minas (25 casillas):
  * (1 - edge) * prod_{i<k} (25 - i) / (25 - m - i)  → devolución esperada (1 - edge).
  */
-public class MinesModule extends GameModule {
+public class MinesModule extends GameModule implements com.gamblingdex.modules.ModelStations {
 
     private static final SecureRandom RNG = new SecureRandom();
     private static final int SIZE = 5;
@@ -305,19 +305,22 @@ public class MinesModule extends GameModule {
     // Máquina 3D de las estaciones con menú (StationModels, Kind.MINES)
     // ------------------------------------------------------------------
 
-    public List<Location> menuStationLocations() {
+    @Override
+    public List<Location> modelStationLocations() {
         return menuStations == null ? List.of() : menuStations.locations();
     }
 
-    public UUID menuStationHologram(Location station) {
+    @Override
+    public UUID modelStationHologram(Location station) {
         return menuStations == null ? null : menuStations.hologramId(station);
     }
 
-    public float menuStationYaw(Location station) {
+    @Override
+    public float modelStationYaw(Location station) {
         return menuStations == null ? 0f : menuStations.yaw(station);
     }
 
-    /** Click en la máquina 3D: lo mismo que click derecho al bloque de la estación. */
+    @Override
     public void openFromModel(Player p, Location station) {
         if (menu != null && menuStations.contains(station.getBlock()) && isOpenFor(p))
             menu.open(p, station);

@@ -77,6 +77,12 @@ assets/gamblingdex/sounds/mines/bomb.ogg
 assets/gamblingdex/sounds/mines/cashout.ogg
 assets/gamblingdex/sounds/mines/gem.ogg
 assets/gamblingdex/sounds/mines/start.ogg
+assets/gamblingdex/sounds/plinko/bigwin.ogg
+assets/gamblingdex/sounds/plinko/drop.ogg
+assets/gamblingdex/sounds/plinko/land.ogg
+assets/gamblingdex/sounds/plinko/lose.ogg
+assets/gamblingdex/sounds/plinko/peg.ogg
+assets/gamblingdex/sounds/plinko/win.ogg
 assets/gamblingdex/sounds/poker/card.ogg
 assets/gamblingdex/sounds/poker/chips.ogg
 assets/gamblingdex/sounds/poker/flip.ogg
@@ -93,6 +99,7 @@ assets/gamblingdex/textures/font/bj_action_gui.png
 assets/gamblingdex/textures/font/bj_bet_gui.png
 assets/gamblingdex/textures/font/exchange_gui.png
 assets/gamblingdex/textures/font/mines_gui.png
+assets/gamblingdex/textures/font/plinko_gui.png
 assets/gamblingdex/textures/font/poker_action_gui.png
 assets/gamblingdex/textures/font/poker_buyin_gui.png
 assets/gamblingdex/textures/font/roulette_gui.png

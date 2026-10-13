@@ -5,6 +5,7 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.games.blackjack.BlackjackTables;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.modules.GameModule;
+import com.gamblingdex.pack.CasinoPack;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -39,7 +40,7 @@ import java.util.*;
  * la derecha (50/50) y cae en una casilla con multiplicador. Las casillas de
  * los extremos pagan más porque son menos probables (distribución binomial).
  */
-public class PlinkoModule extends GameModule {
+public class PlinkoModule extends GameModule implements com.gamblingdex.modules.ModelStations {
 
     private static final SecureRandom RNG = new SecureRandom();
     private static final int TICKS_PER_ROW = 5;
@@ -145,6 +146,7 @@ public class PlinkoModule extends GameModule {
         if (admin) {
             l.add("&8• &e/gdx station set plinko &7- Estación con menú (mirando un bloque)");
             l.add("&8• &e/gdx station set plinko wall [6|8|10|12] &7- Construir la pared en el mundo");
+            l.add("&8• &e/gdx station rotate &7- Girar la máquina 3D de una estación con menú");
         }
         l.add("");
         return l;
@@ -205,7 +207,8 @@ public class PlinkoModule extends GameModule {
     public void createStation(Player p, Block target, String[] args) {
         boolean wall = args.length >= 1 && (args[0].equalsIgnoreCase("wall") || args[0].equalsIgnoreCase("pared"));
         if (!wall) {
-            if (byBlock(target) != null || !menuStations.add(target)) {
+            // La máquina 3D (si hay ModelEngine) mira hacia quien puso la estación
+            if (byBlock(target) != null || !menuStations.add(target, p.getLocation().getYaw() + 180f)) {
                 p.sendMessage(msg("exists", "&cAhí ya hay una estación de Plinko."));
                 return;
             }
@@ -325,6 +328,41 @@ public class PlinkoModule extends GameModule {
         return sec == null ? List.of() : new ArrayList<>(sec.getKeys(false));
     }
 
+    @Override
+    public boolean rotateStation(Player player, Block target) {
+        if (!menuStations.rotate(target))
+            return false;
+        var models = plugin.getStationModels();
+        if (models != null)
+            models.respawn(target.getLocation());
+        player.sendMessage(color("&aMáquina de Plinko girada: &f" + Math.round(menuStations.yaw(target.getLocation())) + "°"
+                + (models == null || !models.plinkoActive() ? " &7(ModelEngine no está activo)" : "")));
+        return true;
+    }
+
+    // Máquina 3D de las estaciones con menú (StationModels, Kind.PLINKO)
+
+    @Override
+    public List<Location> modelStationLocations() {
+        return menuStations == null ? List.of() : menuStations.locations();
+    }
+
+    @Override
+    public UUID modelStationHologram(Location station) {
+        return menuStations == null ? null : menuStations.hologramId(station);
+    }
+
+    @Override
+    public float modelStationYaw(Location station) {
+        return menuStations == null ? 0f : menuStations.yaw(station);
+    }
+
+    @Override
+    public void openFromModel(Player p, Location station) {
+        if (menu != null && menuStations.contains(station.getBlock()) && isOpenFor(p))
+            menu.open(p, station);
+    }
+
     /** Multiplicadores para {@code rows} filas (rows+1 casillas), o null si no están en la config. */
     List<Double> multipliers(int rows) {
         List<Double> list = new ArrayList<>();
@@ -430,7 +468,7 @@ public class PlinkoModule extends GameModule {
         Ball ball = new Ball(p.getUniqueId(), amount, rights);
         b.balls.add(ball);
         spawnBall(b, ball);
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, 1.4f);
+        CasinoPack.sound(p, "plinko.drop", Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, 1.4f);
     }
 
     /** Posición de la bola en el tick {@code t} (rebota de fila en fila con un pequeño salto). */
@@ -483,7 +521,8 @@ public class PlinkoModule extends GameModule {
                 if (e != null)
                     e.teleport(ballPos(b, ball, ball.tick));
                 if (ball.tick % TICKS_PER_ROW == 0 && ball.tick / TICKS_PER_ROW <= b.rows && w != null)
-                    w.playSound(e != null ? e.getLocation() : b.control, Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.8f);
+                    CasinoPack.soundNear(e != null ? e.getLocation() : b.control, null, "plinko.peg",
+                            Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.8f, 16);
                 if (ball.tick >= b.rows * TICKS_PER_ROW + 10)
                     land(b, ball);
             }
@@ -514,8 +553,10 @@ public class PlinkoModule extends GameModule {
             long net = pay - ball.bet;
             p.sendMessage(msg("landed", "&6&lPlinko &8» &7Cayó en &fx{mult} &8→ {result}",
                     "mult", fmt(m), "result", net >= 0 ? color("&a+" + units(pay)) : color("&c" + units(pay) + " &8(-" + units(-net) + ")")));
-            p.playSound(p.getLocation(), m >= 2 ? Sound.ENTITY_PLAYER_LEVELUP : m >= 1 ? Sound.BLOCK_NOTE_BLOCK_BELL
-                    : Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 1.2f);
+            boolean big = m >= config().getDouble("title_min_multiplier", 5.0);
+            CasinoPack.sound(p, big ? "plinko.bigwin" : m >= 2 ? "plinko.win" : m >= 1 ? "plinko.land" : "plinko.lose",
+                    m >= 2 ? Sound.ENTITY_PLAYER_LEVELUP : m >= 1 ? Sound.BLOCK_NOTE_BLOCK_BELL : Sound.BLOCK_NOTE_BLOCK_BASS,
+                    0.8f, 1.2f);
             if (m >= config().getDouble("title_min_multiplier", 5.0))
                 p.sendTitle(color("&6&lx" + fmt(m)), color("&e+" + units(pay)), 5, 40, 10);
         }
@@ -606,7 +647,7 @@ public class PlinkoModule extends GameModule {
                 e.setCancelled(true);
                 if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.RIGHT_CLICK_BLOCK
                         && isOpenFor(e.getPlayer()))
-                    menu.open(e.getPlayer());
+                    menu.open(e.getPlayer(), e.getClickedBlock().getLocation());
                 return;
             }
             Board b = byBlock(e.getClickedBlock());

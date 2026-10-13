@@ -5,7 +5,9 @@ import com.gamblingdex.economy.TokenWallet;
 import com.gamblingdex.gui.AmountPickerMenu;
 import com.gamblingdex.gui.Icons;
 import com.gamblingdex.modules.GameModule;
+import com.gamblingdex.pack.CasinoPack;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -24,7 +26,10 @@ import java.util.*;
 /**
  * Plinko en un menú (estación de un bloque). 8 filas de clavos: la bola baja
  * por las 4 filas de arriba (dos rebotes por fila) y cae en una de las 9
- * casillas de la fila 5. Abajo, la apuesta y el botón de soltar.
+ * casillas de la fila 5. Abajo, la apuesta y el botón de soltar. Con el resource
+ * pack el menú tiene fondo propio (los clavos van dibujados) y sonidos propios
+ * (plinko.*); si la estación tiene la máquina 3D, cada bola cae también en su
+ * pantalla por el mismo camino y la ven todos los que están cerca.
  *
  * <pre>
  *  0..35  tablero (clavos y bola)
@@ -44,6 +49,7 @@ final class PlinkoMenu implements Listener {
     static final class Session implements InventoryHolder {
         final UUID player;
         Inventory inv;
+        Location station; // estación desde la que se abrió (para la máquina 3D)
         long bet;
         int queued; // bolas pendientes (shift = 5)
         boolean[] path; // bola actual
@@ -90,17 +96,36 @@ final class PlinkoMenu implements Listener {
 
     // ------------------------------------------------------------------
 
-    void open(Player p) {
+    void open(Player p, Location station) {
         if (mults() == null) {
             p.sendMessage(m.msg("bad_rows", "&cFaltan los multiplicadores de 8 filas en plinko.yml."));
             return;
         }
         Session s = new Session(p.getUniqueId(), Math.max(min(), lastBet.getOrDefault(p.getUniqueId(), min())));
-        s.inv = Bukkit.createInventory(s, 54, m.color("&8&l✦ &6&lPLINKO &8&l✦"));
+        s.station = station == null ? null : station.clone();
+        s.inv = CasinoPack.customGui()
+                ? Bukkit.createInventory(s, 54, CasinoPack.titleWithBackground(CasinoPack.PLINKO_BG, m.color("&6&lPLINKO")))
+                : Bukkit.createInventory(s, 54, m.color("&8&l✦ &6&lPLINKO &8&l✦"));
         sessions.put(p.getUniqueId(), s);
         render(p, s);
         p.openInventory(s.inv);
-        p.playSound(p.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+        CasinoPack.sound(p, "slots.coin", Sound.BLOCK_CHEST_OPEN, 0.6f, 1.3f);
+    }
+
+    private static com.gamblingdex.models.StationModels models(Session s) {
+        GamblingDexPlugin plugin = GamblingDexPlugin.getInstance();
+        var models = plugin == null ? null : plugin.getStationModels();
+        return s.station == null || models == null || !models.plinkoActive() ? null : models;
+    }
+
+    /** Sonido para el jugador y, si la estación tiene la máquina 3D, para los que están cerca. */
+    private void sound(Player p, Session s, String key, Sound vanilla, float volume, float pitch) {
+        if (p != null)
+            CasinoPack.sound(p, "plinko." + key, vanilla, volume, pitch);
+        var models = models(s);
+        if (models != null)
+            CasinoPack.soundNear(s.station.clone().add(0.5, 1.2, 0.5), p, "plinko." + key, vanilla, volume * 0.8f, pitch,
+                    models.plinkoSoundRadius());
     }
 
     /** Columna (0-8) de la bola tras {@code step} rebotes con {@code rights} a la derecha. */
@@ -122,8 +147,9 @@ final class PlinkoMenu implements Listener {
         if (ball == null || !ball.isItem())
             ball = Material.SLIME_BALL;
 
-        // Clavos en triángulo (filas 0-3)
-        for (int r = 0; r < 4; r++)
+        // Clavos en triángulo (filas 0-3); con el fondo del pack ya van dibujados
+        boolean custom = CasinoPack.customGui();
+        for (int r = 0; r < 4 && !custom; r++)
             for (int c = 0; c < 9; c++)
                 if ((c + r) % 2 == 0 && Math.abs(c - 4) <= r * 2 + 1)
                     inv.setItem(r * 9 + c, Icons.of(Material.WHITE_STAINED_GLASS_PANE, "&f•", null));
@@ -168,7 +194,8 @@ final class PlinkoMenu implements Listener {
         inv.setItem(S_DROP, Icons.of(busy ? Material.MAGMA_CREAM : Material.SLIME_BALL, 1,
                 busy ? "&e&lCayendo..." + (s.queued > 0 ? " &7(" + s.queued + " más)" : "") : "&a&lSOLTAR BOLA &8» &e" + u,
                 List.of("&7Click: &f1 bola", "&7Shift + click: &f5 bolas"), !busy));
-        Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        if (!custom)
+            Icons.fill(inv, Material.BLACK_STAINED_GLASS_PANE);
     }
 
     private void setBet(Player p, Session s, long v) {
@@ -176,7 +203,7 @@ final class PlinkoMenu implements Listener {
         s.bet = Math.max(min(), Math.min(hi, v));
         lastBet.put(s.player, s.bet);
         render(p, s);
-        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
+        CasinoPack.sound(p, "slots.coin", Sound.UI_BUTTON_CLICK, 0.4f, 1.6f);
     }
 
     /** Cobra y suelta la siguiente bola de la cola. false si no alcanzan las fichas. */
@@ -200,7 +227,10 @@ final class PlinkoMenu implements Listener {
         s.step = 0;
         s.ticks = 0;
         s.landed = -1;
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, 1.4f);
+        sound(p, s, "drop", Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, 1.4f);
+        var models = models(s);
+        if (models != null)
+            models.plinkoDrop(s.station, s.path);
         return true;
     }
 
@@ -219,9 +249,9 @@ final class PlinkoMenu implements Listener {
                 continue;
             s.step++;
             if (s.step <= ROWS)
-                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.5f + s.step * 0.05f);
+                sound(p, s, "peg", Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.5f + s.step * 0.05f);
             if (s.step > ROWS) {
-                land(p, s);
+                land(p, s, true);
                 if (s.queued > 0)
                     launch(p, s);
             }
@@ -229,7 +259,8 @@ final class PlinkoMenu implements Listener {
         }
     }
 
-    private void land(Player p, Session s) {
+    /** {@code animate} = false si se paga antes de tiempo (cerró el menú): la bola 3D sigue cayendo. */
+    private void land(Player p, Session s, boolean animate) {
         int k = ballCol(s.path, ROWS);
         double x = mults().get(k);
         long pay = (long) Math.floor(s.ballBet * x);
@@ -246,10 +277,17 @@ final class PlinkoMenu implements Listener {
                 + (net >= 0 ? "&a+" + GameModule.units(pay) : "&c-" + GameModule.units(-net)));
         while (s.history.size() > 8)
             s.history.removeLast();
+        boolean big = x >= m.config().getDouble("title_min_multiplier", 5.0);
+        if (animate) {
+            sound(p, s, big ? "bigwin" : x >= 2 ? "win" : x >= 1 ? "land" : "lose",
+                    x >= 2 ? Sound.ENTITY_PLAYER_LEVELUP : x >= 1 ? Sound.BLOCK_NOTE_BLOCK_BELL : Sound.BLOCK_NOTE_BLOCK_BASS,
+                    0.8f, 1.2f);
+            var models = models(s);
+            if (models != null)
+                models.plinkoLand(s.station, k, big);
+        }
         if (p != null) {
-            p.playSound(p.getLocation(), x >= 2 ? Sound.ENTITY_PLAYER_LEVELUP : x >= 1 ? Sound.BLOCK_NOTE_BLOCK_BELL
-                    : Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 1.2f);
-            if (x >= m.config().getDouble("title_min_multiplier", 5.0))
+            if (big)
                 p.sendTitle(m.color("&6&lx" + PlinkoModule.fmt(x)), m.color("&e+" + GameModule.units(pay)), 5, 40, 10);
         }
     }
@@ -259,7 +297,7 @@ final class PlinkoMenu implements Listener {
         s.queued = 0;
         if (s.dropping()) {
             s.step = ROWS;
-            land(Bukkit.getPlayer(s.player), s);
+            land(Bukkit.getPlayer(s.player), s, false);
         }
     }
 
@@ -311,12 +349,13 @@ final class PlinkoMenu implements Listener {
             case S_CUSTOM -> {
                 if (busy)
                     return;
+                Location station = s.station;
                 p.closeInventory();
                 AmountPickerMenu.open(p, "&6&lPlinko &8- &eTu apuesta", min(), max(), s.bet, List.of(),
                         amount -> {
                             lastBet.put(p.getUniqueId(), amount);
-                            open(p);
-                        }, () -> open(p));
+                            open(p, station);
+                        }, () -> open(p, station));
             }
             default -> {
             }

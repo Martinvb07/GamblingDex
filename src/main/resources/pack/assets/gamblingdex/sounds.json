@@ -106,5 +106,41 @@
       "gamblingdex:mines/cashout"
     ],
     "subtitle": "subtitles.gamblingdex.mines.cashout"
+  },
+  "plinko.drop": {
+    "sounds": [
+      "gamblingdex:plinko/drop"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.drop"
+  },
+  "plinko.peg": {
+    "sounds": [
+      "gamblingdex:plinko/peg"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.peg"
+  },
+  "plinko.land": {
+    "sounds": [
+      "gamblingdex:plinko/land"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.land"
+  },
+  "plinko.lose": {
+    "sounds": [
+      "gamblingdex:plinko/lose"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.lose"
+  },
+  "plinko.win": {
+    "sounds": [
+      "gamblingdex:plinko/win"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.win"
+  },
+  "plinko.bigwin": {
+    "sounds": [
+      "gamblingdex:plinko/bigwin"
+    ],
+    "subtitle": "subtitles.gamblingdex.plinko.bigwin"
   }
 }

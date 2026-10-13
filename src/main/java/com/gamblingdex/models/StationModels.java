@@ -28,7 +28,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Máquinas en 3D con ModelEngine sobre las estaciones: la tragamonedas
  * (models/slot_machine.bbmodel), el cajero de cambio (models/exchange_machine.bbmodel),
- * las mesas (ruleta, póker, blackjack) y la máquina de Mines (models/mines_machine.bbmodel).
+ * las mesas (ruleta, póker, blackjack) y las máquinas de Mines y Plinko (models/*_machine.bbmodel).
  * Para cada estación pone el modelo, recibe los clicks, esconde el bloque y el
  * holograma a quien ve el modelo y lo anima cuando alguien juega desde ahí.
  * Las animaciones van en el modelo compartido: las ven todos los que estén cerca.
@@ -51,11 +51,14 @@ public class StationModels implements Listener {
         POKER(null, "poker.model", "poker_table", 1.0, 3.75, 1.0),
         /** La mesa de blackjack va delante del dealer (sus centros salen de BlackjackManager). */
         BLACKJACK(null, "blackjack.model", "blackjack_table", 1.0, 3.5, 1.0),
-        /** Estaciones con menú del módulo de Mines (su config va en modules/mines.yml → model). */
-        MINES(null, "mines.model", "mines_machine", 1.0, 1.0, 2.0);
+        /** Estaciones con menú de módulos (su config va en modules/<módulo>.yml → model). */
+        MINES("mines", "mines_machine"),
+        PLINKO("plinko", "plinko_machine");
 
         final GameItemType type;
         final String path, defaultId;
+        /** Módulo dueño de las estaciones (ModelStations), o null si son de StationManager / mesas. */
+        final String module;
         /** Altura del bloque de la estación (la máquina va encima si no se esconde). */
         final double blockHeight;
         /** Tamaño por defecto de la zona clickeable. */
@@ -68,6 +71,18 @@ public class StationModels implements Listener {
             this.blockHeight = blockHeight;
             this.hitWidth = hitWidth;
             this.hitHeight = hitHeight;
+            this.module = null;
+        }
+
+        /** Máquina de 1 x 2 bloques sobre las estaciones con menú de un módulo. */
+        Kind(String module, String defaultId) {
+            this.type = null;
+            this.path = module + ".model";
+            this.defaultId = defaultId;
+            this.blockHeight = 1.0;
+            this.hitWidth = 1.0;
+            this.hitHeight = 2.0;
+            this.module = module;
         }
 
         static Kind of(GameItemType type) {
@@ -121,6 +136,8 @@ public class StationModels implements Listener {
         BukkitTask litTask;
         /** Mines: el jugador cuya partida muestra la pantalla (el último que empezó aquí). */
         UUID minesOwner;
+        /** Plinko: la próxima bola que se suelta (se turnan las 3 del modelo). */
+        int nextBall;
 
         Machine(Location station, Kind kind) {
             this.station = station;
@@ -142,9 +159,9 @@ public class StationModels implements Listener {
     /** Sección "model" de la máquina: en config.yml, o en modules/mines.yml para Mines. */
     private org.bukkit.configuration.ConfigurationSection conf(Kind k) {
         org.bukkit.configuration.ConfigurationSection s;
-        if (k == Kind.MINES) {
+        if (k.module != null) {
             var mm = plugin.getModuleManager();
-            var mod = mm == null ? null : mm.find("mines");
+            var mod = mm == null ? null : mm.find(k.module);
             s = mod == null ? null : mod.config().getConfigurationSection("model");
         } else {
             s = plugin.getConfig().getConfigurationSection(k.path);
@@ -153,8 +170,8 @@ public class StationModels implements Listener {
     }
 
     private boolean configEnabled(Kind k) {
-        if (k == Kind.MINES && plugin.getModuleManager() != null) { // al arrancar aún no hay módulos
-            var mod = plugin.getModuleManager().find("mines");
+        if (k.module != null && plugin.getModuleManager() != null) { // al arrancar aún no hay módulos
+            var mod = plugin.getModuleManager().find(k.module);
             if (mod == null || !mod.isEnabledInConfig())
                 return false;
         }
@@ -169,10 +186,11 @@ public class StationModels implements Listener {
         return conf(k).getDouble(key, def);
     }
 
-    /** El módulo de Mines si está activo (sus estaciones con menú llevan la máquina 3D). */
-    private com.gamblingdex.modules.mines.MinesModule mines() {
+    /** El módulo dueño de las estaciones de esta máquina, si está activo. */
+    private com.gamblingdex.modules.ModelStations stationModule(Kind k) {
         var mm = plugin.getModuleManager();
-        return mm != null && mm.active("mines") instanceof com.gamblingdex.modules.mines.MinesModule m ? m : null;
+        return k.module != null && mm != null && mm.active(k.module) instanceof com.gamblingdex.modules.ModelStations ms
+                ? ms : null;
     }
 
     /** Centros de las estaciones de este tipo. */
@@ -188,8 +206,8 @@ public class StationModels implements Listener {
             for (var t : plugin.getBlackjackManager().getTables())
                 if (t.getCenter() != null)
                     out.add(t.getCenter());
-        if (kind == Kind.MINES && mines() != null)
-            out.addAll(mines().menuStationLocations());
+        if (stationModule(kind) != null)
+            out.addAll(stationModule(kind).modelStationLocations());
         return out;
     }
 
@@ -454,7 +472,7 @@ public class StationModels implements Listener {
                 : cfg(m.kind, "y_offset_hidden", 0.0);
         Location at = m.station.clone().add(0.5, y, 0.5);
         at.setYaw(m.kind == Kind.BLACKJACK ? blackjackYaw(m)
-                : m.kind == Kind.MINES ? (mines() == null ? 0f : mines().menuStationYaw(m.station))
+                : m.kind.module != null ? (stationModule(m.kind) == null ? 0f : stationModule(m.kind).modelStationYaw(m.station))
                 : plugin.getStationManager().getModelYaw(m.station));
         at.setPitch(0);
         return at;
@@ -591,8 +609,8 @@ public class StationModels implements Listener {
     }
 
     private Entity hologram(Machine m) {
-        UUID id = m.kind != Kind.MINES ? plugin.getStationManager().getHologramId(m.station)
-                : mines() == null ? null : mines().menuStationHologram(m.station);
+        UUID id = m.kind.module == null ? plugin.getStationManager().getHologramId(m.station)
+                : stationModule(m.kind) == null ? null : stationModule(m.kind).modelStationHologram(m.station);
         return id == null ? null : Bukkit.getEntity(id);
     }
 
@@ -798,6 +816,46 @@ public class StationModels implements Listener {
     }
 
     // ------------------------------------------------------------------
+    // Animaciones: Plinko (models/tools/plinko_machine.js). Hay 3 bolas que se van turnando;
+    // cada bola cuelga de 8 huesos (uno por fila) y se reproduce el rebote de cada fila según
+    // el camino real, así la bola 3D cae por los mismos clavos y en la misma casilla que en el menú.
+    // ------------------------------------------------------------------
+
+    private static final String[] PLINKO_BALLS = { "a", "b", "c" };
+    private static final int PLINKO_ROWS = 8;
+
+    public boolean plinkoActive() {
+        return configEnabled(Kind.PLINKO) && bridge.present();
+    }
+
+    public double plinkoSoundRadius() {
+        return cfg(Kind.PLINKO, "sound_radius", 12);
+    }
+
+    /** Suelta una bola: {@code path[r]} = true si en la fila r rebota a la derecha (como en el menú). */
+    public void plinkoDrop(Location station, boolean[] path) {
+        Machine m = machine(station, Kind.PLINKO);
+        if (m == null || path == null || path.length < PLINKO_ROWS)
+            return;
+        String b = PLINKO_BALLS[m.nextBall++ % PLINKO_BALLS.length];
+        bridge.play(m.handle, "drop_" + b, 0, 0, true);
+        for (int r = 0; r < PLINKO_ROWS; r++) {
+            bridge.stop(m.handle, "drop_" + b + "_r" + r + (path[r] ? "_L" : "_R"));
+            bridge.play(m.handle, "drop_" + b + "_r" + r + (path[r] ? "_R" : "_L"), 0, 0, true);
+        }
+    }
+
+    /** La bola cayó en la casilla {@code slot} (0 = izquierda): se ilumina; con premio grande, destello. */
+    public void plinkoLand(Location station, int slot, boolean big) {
+        Machine m = machine(station, Kind.PLINKO);
+        if (m == null || slot < 0 || slot > PLINKO_ROWS)
+            return;
+        bridge.play(m.handle, "hit_" + slot, 0, 0.1, true);
+        if (big)
+            bridge.play(m.handle, "bigwin", 0, 0.1, true);
+    }
+
+    // ------------------------------------------------------------------
     // Mesa de ruleta: tamaño, zonas clickeables, casillas del tablero y fichas
     // Medidas del modelo (models/tools/roulette_table.js), en unidades (16 = 1 bloque):
     // la rueda en el origen y la mesa hacia +X de -30 a 122, Z de -30 a 30, paño a 12.4.
@@ -915,7 +973,7 @@ public class StationModels implements Listener {
     private List<org.bukkit.block.Block> colliderCells(Machine m, Location at) {
         List<org.bukkit.block.Block> out = new ArrayList<>();
         org.bukkit.block.Block foot = at.getBlock();
-        if (m.kind == Kind.SLOTS || m.kind == Kind.EXCHANGE || m.kind == Kind.MINES) {
+        if (m.kind == Kind.SLOTS || m.kind == Kind.EXCHANGE || m.kind.module != null) {
             out.add(foot);
             out.add(foot.getRelative(org.bukkit.block.BlockFace.UP)); // la máquina mide 2 bloques
             return out;
@@ -1490,9 +1548,9 @@ public class StationModels implements Listener {
                 if (poker != null)
                     poker.openMenu(p);
             }
-            case MINES -> {
-                if (mines() != null)
-                    mines().openFromModel(p, m.station);
+            case MINES, PLINKO -> {
+                if (stationModule(m.kind) != null)
+                    stationModule(m.kind).openFromModel(p, m.station);
             }
         }
     }
