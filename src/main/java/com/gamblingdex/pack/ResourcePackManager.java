@@ -28,6 +28,10 @@ import java.util.zip.ZipOutputStream;
  * custom_model_data, fuentes, sonidos, atlas, idiomas) se combinan en vez de pisarse.</li>
  * </ul>
  * Si {@code resource_pack.send.url} está puesto, se manda a cada jugador al entrar.
+ * <p>
+ * Con {@code resource_pack.host.enabled} el plugin sirve el pack él mismo (un mini servidor
+ * web en {@code host.port}): lo arma solo al arrancar y con /gdx pack, y se lo manda a cada
+ * jugador al entrar (y a los conectados si cambió). No hay que subirlo a ninguna web.
  */
 public class ResourcePackManager implements Listener {
 
@@ -35,9 +39,111 @@ public class ResourcePackManager implements Listener {
     public static final String MERGED_ZIP = "GamblingDex-merged.zip";
 
     private final GamblingDexPlugin plugin;
+    /** Mini servidor web del pack (resource_pack.host). */
+    private com.sun.net.httpserver.HttpServer http;
+    private volatile byte[] hosted;
+    private volatile String hostedSha1;
 
     public ResourcePackManager(GamblingDexPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    // ------------------------------------------------------------------
+    // Pack servido por el plugin (resource_pack.host)
+    // ------------------------------------------------------------------
+
+    private boolean hostEnabled() {
+        return plugin.getConfig().getBoolean("resource_pack.host.enabled", false);
+    }
+
+    /** Arranca (o reinicia) el servidor del pack y lo arma un poco después (cuando ModelEngine ya hizo el suyo). */
+    public void startHost() {
+        stopHost();
+        if (!hostEnabled())
+            return;
+        int port = plugin.getConfig().getInt("resource_pack.host.port", 8163);
+        try {
+            http = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(port), 0);
+            http.createContext("/", ex -> {
+                byte[] body = hosted;
+                try (ex) {
+                    if (body == null) {
+                        ex.sendResponseHeaders(503, -1);
+                        return;
+                    }
+                    ex.getResponseHeaders().set("Content-Type", "application/zip");
+                    ex.sendResponseHeaders(200, body.length);
+                    ex.getResponseBody().write(body);
+                }
+            });
+            http.start();
+            plugin.getLogger().info("[Pack] Sirviendo el resource pack en el puerto " + port + ".");
+        } catch (IOException e) {
+            http = null;
+            plugin.getLogger().warning("[Pack] No se pudo abrir el puerto " + port + " para el resource pack: "
+                    + e.getMessage() + " (¿está ocupado o tu hosting no lo deja?)");
+            return;
+        }
+        if (hostAddress() == null)
+            plugin.getLogger().warning("[Pack] Pon la IP pública o el dominio de tu server en resource_pack.host.address"
+                    + " para que los jugadores puedan bajar el pack.");
+        // ModelEngine arma su pack al arrancar: se espera un poco para incluirlo
+        plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+            try {
+                publish(build());
+            } catch (IOException e) {
+                plugin.getLogger().warning("[Pack] No se pudo armar el resource pack: " + e.getMessage());
+            }
+        }, 200L);
+    }
+
+    public void stopHost() {
+        if (http != null) {
+            http.stop(0);
+            http = null;
+        }
+    }
+
+    /** IP o dominio con el que los jugadores llegan al server (host.address o server-ip), o null. */
+    private String hostAddress() {
+        String a = plugin.getConfig().getString("resource_pack.host.address", "");
+        if (a == null || a.isBlank())
+            a = plugin.getServer().getIp();
+        return a == null || a.isBlank() ? null : a.trim();
+    }
+
+    /** URL del pack servido (cambia con cada versión para que el cliente baje la nueva), o null. */
+    private String hostedUrl() {
+        String addr = hostAddress();
+        if (http == null || hosted == null || addr == null)
+            return null;
+        return "http://" + addr + ":" + plugin.getConfig().getInt("resource_pack.host.port", 8163) + "/" + hostedSha1
+                + ".zip";
+    }
+
+    /**
+     * Después de armar el pack (al arrancar o con /gdx pack): si el plugin lo sirve, pasa a
+     * servir el nuevo y se lo manda a los que están conectados si cambió. Se puede llamar desde
+     * cualquier hilo.
+     */
+    public void publish(Result r) throws IOException {
+        if (http == null)
+            return;
+        File f = r.merged() != null ? r.merged() : r.pack();
+        String sha = r.merged() != null ? r.mergedSha1() : r.packSha1();
+        boolean changed = !sha.equals(hostedSha1);
+        hosted = Files.readAllBytes(f.toPath());
+        hostedSha1 = sha;
+        if (changed)
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                for (Player p : plugin.getServer().getOnlinePlayers())
+                    sendTo(p);
+            });
+    }
+
+    /** ¿El plugin está sirviendo el pack? (para los mensajes de /gdx pack) */
+    public String hostingUrl() {
+        return hostedUrl();
     }
 
     /** ¿Los menús usan el fondo del resource pack? */
@@ -231,21 +337,32 @@ public class ResourcePackManager implements Listener {
             tm.refreshChipModels(event.getPlayer().getInventory());
             tm.refreshChipModels(event.getPlayer().getEnderChest());
         }
-        if (!plugin.getConfig().getBoolean("resource_pack.send.enabled", false))
-            return;
-        String url = plugin.getConfig().getString("resource_pack.send.url", "");
-        if (url == null || url.isBlank())
-            return;
         Player p = event.getPlayer();
-        byte[] hash = hex(plugin.getConfig().getString("resource_pack.send.sha1", ""));
-        String prompt = plugin.color(plugin.getConfig().getString("resource_pack.send.prompt",
-                "&6GamblingDex &7usa un resource pack para los menús y sonidos del casino."));
-        boolean required = plugin.getConfig().getBoolean("resource_pack.send.required", false);
         // Un poco después de entrar (algunos clientes ignoran el pack si llega en el mismo tick).
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (p.isOnline())
-                p.setResourcePack(url, hash, prompt, required);
+                sendTo(p);
         }, 20L);
+    }
+
+    /** Le manda el pack al jugador: el que sirve el plugin o el de resource_pack.send.url. */
+    private void sendTo(Player p) {
+        String url = hostedUrl();
+        byte[] hash;
+        if (url != null) {
+            hash = hex(hostedSha1);
+        } else {
+            if (!plugin.getConfig().getBoolean("resource_pack.send.enabled", false))
+                return;
+            url = plugin.getConfig().getString("resource_pack.send.url", "");
+            if (url == null || url.isBlank())
+                return;
+            hash = hex(plugin.getConfig().getString("resource_pack.send.sha1", ""));
+        }
+        String prompt = plugin.color(plugin.getConfig().getString("resource_pack.send.prompt",
+                "&6&lDescarga el pack de texturas del casino\n&7Mesas 3D, cartas, fichas, menús y sonidos."));
+        boolean required = plugin.getConfig().getBoolean("resource_pack.send.required", false);
+        p.setResourcePack(url, hash, prompt, required);
     }
 
     private static byte[] hex(String s) {

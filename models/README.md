@@ -208,3 +208,11 @@ Si otro plugin tiene su propio resource pack, ponlo en `config.yml → resource_
 lleva todo junto (ese pack + ModelEngine + GamblingDex). Los archivos que comparten (modelos de
 ítems con custom_model_data, ítems 1.21.4+, fuentes, atlas, sonidos, idiomas) se combinan en vez
 de pisarse, así que salen las texturas de todos con un solo pack.
+
+## Que el pack se descargue solo
+
+Con `resource_pack.host.enabled: true` (más `port` y `address`) el plugin sirve el pack él mismo:
+lo arma al arrancar y con `/gdx pack`, y a cada jugador que entra le sale la pantalla de
+"Descarga el pack de texturas" (texto en `resource_pack.send.prompt`). No hay que subirlo a
+ninguna web ni copiar el SHA-1; si cambia, se lo manda de nuevo a los conectados. El puerto
+tiene que estar abierto en el hosting.

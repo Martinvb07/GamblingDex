@@ -193,7 +193,8 @@ public class StationModels implements Listener {
         return switch (hideMode(k)) {
             case "always" -> true;
             case "never" -> false;
-            default -> !plugin.getConfig().getBoolean("resource_pack.send.enabled", false)
+            default -> !(plugin.getConfig().getBoolean("resource_pack.send.enabled", false)
+                    || plugin.getConfig().getBoolean("resource_pack.host.enabled", false))
                     || plugin.getConfig().getBoolean("resource_pack.send.required", false)
                     || packLoaded.contains(p.getUniqueId());
         };
