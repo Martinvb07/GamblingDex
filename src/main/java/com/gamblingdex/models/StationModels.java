@@ -419,6 +419,13 @@ public class StationModels implements Listener {
                 if (table != null && table.hasRing())
                     plugin.getWorldRouletteManager().dropRing(table);
             }
+            if (m.kind == Kind.ROULETTE) {
+                // La bola espera en la casilla del último número (la animación pasa en un instante):
+                // así se ve quieta en la rueda mientras el plato gira, y no escondida en la torreta.
+                var table = rouletteOf(m);
+                List<Integer> recent = table == null ? List.of() : table.getRecentNumbers();
+                bridge.play(m.handle, ballAnim(recent.isEmpty() ? 0 : recent.get(0)), 0, 0, 400, true);
+            }
         }
         spawnColliders(m, at);
         if (m.kind == Kind.ROULETTE) {
@@ -529,7 +536,10 @@ public class StationModels implements Listener {
                         || m.station.distanceSquared(p.getLocation()) > 64 * 64 || !hidesFor(p, m.kind))
                     continue;
                 now.add(e.getKey());
-                p.sendBlockChange(m.station, Material.AIR.createBlockData());
+                // El bloque sigue siendo sólido en el server: si no hay shulkers de colisión (pacífico o
+                // collision: false) se le muestra una barrera (invisible y sólida) para que no intente
+                // atravesarlo y el server lo devuelva de golpe.
+                p.sendBlockChange(m.station, (m.colliders.isEmpty() ? Material.BARRIER : Material.AIR).createBlockData());
                 Entity holo = hologram(m);
                 if (holo != null)
                     p.hideEntity(plugin, holo);

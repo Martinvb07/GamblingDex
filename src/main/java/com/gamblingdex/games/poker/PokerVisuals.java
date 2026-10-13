@@ -195,7 +195,8 @@ public class PokerVisuals {
                 for (int k = 0; k < hole.size(); k++) {
                     float cardYaw = yaw + (k == 0 ? -6 : 6);
                     holeCount++;
-                    Vector off = toSeat.clone().multiply(edge * 0.72).add(side.clone().multiply((k == 0 ? -0.17 : 0.17) * s));
+                    // Más hacia el centro: al 72% quedaban debajo de las piernas/brazos del que está sentado
+                    Vector off = toSeat.clone().multiply(edge * 0.58).add(side.clone().multiply((k == 0 ? -0.17 : 0.17) * s));
                     Location at = point(lay, off, k * 0.01);
                     String key = "hole:" + seat + ":" + k;
                     int face = TableProps.cmd(hole.get(k));
@@ -210,7 +211,7 @@ public class PokerVisuals {
             long bet = st.streetBets().getOrDefault(seat, 0L);
             if (bet > 0) {
                 betTotal += bet;
-                Vector off = toSeat.clone().multiply(edge * 0.45);
+                Vector off = toSeat.clone().multiply(edge * 0.36);
                 Location at = point(lay, off, 0);
                 String key = "bet:" + seat;
                 want.put(key, "b" + bet);
@@ -219,7 +220,7 @@ public class PokerVisuals {
             }
 
             if (seat == st.button()) {
-                Vector off = toSeat.clone().multiply(edge * 0.6).add(side.clone().multiply(0.42 * s));
+                Vector off = toSeat.clone().multiply(edge * 0.52).add(side.clone().multiply(0.42 * s));
                 Location at = point(lay, off, 0);
                 want.put("button", "s" + seat);
                 spawners.put("button", () -> view.placed.put("button",
@@ -288,7 +289,7 @@ public class PokerVisuals {
             if (toSeat.lengthSquared() < 1e-4)
                 continue;
             toSeat.normalize();
-            targets.add(toSeat.multiply(lay.edge(toSeat) * 0.75));
+            targets.add(toSeat.multiply(lay.edge(toSeat) * 0.6));
         }
         Vector potPos = lay.across().clone().multiply(-0.55 * lay.scale());
         int i = 0;
